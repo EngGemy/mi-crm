@@ -1,0 +1,42 @@
+---
+# ==============================================================
+# .cpanel.yml — cPanel Git™ Version Control fallback deployment
+#
+# USE THIS ONLY when GitHub Actions SSH/rsync is unavailable.
+# Limitations of this approach:
+#   - `vendor/` must already exist on the server (run composer
+#     install manually after deploy, or pre-install it).
+#   - `public/build/` must already exist (npm run build locally,
+#     then push the built assets — requires removing public/build
+#     from .gitignore temporarily, OR running Vite on the server
+#     if Node.js is available).
+#   - Artisan commands (migrate, cache) must be run manually via
+#     cPanel Terminal or SSH after each deploy.
+#
+# When to use:
+#   GitHub Actions cannot reach the server (firewall, SSH port
+#   blocked), or you prefer cPanel's built-in Git integration.
+#
+# Setup in cPanel:
+#   cPanel → Git™ Version Control → Create/manage a repository
+#   pointing to /home/sanadnat1/repos/laravel_app.git (bare),
+#   then set the deployment path to /home/sanadnat1/laravel_app.
+# ==============================================================
+
+deployment:
+  tasks:
+    - export DEPLOY_PATH=/home/sanadnat1/laravel_app
+    - export PHP=/usr/local/bin/php
+
+    # Sync code (excluding runtime dirs and secrets)
+    - /bin/rsync -a --exclude='.env' --exclude='storage' --exclude='node_modules' --exclude='.git' --exclude='.github' ./ $DEPLOY_PATH/
+
+    # Fix permissions
+    - /bin/chmod -R 775 $DEPLOY_PATH/storage $DEPLOY_PATH/bootstrap/cache
+
+    # Run artisan post-deploy (will fail silently if PHP path is wrong)
+    - cd $DEPLOY_PATH && $PHP artisan migrate --force 2>/dev/null || true
+    - cd $DEPLOY_PATH && $PHP artisan optimize:clear 2>/dev/null || true
+    - cd $DEPLOY_PATH && $PHP artisan config:cache 2>/dev/null || true
+    - cd $DEPLOY_PATH && $PHP artisan route:cache 2>/dev/null || true
+    - cd $DEPLOY_PATH && $PHP artisan view:cache 2>/dev/null || true

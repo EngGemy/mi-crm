@@ -1,0 +1,41 @@
+<?php
+
+return [
+    'mode' => 'utf-8',
+    'format' => 'A4',
+    'default_font_size' => '11',
+    'default_font' => 'cairo',
+    'margin_left' => 15,
+    'margin_right' => 15,
+    /* مع setAuto*Margin = pad: orig_tMargin/orig_bMargin = المسافة الإضافية بعد ارتفاع الترويسة/التذييل المقاس */
+    'margin_top' => 12,
+    'margin_bottom' => 12,
+    'margin_header' => 8,
+    'margin_footer' => 8,
+    'orientation' => 'P',
+    'title' => 'MI Metal Industries Contract',
+    'author' => 'MI Metal Industries',
+    'creator' => 'MI System',
+    'subject' => 'Contract',
+    'keywords' => '',
+    'display_mode' => 'fullpage',
+    'watermark_text' => '',
+    'watermark_image' => '',
+    'watermark_image_alpha' => 0.2,
+    'watermark_image_size' => 'D',
+    'watermark_image_position' => 'P',
+    'custom_font_dir' => storage_path('fonts/'),
+    'custom_font_data' => [
+        'cairo' => [
+            'R' => 'Cairo-Regular.ttf',
+            'B' => 'Cairo-Bold.ttf',
+            'useOTL' => 0xFF,
+            'useKashida' => 75,
+        ],
+    ],
+    'auto_language_detection' => true,
+    'autoLangToFont' => true,
+    'autoScriptToLang' => true,
+    'show_image_errors' => false,
+    'tempDir' => sys_get_temp_dir(),
+];

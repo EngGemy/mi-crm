@@ -1,0 +1,142 @@
+# ==============================================================
+# CI/CD — Deploy to cPanel shared hosting via rsync over SSH
+#
+# PHP_VERSION must match the server exactly.
+# Verify by running:  ssh user@host 'php -v'
+# ==============================================================
+
+name: Deploy to Production (cPanel)
+
+env:
+  PHP_VERSION: '8.3'   # ← MUST match `php -v` on the server
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Prevent two deployments running at the same time.
+# If a push arrives while a deploy is in progress, it waits (not canceled).
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # ----------------------------------------------------------
+      # 1. Checkout
+      # ----------------------------------------------------------
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ----------------------------------------------------------
+      # 2. PHP (version must match server)
+      # ----------------------------------------------------------
+      - name: Setup PHP ${{ env.PHP_VERSION }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, bcmath, gd, zip, pdo_mysql, intl
+          coverage: none
+
+      # ----------------------------------------------------------
+      # 3. Composer — production install (vendor goes to server)
+      # ----------------------------------------------------------
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install Composer dependencies
+        run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+      # ----------------------------------------------------------
+      # 4. Node / Vite — build frontend assets
+      # ----------------------------------------------------------
+      - name: Cache npm packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Install npm dependencies & build assets
+        run: |
+          npm ci
+          npm run build
+
+      # ----------------------------------------------------------
+      # 5. SSH key setup
+      # ----------------------------------------------------------
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      # ----------------------------------------------------------
+      # 6. Deploy via rsync
+      #
+      # ⚠️  WARNING: --delete removes files on the server that are
+      # not in this build.  If DEPLOY_PATH is wrong, it can destroy
+      # unrelated server files.  Double-check the secret before the
+      # first push.
+      #
+      # Intentionally excluded from rsync:
+      #   .env         — lives only on the server, never overwritten
+      #   storage/     — logs / uploads persist on server
+      #   tests/       — not needed in production
+      # ----------------------------------------------------------
+      - name: Deploy code via rsync
+        run: |
+          rsync -azc --delete \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='node_modules' \
+            --exclude='.env' \
+            --exclude='storage' \
+            --exclude='tests' \
+            --exclude='*.bak' \
+            --exclude='.phpunit*' \
+            --exclude='deploy' \
+            --exclude='.cpanel.yml' \
+            -e "ssh -p ${{ secrets.SSH_PORT }} -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            ./ \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/
+
+      # ----------------------------------------------------------
+      # 7. Post-deploy artisan commands (run on the server)
+      # ----------------------------------------------------------
+      - name: Run post-deploy commands
+        run: |
+          ssh -p ${{ secrets.SSH_PORT }} \
+              -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'ENDSSH'
+            set -e
+            cd ${{ secrets.DEPLOY_PATH }}
+            php artisan migrate --force
+            php artisan storage:link || true
+            php artisan optimize:clear
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            php artisan queue:restart || true
+          ENDSSH
+
+      # ----------------------------------------------------------
+      # 8. Always remove the temporary deploy key
+      # ----------------------------------------------------------
+      - name: Remove SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

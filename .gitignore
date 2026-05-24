@@ -1,0 +1,98 @@
+# ==============================================================
+# Laravel — Professional .gitignore
+# ==============================================================
+
+# Dependencies
+/vendor
+/node_modules
+
+# Build artifacts
+/public/build
+/public/hot
+/public/storage
+
+# Environment — NEVER commit .env files
+.env
+.env.*
+!.env.example
+
+# Laravel storage keys & pail
+/storage/*.key
+/storage/pail
+
+# ==============================================================
+# Storage — runtime directories (kept via .gitkeep)
+# ==============================================================
+/storage/logs/*
+!/storage/logs/.gitkeep
+
+/storage/framework/cache/data/*
+!/storage/framework/cache/data/.gitkeep
+
+/storage/framework/views/*
+!/storage/framework/views/.gitkeep
+
+# Sessions & testing already have .gitignore files inside
+/storage/framework/sessions/*
+!/storage/framework/sessions/.gitignore
+
+# User-uploaded files (re-create/upload manually on server)
+/storage/app/public/*
+!/storage/app/public/.gitkeep
+
+# Application runtime dirs
+/storage/app/livewire-tmp/*
+/storage/app/mpdf/*
+/storage/app/temp/*
+/storage/app/quotations/*
+/storage/app/lead-imports/*
+
+# mPDF font cache — keep original Cairo TTF, exclude generated cache
+/storage/fonts/*.ufm
+/storage/fonts/*.ufm.json
+/storage/fonts/installed-fonts.json
+/storage/fonts/cairo_*[a-f0-9].ttf
+
+# Bootstrap cache
+/bootstrap/cache/*.php
+
+# ==============================================================
+# Testing
+# ==============================================================
+/.phpunit.cache
+.phpunit.result.cache
+
+# ==============================================================
+# IDE / Editor
+# ==============================================================
+/.fleet
+/.idea
+/.nova
+/.vscode
+/.zed
+.phpactor.json
+
+# ==============================================================
+# Development tools
+# ==============================================================
+Homestead.json
+Homestead.yaml
+auth.json
+npm-debug.log
+yarn-error.log
+
+# ==============================================================
+# Project-specific junk (root level only)
+# ==============================================================
+/*.tar.gz
+/*.zip
+/*.dump
+/*.bak
+/*_page*.png
+/ref*.png
+/ref*.pdf
+/check_battery.php
+/_*.php
+/extract_pdf*.php
+/old_contract.blade.php
+/backups/

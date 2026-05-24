@@ -1,0 +1,292 @@
+<?php
+
+namespace App\Services;
+
+use App\Enums\PoultryPricingScope;
+use App\Enums\PoultryProjectType;
+use App\Models\Quotation;
+use App\Models\QuotationItem;
+use App\Models\QuotationSection;
+use App\Services\Poultry\PoultryConfigLoader;
+use App\Services\Poultry\PoultryTechnicalCalculator;
+use App\Support\CurrencyConverter;
+use App\Support\FinancialEngine;
+use App\Support\HeaterOptions;
+use App\Support\TaxResolver;
+use Illuminate\Support\Facades\DB;
+
+/**
+ * Auto-pricing engine for poultry house quotations.
+ * Technical quantities: PoultryTechnicalCalculator (single source of truth).
+ * Prices: settings (category=poultry_pricing).
+ */
+class PoultryHousePricingService
+{
+    public const REQUIRED_INPUTS = [
+        'hall_length', 'hall_width', 'hall_height',
+        'tiers', 'lines',
+    ];
+
+    public function __construct(
+        protected PoultryTechnicalCalculator $technical = new PoultryTechnicalCalculator,
+        protected PoultryConfigLoader $configLoader = new PoultryConfigLoader,
+    ) {}
+
+    /** Compute the full breakdown (pure, no DB writes). */
+    public function compute(array $input, ?array $params = null): array
+    {
+        $this->validate($input);
+
+        $projectType = PoultryProjectType::from($input['project_type'] ?? PoultryProjectType::Broiler->value);
+        $scope = PoultryPricingScope::from($input['pricing_scope'] ?? PoultryPricingScope::FullProject->value);
+        $pricingParams = $params ?? $this->loadParams($input['wall_type'] ?? null);
+        $technicalConfig = $this->configLoader->resolveTechnicalConfig($pricingParams);
+
+        $length = (float) $input['hall_length'];
+        $width = (float) $input['hall_width'];
+        $height = (float) $input['hall_height'];
+        $serviceLength = (float) ($input['service_length'] ?? $technicalConfig['default_service_length']);
+
+        $technicalInput = [
+            'project_type' => $projectType->value,
+            'barn_length' => $length,
+            'barn_width' => $width,
+            'service_length' => $serviceLength,
+            'tiers' => (int) $input['tiers'],
+            'lines' => (int) $input['lines'],
+            'bird_weight_kg' => $input['bird_weight_kg'] ?? null,
+            'birds_per_nest' => $input['birds_per_nest'] ?? null,
+            'side_fans_count' => $input['side_fans_count'] ?? null,
+            'heaters_count' => $input['heaters_count'] ?? null,
+            'air_windows_count' => $input['air_windows_count'] ?? null,
+        ];
+
+        $technical = $this->technical->compute($technicalInput, $technicalConfig);
+
+        $concreteArea = $length * $width;
+        $steelArea = $length * $width;
+        $wallsArea = $length * $height * 2;
+        $birdCount = (int) $technical['total_birds'];
+        $mainFans = (int) ($technical['main_fans_count'] ?? $technical['rear_fans_count']);
+        $coolingUnits = (float) $technical['cooling_pad_length_m'];
+        $windowsCount = (int) ($technical['air_windows_count'] ?? 0);
+        $sideFansQty = (int) ($technical['side_fans_count'] ?? 0);
+        $heatersQty = (int) ($technical['heaters_count'] ?? 0);
+
+        $tanksFixedCost = (float) ($pricingParams['tanks_fixed_cost'] ?? 0);
+        $includeTanks = ($pricingParams['include_tanks'] ?? true) && $tanksFixedCost > 0;
+
+        $fanLabelAr = $projectType === PoultryProjectType::Layer ? 'الشفاطات الخلفية (بياض)' : 'الشفاطات الرئيسية';
+        $fanLabelEn = $projectType === PoultryProjectType::Layer ? 'Rear exhaust fans' : 'Main exhaust fans';
+
+        $heaterLine = $this->buildHeaterLineItem($heatersQty, $pricingParams);
+
+        $allItems = [
+            ['section' => 'civil', 'key' => 'concrete', 'desc_ar' => 'الخرسانات (الطول × العرض)', 'desc_en' => 'Concrete', 'unit' => 'm²', 'qty' => round($concreteArea, 2), 'unit_price' => $pricingParams['concrete_cost_per_m2']],
+            ['section' => 'civil', 'key' => 'steel', 'desc_ar' => 'الجملون / الاستيل والعزل (الطول × العرض)', 'desc_en' => 'Steel', 'unit' => 'm²', 'qty' => round($steelArea, 2), 'unit_price' => $pricingParams['steel_cost_per_m2']],
+            ['section' => 'civil', 'key' => 'walls', 'desc_ar' => 'الحوائط (الطول × الارتفاع × 2)', 'desc_en' => 'Walls', 'unit' => 'm²', 'qty' => round($wallsArea, 2), 'unit_price' => $pricingParams['wall_cost_per_m2']],
+            ['section' => 'civil', 'key' => 'tanks', 'desc_ar' => 'الخزانات (مياه شرب/أدوية/تبريد/سولار)', 'desc_en' => 'Water tanks (fixed lot)', 'unit' => 'lot', 'qty' => $includeTanks ? 1 : 0, 'unit_price' => $tanksFixedCost],
+            // سعر الطائر ثابت (flat) مستقل عن الوزن المعروض في الحاسبة — يُحسب على أساس وزن مرجعي ثابت من الإعدادات
+            ['section' => 'cages', 'key' => 'battery', 'desc_ar' => 'بطاريات العنبر', 'desc_en' => 'Battery cages', 'unit' => 'lot', 'qty' => 1, 'unit_price' => round($birdCount * (float) $pricingParams['price_per_bird'], 2), 'hide_unit_details' => true],
+            ['section' => 'ventilation', 'key' => 'main_fans', 'desc_ar' => $fanLabelAr, 'desc_en' => $fanLabelEn, 'unit' => 'piece', 'qty' => $mainFans, 'unit_price' => $pricingParams['back_fan_unit_price']],
+            ['section' => 'cooling', 'key' => 'cooling', 'desc_ar' => 'وحدات التبريد', 'desc_en' => 'Cooling units', 'unit' => 'm', 'qty' => round($coolingUnits, 2), 'unit_price' => $pricingParams['cooling_unit_price']],
+            ['section' => 'ventilation', 'key' => 'windows', 'desc_ar' => 'الشبابيك (Inlets)', 'desc_en' => 'Windows', 'unit' => 'piece', 'qty' => $windowsCount, 'unit_price' => $pricingParams['window_unit_price']],
+            ['section' => 'ventilation', 'key' => 'side_fans', 'desc_ar' => 'الشفاطات الجانبية', 'desc_en' => 'Side fans', 'unit' => 'piece', 'qty' => $sideFansQty, 'unit_price' => $pricingParams['side_fan_unit_price']],
+            $heaterLine,
+            ['section' => 'electrical', 'key' => 'control', 'desc_ar' => 'لوحة مونيتر', 'desc_en' => 'Monitor panel', 'unit' => 'lot', 'qty' => 1, 'unit_price' => $pricingParams['control_fixed_cost']],
+            ['section' => 'electrical', 'key' => 'electricity', 'desc_ar' => 'الكهرباء والإنارة واللوحة وحوامل الكابلات', 'desc_en' => 'Electricity, lighting & cable trays', 'unit' => 'lot', 'qty' => 1, 'unit_price' => $pricingParams['electricity_fixed_cost'] ?? 0],
+        ];
+
+        $includedSections = $scope->includedSections();
+        $customKeys = $input['custom_item_keys'] ?? null;
+
+        $items = array_values(array_filter($allItems, function ($item) use ($includedSections, $scope, $customKeys, $technical) {
+            if ($item['qty'] <= 0 && in_array($item['key'], ['tanks', 'windows', 'side_fans', 'heaters'], true)) {
+                return false;
+            }
+            if (! ($technical['include_side_fans'] ?? true) && $item['key'] === 'side_fans') {
+                return false;
+            }
+            if (! ($technical['include_heaters'] ?? true) && $item['key'] === 'heaters') {
+                return false;
+            }
+            if ($scope === PoultryPricingScope::Custom && is_array($customKeys)) {
+                return in_array($item['key'], $customKeys, true);
+            }
+
+            return in_array($item['section'], $includedSections, true);
+        }));
+
+        $items = array_map(function ($i) {
+            $i['total_price'] = round(((float) $i['qty']) * ((float) $i['unit_price']), 2);
+            $i['is_taxable'] = true;
+
+            return $i;
+        }, $items);
+
+        $sectionSubtotals = [];
+        foreach ($items as $item) {
+            $sectionSubtotals[$item['section']] = ($sectionSubtotals[$item['section']] ?? 0) + $item['total_price'];
+        }
+
+        $subtotal = array_sum(array_column($items, 'total_price'));
+
+        // الحساب المالي الموحّد (المهمة ١: مصدر حقيقة واحد)
+        $vatPercentage = TaxResolver::percentageFor($input['vat_region'] ?? 'default');
+        $financial = FinancialEngine::calculateTotals($subtotal, 0, 0, $vatPercentage);
+
+        return [
+            'inputs' => $input,
+            'parameters' => array_merge($pricingParams, $technicalConfig),
+            'technical' => $technical,
+            'computed' => [
+                'effective_length' => $technical['effective_length'],
+                'nests_per_line' => $technical['nests_per_line'] ?? null,
+                'nests_one_side' => $technical['nests_one_side'] ?? null,
+                'total_nests' => $technical['total_nests'],
+                'bird_count' => $birdCount,
+                'back_fans_count' => $mainFans,
+                'main_fans_count' => $mainFans,
+                'cooling_units' => $coolingUnits,
+                'cooling_pad_length_m' => $coolingUnits,
+                'windows_count' => $windowsCount,
+                'side_fans_count' => $sideFansQty,
+                'heaters_count' => $heatersQty,
+                'concrete_area' => $concreteArea,
+                'steel_area' => $steelArea,
+                'walls_area' => $wallsArea,
+            ],
+            'section_subtotals' => $sectionSubtotals,
+            'items' => $items,
+            'subtotal' => $subtotal,
+            'financial' => $financial,
+            'currency' => CurrencyConverter::quotationTotals($subtotal, 0, $subtotal),
+            'pricing_scope' => $scope->value,
+            'project_type' => $projectType->value,
+        ];
+    }
+
+    /** @return array{section: string, key: string, desc_ar: string, desc_en: string, unit: string, qty: int|float, unit_price: float} */
+    protected function buildHeaterLineItem(int $count, array $pricingParams): array
+    {
+        $base = [
+            'section' => 'technical',
+            'key' => 'heaters',
+            'desc_ar' => 'الدفايات',
+            'desc_en' => 'Heaters',
+            'unit' => 'lot',
+            'qty' => 0,
+            'unit_price' => 0.0,
+        ];
+
+        if ($count <= 0 || ! HeaterOptions::isAllowedCount($count)) {
+            return $base;
+        }
+
+        $prices = $pricingParams['heater_lot_prices'] ?? HeaterOptions::defaultLotPrices();
+        $key = (string) $count;
+
+        if (isset($prices[$key])) {
+            return [
+                ...$base,
+                'desc_ar' => "الدفايات — {$count} دفاية (مقطوعة)",
+                'desc_en' => "Heaters — {$count} units (lot)",
+                'qty' => 1,
+                'unit_price' => (float) $prices[$key],
+            ];
+        }
+
+        return [
+            ...$base,
+            'unit' => 'piece',
+            'desc_ar' => "الدفايات — {$count} دفاية",
+            'qty' => $count,
+            'unit_price' => (float) ($pricingParams['heater_unit_price'] ?? 0),
+        ];
+    }
+
+    public function applyToQuotation(Quotation $quotation, array $input): array
+    {
+        $result = $this->compute($input);
+
+        return DB::transaction(function () use ($quotation, $input, $result) {
+            $quotation->update([
+                'hall_length' => $input['hall_length'],
+                'hall_width' => $input['hall_width'],
+                'hall_height' => $input['hall_height'],
+                'tiers' => $input['tiers'],
+                'lines' => $input['lines'],
+                'dead_zone_meters' => $input['service_length'] ?? $result['technical']['effective_length'] ?? null,
+                'side_fans_count' => $result['computed']['side_fans_count'],
+                'heaters_count' => $result['computed']['heaters_count'],
+                'back_fans_count' => $result['computed']['back_fans_count'],
+                'cooling_units' => $result['computed']['cooling_units'],
+                'windows_count' => $result['computed']['windows_count'],
+                'bird_capacity' => $result['computed']['bird_count'],
+                'pricing_snapshot' => $result,
+            ]);
+
+            $quotation->items()->delete();
+            $sectionMap = QuotationSection::pluck('id', 'category')->all();
+
+            foreach ($result['items'] as $idx => $row) {
+                QuotationItem::create([
+                    'quotation_id' => $quotation->id,
+                    'section_id' => $sectionMap[$row['section']] ?? null,
+                    'description_ar' => $row['desc_ar'],
+                    'description_en' => $row['desc_en'],
+                    'unit' => $row['unit'],
+                    'quantity' => $row['qty'],
+                    'unit_price' => $row['unit_price'],
+                    'discount_percentage' => 0,
+                    'total_price' => $row['total_price'],
+                    'is_taxable' => true,
+                    'sort_order' => $idx,
+                ]);
+            }
+
+            QuotationCalculator::applyQuotationHeaderTotals($quotation->fresh('items'));
+
+            return $result;
+        });
+    }
+
+    public function recomputeFromSnapshot(Quotation $quotation): array
+    {
+        if (! $quotation->pricing_snapshot) {
+            throw new \RuntimeException('لا يوجد snapshot محفوظ لهذا العرض');
+        }
+        $snap = $quotation->pricing_snapshot;
+
+        return $this->compute($snap['inputs'] ?? [], $snap['parameters'] ?? null);
+    }
+
+    public function loadParams(?string $wallType = null): array
+    {
+        return $this->configLoader->loadPricingParams($wallType);
+    }
+
+    protected function validate(array $input): void
+    {
+        foreach (self::REQUIRED_INPUTS as $k) {
+            if (! isset($input[$k]) || $input[$k] === '' || $input[$k] === null) {
+                throw new \InvalidArgumentException("الحقل المطلوب مفقود: {$k}");
+            }
+        }
+        if ((float) $input['hall_length'] <= 0) {
+            throw new \InvalidArgumentException('الطول يجب أن يكون أكبر من صفر');
+        }
+        if ((float) $input['hall_width'] <= 0) {
+            throw new \InvalidArgumentException('العرض يجب أن يكون أكبر من صفر');
+        }
+        if ((float) $input['hall_height'] <= 0) {
+            throw new \InvalidArgumentException('الارتفاع يجب أن يكون أكبر من صفر');
+        }
+        if ((int) $input['tiers'] <= 0) {
+            throw new \InvalidArgumentException('عدد الأدوار يجب أن يكون 1 على الأقل');
+        }
+        if ((int) $input['lines'] <= 0) {
+            throw new \InvalidArgumentException('عدد الخطوط يجب أن يكون 1 على الأقل');
+        }
+    }
+}

@@ -1,0 +1,20 @@
+/* MI Metal Industries - Custom CSS */
+
+/* Cairo font import */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200;300;400;500;600;700;800;900&display=swap');
+
+body, html {
+    font-family: 'Cairo', sans-serif;
+}
+
+/* RTL adjustments for Filament */
+[dir="rtl"] .fi-sidebar {
+    border-right: 0;
+    border-left: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Brand colors */
+:root {
+    --mi-primary: #C00000;
+    --mi-dark: #1F1F1F;
+}
