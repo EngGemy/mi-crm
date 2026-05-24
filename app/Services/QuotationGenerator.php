@@ -29,7 +29,7 @@ class QuotationGenerator
             /* بدون pad لا يُحسب ارتفاع HTML header/footer في tMargin/bMargin — يتداخل النص مع الخط الأحمر */
             'setAutoTopMargin' => 'pad',
             'setAutoBottomMargin' => 'pad',
-            'custom_font_dir' => storage_path('fonts/'),
+            'custom_font_dir' => public_path('fonts/'),
             'custom_font_data' => [
                 'cairo' => [
                     'R' => 'Cairo-Regular.ttf',

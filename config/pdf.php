@@ -24,7 +24,7 @@ return [
     'watermark_image_alpha' => 0.2,
     'watermark_image_size' => 'D',
     'watermark_image_position' => 'P',
-    'custom_font_dir' => storage_path('fonts/'),
+    'custom_font_dir' => public_path('fonts/'),
     'custom_font_data' => [
         'cairo' => [
             'R' => 'Cairo-Regular.ttf',

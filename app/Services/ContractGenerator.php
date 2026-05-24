@@ -29,7 +29,7 @@ class ContractGenerator
             'autoScriptToLang' => true,
             'setAutoTopMargin' => 'pad',
             'setAutoBottomMargin' => 'pad',
-            'custom_font_dir' => storage_path('fonts/'),
+            'custom_font_dir' => public_path('fonts/'),
             'custom_font_data' => [
                 'cairo' => [
                     'R' => 'Cairo-Regular.ttf',
