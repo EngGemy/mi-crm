@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Contract;
 use App\Models\ContractClauseAttachment;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 /**
  * مسؤول عن استبدال المتغيرات في نصوص البنود
@@ -24,6 +25,17 @@ class ClauseRenderer
         // استبدال {{VAR_NAME}}
         foreach ($variables as $key => $value) {
             $content = str_ireplace('{{'.$key.'}}', (string) $value, $content);
+        }
+
+        // fallback: replace any unresolved {{VAR}} with dotted line
+        if (preg_match('/\{\{[A-Z0-9_]+\}\}/', $content)) {
+            preg_match_all('/\{\{([A-Z0-9_]+)\}\}/', $content, $m);
+            Log::warning('ClauseRenderer: unresolved variables', [
+                'clause_id' => $attachment->clause_id,
+                'contract_id' => $attachment->contract_id,
+                'vars' => $m[1],
+            ]);
+            $content = preg_replace('/\{\{[A-Z0-9_]+\}\}/', '............', $content);
         }
 
         // معالجة الجداول [[ITEMS_TABLE]]
@@ -109,6 +121,27 @@ class ClauseRenderer
             'PAYMENT_1_AMOUNT' => $this->formatMoney((float) $contract->total_value * $this->paymentFactor(0)),
             'PAYMENT_2_AMOUNT' => $this->formatMoney((float) $contract->total_value * $this->paymentFactor(1)),
             'PAYMENT_3_AMOUNT' => $this->formatMoney((float) $contract->total_value * $this->paymentFactor(2)),
+
+            // جداول زمنية إضافية
+            'DAYS_TESTING' => 30,
+            'DAYS_TRAINING' => 7,
+            'COUNT_WORKERS' => 2,
+            'DAYS_NOTIFY' => 7,
+
+            // ضمانات إضافية
+            'YEARS_WARRANTY_STEEL' => $contract->manufacturing_warranty_years ?? 12,
+            'MONTHS_WARRANTY_MANUFACTURING' => $contract->warranty_months ?? 12,
+            'YEARS_SPARE_PARTS' => 3,
+
+            // غرامات
+            'AMOUNT_PENALTY' => $this->formatMoney((float) $contract->total_value * 0.005),
+            'DAYS_PENALTY_MAX' => 30,
+
+            // سرية وقانون
+            'YEARS_CONFIDENTIALITY' => 5,
+            'DAYS_NEGOTIATION' => 15,
+            'LOCATION_COURT' => $contract->installation_location ?? '',
+            'JURISDICTION_LEGAL' => $contract->installation_location ?? '',
         ];
     }
 

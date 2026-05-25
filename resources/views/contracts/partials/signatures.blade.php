@@ -7,7 +7,7 @@
 <table style="width: 100%; border-collapse: collapse; margin-top: 30mm; page-break-inside: avoid;">
     <tr>
         <td style="text-align: center; width: 50%; vertical-align: top; border: 2px solid #1a1a1a; padding: 5mm;">
-            <div style="background: #f0f0f0; padding: 3mm; margin: -5mm -5mm 5mm -5mm; font-weight: bold; font-size: 12pt;">
+            <div style="background: #f0f0f0; padding: 3mm; margin: 0 0 5mm 0; font-weight: bold; font-size: 12pt;">
                 الطرف الأول (البائع)
             </div>
             <p style="margin: 2mm 0;"><strong>الاسم:</strong> @setting('company.owner_name_ar')</p>
@@ -17,7 +17,7 @@
             <p style="font-size: 9pt; color: #666; margin: 2mm 0;">التاريخ: ......................</p>
         </td>
         <td style="text-align: center; width: 50%; vertical-align: top; border: 2px solid #1a1a1a; padding: 5mm;">
-            <div style="background: #f0f0f0; padding: 3mm; margin: -5mm -5mm 5mm -5mm; font-weight: bold; font-size: 12pt;">
+            <div style="background: #f0f0f0; padding: 3mm; margin: 0 0 5mm 0; font-weight: bold; font-size: 12pt;">
                 الطرف الثاني (المشتري)
             </div>
             <p style="margin: 2mm 0;"><strong>الاسم:</strong> {{ $contract->customer->name }}</p>

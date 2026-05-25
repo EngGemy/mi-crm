@@ -6,9 +6,11 @@
     <style>
         @page {
             margin-top: 20mm;
-            margin-bottom: 32mm;
+            margin-bottom: 36mm;
             margin-left: 15mm;
             margin-right: 15mm;
+            odd-footer-name: html_contractFooter;
+            even-footer-name: html_contractFooter;
         }
 
         body {
@@ -109,7 +111,6 @@
     @include('contracts.partials._footer')
 
     <sethtmlpageheader name="contract_header" page="ALL" value="on" show-this-page="1" />
-    <sethtmlpagefooter name="contract_footer" page="ALL" value="on" show-this-page="1" />
 
     @include('contracts.partials.cover')
 
