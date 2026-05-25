@@ -64,8 +64,14 @@
     .pdf-footer-bar {
         background: {{ settings('branding.primary_color') }};
         color: #fff;
-        margin: 0 -15mm;
-        padding: 2.5mm 4mm 3mm 4mm;
+        margin-top: 0;
+        margin-bottom: 0;
+        margin-right: -15mm;
+        margin-left: -15mm;
+        padding-top: 2.5mm;
+        padding-bottom: 3mm;
+        padding-right: 19mm;
+        padding-left: 19mm;
         font-size: 8pt;
         line-height: 1.45;
     }
@@ -302,12 +308,8 @@
                     <div class="brand">@setting('company.name_ar')</div>
                     <div class="sub-brand">@setting('company.tagline_ar')</div>
                 </td>
-                <td style="width:25%;" class="header-contact" dir="ltr">
-                    <strong style="color:{{ settings('branding.primary_color') }}; font-size:8.5pt;">Contact Us</strong><br>
-                    @foreach(settings('contact.phones', []) as $phone)
-                        +{{ ltrim($phone, '+') }}@if(!$loop->last)<br>@endif
-                    @endforeach
-                    <br>@setting('contact.website')
+                <td style="width:25%; text-align:center;" dir="ltr">
+                    <span style="font-size:8.5pt; color:{{ settings('branding.primary_color') }}; font-weight:bold;">Contact Us</span>
                 </td>
             </tr>
         </table>
@@ -318,12 +320,12 @@
     <div class="pdf-footer-bar">
         <table style="width:100%; border-collapse:collapse;">
             <tr>
-                <td style="width:33%; text-align:center;">
+                <td style="width:33%; text-align:center;" dir="ltr">
                     @foreach(settings('contact.phones', []) as $phone)
-                        {{ $phone }}@if(!$loop->last)<br>@endif
+                        +{{ ltrim($phone, '+') }}@if(!$loop->last)<br>@endif
                     @endforeach
                 </td>
-                <td style="width:33%; text-align:center;">
+                <td style="width:33%; text-align:center;" dir="ltr">
                     @setting('contact.website')<br>@setting('contact.email')
                 </td>
                 <td style="width:33%; text-align:center;">
@@ -332,7 +334,7 @@
             </tr>
         </table>
         <div class="pdf-footer-meta">
-            صفحة {PAGENO} | عرض سعر رقم: {{ $quotation->quotation_number }} | صالح حتى {{ $quotation->valid_until?->format('Y-m-d') }}
+            صفحة {PAGENO} | عرض سعر رقم: <bdi dir="ltr">{{ $quotation->quotation_number }}</bdi> | صالح حتى {{ $quotation->valid_until?->format('Y-m-d') }}
         </div>
         <div class="pdf-signature-line">
             توقيع الطرف الثاني: .................................................... | صفحة {PAGENO} من {nbpg}

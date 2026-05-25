@@ -1,3 +1,12 @@
+@php
+    $snapInputs = ($quotation->pricing_snapshot ?? [])['inputs'] ?? [];
+    $coverHallLength = $quotation->hall_length ?? ($snapInputs['hall_length'] ?? null);
+    $coverHallWidth  = $quotation->hall_width  ?? ($snapInputs['hall_width']  ?? null);
+    $coverHallHeight = $quotation->hall_height ?? ($snapInputs['hall_height'] ?? null);
+    $coverBirdCap    = $quotation->bird_capacity
+                       ?? (($quotation->pricing_snapshot ?? [])['computed']['bird_count'] ?? null)
+                       ?? (($quotation->pricing_snapshot ?? [])['technical']['total_birds'] ?? null);
+@endphp
 {{-- صفحة الغلاف --}}
 <div class="cover-header-bar">
     <div style="margin-bottom:3mm;">
@@ -49,28 +58,34 @@
         <td class="dim-label">نوع العنبر</td>
         <td>{{ $quotation->hall_type ?? 'تسمين' }}</td>
     </tr>
+    @if($coverHallLength)
     <tr>
         <td class="dim-label">طول العنبر</td>
-        <td>{{ $quotation->hall_length ? number_format($quotation->hall_length, 0) . ' متر' : '-' }}</td>
+        <td>{{ number_format($coverHallLength, 0) }} متر</td>
     </tr>
+    @endif
+    @if($coverHallWidth)
     <tr>
         <td class="dim-label">عرض العنبر</td>
-        <td>{{ $quotation->hall_width ? number_format($quotation->hall_width, 0) . ' متر' : '-' }}</td>
+        <td>{{ number_format($coverHallWidth, 0) }} متر</td>
     </tr>
+    @endif
+    @if($coverHallHeight)
     <tr>
         <td class="dim-label">ارتفاع العنبر</td>
-        <td>{{ $quotation->hall_height ? number_format($quotation->hall_height, 0) . ' متر' : '-' }}</td>
+        <td>{{ number_format($coverHallHeight, 0) }} متر</td>
     </tr>
-    @if($quotation->hall_count > 1)
+    @endif
+    @if(($quotation->hall_count ?? 1) > 1)
     <tr>
         <td class="dim-label">عدد العنابر</td>
         <td>{{ $quotation->hall_count }}</td>
     </tr>
     @endif
-    @if($quotation->bird_capacity)
+    @if($coverBirdCap)
     <tr>
         <td class="dim-label">السعة</td>
-        <td>{{ number_format($quotation->bird_capacity) }} طائر</td>
+        <td>{{ number_format((int) $coverBirdCap) }} طائر</td>
     </tr>
     @endif
 </table>
@@ -78,5 +93,5 @@
 <div class="text-center" style="margin:3mm 0 5mm 0;">
     <p class="text-small text-gray">تاريخ العرض: {{ $quotation->quotation_date?->format('Y-m-d') }}</p>
     <p class="text-small text-gray">صالح حتى: {{ $quotation->valid_until?->format('Y-m-d') }}</p>
-    <p class="text-small text-gray">رقم العرض: {{ $quotation->quotation_number }}</p>
+    <p class="text-small text-gray">رقم العرض: <bdi dir="ltr">{{ $quotation->quotation_number }}</bdi></p>
 </div>

@@ -30,8 +30,8 @@
         <td style="width:50%; border:none; vertical-align:top; padding:2mm;">
             <div style="background: linear-gradient(135deg, #fafbfc 0%, #f8fafc 100%); border:1px solid #E0E0E0; padding:5mm; border-radius:3mm; text-align:center;">
                 <p style="font-size:14pt; font-weight:bold; color:{{ settings('branding.primary_color') }}; margin:0 0 2mm 0;">@setting('company.name_ar')</p>
-                <p style="font-size:10pt; color:#666; margin:0 0 3mm 0;">@setting('contact.website')</p>
-                <p style="font-size:10pt; color:#333; margin:1mm 0;">@setting('contact.email')</p>
+                <p style="font-size:10pt; color:#666; margin:0 0 3mm 0;" dir="ltr">@setting('contact.website')</p>
+                <p style="font-size:10pt; color:#333; margin:1mm 0;" dir="ltr">@setting('contact.email')</p>
                 @foreach(settings('contact.phones', []) as $phone)
                 <p style="font-size:10pt; color:#333; margin:1mm 0;" dir="ltr">+{{ ltrim($phone, '+') }}</p>
                 @endforeach
