@@ -2,10 +2,15 @@
 
 namespace App\Providers;
 
+use App\Listeners\AuthEventListener;
 use App\Models\QuotationItem;
 use App\Observers\AuditObserver;
 use App\Observers\QuotationItemObserver;
+use Illuminate\Auth\Events\Failed;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -23,6 +28,12 @@ class AppServiceProvider extends ServiceProvider
 
         // المراقب الوظيفي لبنود العروض (إعادة حساب الإجماليات)
         QuotationItem::observe(QuotationItemObserver::class);
+
+        // تسجيل أحداث المصادقة في سجل التدقيق
+        $authListener = app(AuthEventListener::class);
+        Event::listen(Login::class, [$authListener, 'handleLogin']);
+        Event::listen(Logout::class, [$authListener, 'handleLogout']);
+        Event::listen(Failed::class, [$authListener, 'handleFailed']);
 
         // المراقب العام للتدقيق — يُطبَّق على كل الموديلات المُدرجة في config/audit.php
         $auditObserver = app(AuditObserver::class);

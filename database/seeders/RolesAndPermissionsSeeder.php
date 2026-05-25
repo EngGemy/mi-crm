@@ -52,6 +52,9 @@ class RolesAndPermissionsSeeder extends Seeder
             // Users
             'users.view_any', 'users.view', 'users.create', 'users.update',
             'users.delete', 'users.assign_roles',
+
+            // Audit
+            'audit.view',
         ];
 
         foreach ($permissions as $permission) {
@@ -68,6 +71,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'users.create', 'users.delete', 'users.assign_roles',
             'settings.update',
         ]));
+        $admin->givePermissionTo('audit.view');
 
         // === Sales Manager ===
         $salesManager = Role::firstOrCreate(['name' => 'sales_manager']);
