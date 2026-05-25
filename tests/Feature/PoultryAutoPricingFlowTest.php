@@ -11,6 +11,7 @@ use App\Services\PoultryHousePricingService;
 use App\Services\QuotationGenerator;
 use App\Support\PoultrySectionLabels;
 use Database\Seeders\PoultryPricingSettingsSeeder;
+use Database\Seeders\QuotationSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
@@ -26,7 +27,7 @@ class PoultryAutoPricingFlowTest extends TestCase
 
         $this->seed(RolesAndPermissionsSeeder::class);
         $this->seed(PoultryPricingSettingsSeeder::class);
-        (new \Database\Seeders\QuotationSeeder)->seedQuotationSections();
+        (new QuotationSeeder)->seedQuotationSections();
     }
 
     protected function createSalesUser(): User

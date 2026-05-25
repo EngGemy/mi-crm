@@ -46,6 +46,7 @@
 /storage/app/temp/*
 /storage/app/quotations/*
 /storage/app/lead-imports/*
+/storage/app/contracts/*
 
 # mPDF font cache — keep original Cairo TTF, exclude generated cache
 /storage/fonts/*.ufm

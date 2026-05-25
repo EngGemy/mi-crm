@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Contract;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\View;
 use Mccarlosen\LaravelMpdf\Facades\LaravelMpdf as PDF;
@@ -23,6 +24,11 @@ class ContractGenerator
     public function __construct(
         protected ClauseRenderer $renderer
     ) {
+        $tempDir = storage_path('app/mpdf');
+        if (! is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+
         $this->mpdfConfig = [
             'default_font' => 'cairo',
             'autoLangToFont' => true,
@@ -38,6 +44,7 @@ class ContractGenerator
                     'useKashida' => 75,
                 ],
             ],
+            'tempDir' => $tempDir,
         ];
     }
 
@@ -54,18 +61,24 @@ class ContractGenerator
             'payments',
         ]);
 
-        $html = $this->renderHtml($contract);
+        try {
+            $html = $this->renderHtml($contract);
+            $pdf = PDF::loadHTML($html, $this->mpdfConfig);
+            $filename = "contracts/{$contract->contract_number}.pdf";
+            Storage::disk('local')->put($filename, $pdf->output());
 
-        $pdf = PDF::loadHTML($html, $this->mpdfConfig);
-
-        $filename = "contracts/{$contract->contract_number}.pdf";
-        Storage::disk('local')->put($filename, $pdf->output());
-
-        return $filename;
+            return $filename;
+        } catch (\Throwable $e) {
+            Log::error('ContractGenerator::generatePdf failed', [
+                'contract_id' => $contract->id,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
     }
 
     /**
-     * تحميل PDF مباشرة (للـ Filament)
+     * تحميل PDF مباشرة (عبر مسار HTTP)
      */
     public function downloadPdf(Contract $contract)
     {
@@ -76,10 +89,18 @@ class ContractGenerator
             'milestones', 'payments',
         ]);
 
-        $html = $this->renderHtml($contract);
+        try {
+            $html = $this->renderHtml($contract);
 
-        return PDF::loadHTML($html, $this->mpdfConfig)
-            ->download("Contract_{$contract->contract_number}.pdf");
+            return PDF::loadHTML($html, $this->mpdfConfig)
+                ->download("Contract_{$contract->contract_number}.pdf");
+        } catch (\Throwable $e) {
+            Log::error('ContractGenerator::downloadPdf failed', [
+                'contract_id' => $contract->id,
+                'error' => $e->getMessage(),
+            ]);
+            abort(500, 'فشل توليد PDF: '.$e->getMessage());
+        }
     }
 
     /**
@@ -94,10 +115,18 @@ class ContractGenerator
             'milestones', 'payments',
         ]);
 
-        $html = $this->renderHtml($contract);
+        try {
+            $html = $this->renderHtml($contract);
 
-        return PDF::loadHTML($html, $this->mpdfConfig)
-            ->stream("Contract_{$contract->contract_number}.pdf");
+            return PDF::loadHTML($html, $this->mpdfConfig)
+                ->stream("Contract_{$contract->contract_number}.pdf");
+        } catch (\Throwable $e) {
+            Log::error('ContractGenerator::streamPdf failed', [
+                'contract_id' => $contract->id,
+                'error' => $e->getMessage(),
+            ]);
+            abort(500, 'فشل عرض PDF: '.$e->getMessage());
+        }
     }
 
     /**

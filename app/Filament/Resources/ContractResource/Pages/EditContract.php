@@ -4,7 +4,6 @@ namespace App\Filament\Resources\ContractResource\Pages;
 
 use App\Filament\Resources\ContractResource;
 use App\Services\ContractCalculator;
-use App\Services\ContractGenerator;
 use App\Services\PaymentScheduler;
 use Filament\Actions;
 use Filament\Actions\Action;
@@ -53,7 +52,7 @@ class EditContract extends EditRecord
             Action::make('downloadPdf')
                 ->label('📄 تحميل PDF')
                 ->color('success')
-                ->action(fn () => app(ContractGenerator::class)->downloadPdf($this->record)),
+                ->url(fn () => route('contracts.download', $this->record)),
 
             Action::make('regeneratePayments')
                 ->label('🔄 إعادة توليد الدفعات')

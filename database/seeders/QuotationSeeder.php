@@ -196,7 +196,7 @@ class QuotationSeeder extends Seeder
         }
     }
 
-    protected function seedQuotationSections(): void
+    public function seedQuotationSections(): void
     {
         $sections = [
             [

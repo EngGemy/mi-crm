@@ -1,18 +1,18 @@
 <?php
 
-require __DIR__ . '/../vendor/autoload.php';
+require __DIR__.'/../vendor/autoload.php';
 
-$app = require_once __DIR__ . '/../bootstrap/app.php';
+$app = require_once __DIR__.'/../bootstrap/app.php';
 $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
 
-use App\Models\PoultryQuotation;
 use App\Models\Contract;
+use App\Models\ContractType;
 use App\Models\Customer;
+use App\Models\PoultryQuotation;
 use App\Models\User;
-use App\Services\PoultryHousePricingService;
-use App\Services\QuotationGenerator;
 use App\Services\ContractGenerator;
-use Illuminate\Support\Facades\Storage;
+use App\Services\PoultryHousePricingService;
+use Mpdf\Mpdf;
 
 // تهيئة مستخدم وعميل
 $user = User::firstOrCreate(
@@ -87,7 +87,7 @@ $html = view('quotations.template', [
 ])->render();
 
 $pdfPath = storage_path('app/public/sample_quotation_calc_sync.pdf');
-$mpdf = new \Mpdf\Mpdf([
+$mpdf = new Mpdf([
     'mode' => 'utf-8',
     'format' => 'A4',
     'default_font' => 'cairo',
@@ -102,7 +102,7 @@ $mpdf->Output($pdfPath, 'F');
 echo "✅ عرض السعر: $pdfPath\n";
 
 // توليد PDF عقد
-$contractType = \App\Models\ContractType::firstOrCreate(['name' => 'عقد تجريبي'], ['code' => 'TEST']);
+$contractType = ContractType::firstOrCreate(['name' => 'عقد تجريبي'], ['code' => 'TEST']);
 
 $contract = Contract::create([
     'contract_number' => 'CNT-2026-TEST-001',
@@ -124,7 +124,7 @@ $contractHtml = view('contracts.template', [
 ])->render();
 
 $contractPdfPath = storage_path('app/public/sample_contract_dual_signature.pdf');
-$mpdf2 = new \Mpdf\Mpdf([
+$mpdf2 = new Mpdf([
     'mode' => 'utf-8',
     'format' => 'A4',
     'default_font' => 'cairo',

@@ -11,7 +11,6 @@ use App\Models\ContractClause;
 use App\Models\ContractType;
 use App\Models\Customer;
 use App\Services\ContractCalculator;
-use App\Services\ContractGenerator;
 use App\Services\PaymentScheduler;
 use Carbon\Carbon;
 use Filament\Forms;
@@ -549,9 +548,7 @@ class ContractResource extends Resource
                     ->label('تحميل PDF')
                     ->icon('heroicon-o-document-arrow-down')
                     ->color('success')
-                    ->action(function (Contract $record) {
-                        return app(ContractGenerator::class)->downloadPdf($record);
-                    }),
+                    ->url(fn (Contract $record) => route('contracts.download', $record)),
 
                 Tables\Actions\Action::make('viewPdf')
                     ->label('معاينة')
