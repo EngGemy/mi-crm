@@ -17,6 +17,7 @@ class Lead extends Model
         'company', 'position', 'country', 'city', 'address',
         'project_type', 'project_size', 'estimated_budget',
         'expected_close_date', 'source', 'source_details',
+        'exhibition_id', 'birthday',
         'status', 'score', 'priority',
         'assigned_to', 'created_by',
         'customer_id', 'quotation_id', 'contract_id', 'converted_at',
@@ -28,6 +29,7 @@ class Lead extends Model
     protected $casts = [
         'estimated_budget' => 'decimal:2',
         'expected_close_date' => 'date',
+        'birthday' => 'date',
         'converted_at' => 'datetime',
         'lost_at' => 'datetime',
         'last_contact_at' => 'datetime',
@@ -127,6 +129,16 @@ class Lead extends Model
         return $this->hasMany(LeadReminder::class)
             ->where('status', 'pending')
             ->orderBy('remind_at');
+    }
+
+    public function occasions(): HasMany
+    {
+        return $this->hasMany(LeadOccasion::class);
+    }
+
+    public function exhibition(): BelongsTo
+    {
+        return $this->belongsTo(Exhibition::class);
     }
 
     // ============ Scopes ============

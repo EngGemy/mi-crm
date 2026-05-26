@@ -2,10 +2,12 @@
 
 namespace App\Providers;
 
+use App\Contracts\WhatsAppGateway;
 use App\Listeners\AuthEventListener;
 use App\Models\QuotationItem;
 use App\Observers\AuditObserver;
 use App\Observers\QuotationItemObserver;
+use App\Services\WhatsApp\LogDriver;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
@@ -19,7 +21,11 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // ربط واجهة واتساب بالـ log driver (الافتراضي المجاني)
+        // لتفعيل API حقيقي: بدّل LogDriver بـ مُنفّذ آخر يطبّق WhatsAppGateway
+        $this->app->singleton(WhatsAppGateway::class, function () {
+            return new LogDriver;
+        });
     }
 
     public function boot(): void

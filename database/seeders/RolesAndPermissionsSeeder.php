@@ -55,6 +55,10 @@ class RolesAndPermissionsSeeder extends Seeder
 
             // Audit
             'audit.view',
+
+            // Exhibitions
+            'exhibitions.view_any', 'exhibitions.view', 'exhibitions.create',
+            'exhibitions.update', 'exhibitions.delete',
         ];
 
         foreach ($permissions as $permission) {
@@ -75,6 +79,7 @@ class RolesAndPermissionsSeeder extends Seeder
 
         // === Sales Manager ===
         $salesManager = Role::firstOrCreate(['name' => 'sales_manager']);
+        $salesManager->syncPermissions([]);  // reset then re-assign below
         $salesManager->givePermissionTo([
             // Quotations - الكل
             'quotations.view_any', 'quotations.view', 'quotations.create',
@@ -95,6 +100,11 @@ class RolesAndPermissionsSeeder extends Seeder
             'products.view_any', 'products.view',
             // Reports
             'reports.view_sales',
+            // Exhibitions
+            'exhibitions.view_any', 'exhibitions.view', 'exhibitions.create',
+            'exhibitions.update', 'exhibitions.delete',
+            // Audit
+            'audit.view',
         ]);
 
         // === Sales Rep (المهم) ===
