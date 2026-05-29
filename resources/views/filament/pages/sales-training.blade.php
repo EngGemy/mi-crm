@@ -425,79 +425,8 @@
                 </div>
                 <div class="p-5 space-y-6">
                     @php
-                        $correctMap = [
-                            'q1' => (string) $example['effective_length'],
-                            'q2' => (string) $example['lines'],
-                            'q3' => (string) $example['birds_per_nest'],
-                            'q4' => (string) $example['total_nests'],
-                            'q5' => (string) $example['main_fans'],
-                        ];
-
-                        $questions = [
-                            [
-                                'key' => 'q1',
-                                'text' => 'ما هو الطول الفعّال للعنبر؟',
-                                'options' => [
-                                    (string)$example['effective_length'] => $example['effective_length'].' م',
-                                    (string)($example['effective_length'] + 5) => ($example['effective_length'] + 5).' م',
-                                    (string)($example['barn_length']) => $example['barn_length'].' م',
-                                    (string)($example['effective_length'] - 10) => ($example['effective_length'] - 10).' م',
-                                ],
-                            ],
-                            [
-                                'key' => 'q2',
-                                'text' => 'كم عدد الخطوط لعنبر عرضه '.$example['hall_width'].'م؟',
-                                'options' => [
-                                    '3' => '3 خطوط',
-                                    (string)$example['lines'] => $example['lines'].' خطوط',
-                                    '5' => '5 خطوط',
-                                    '6' => '6 خطوط',
-                                ],
-                            ],
-                            [
-                                'key' => 'q3',
-                                'text' => 'كم عدد الطيور/العش لوزن '.$example['bird_weight'].' كجم؟',
-                                'options' => [
-                                    '18' => '18 طيرة',
-                                    '21' => '21 طيرة',
-                                    (string)$example['birds_per_nest'] => $example['birds_per_nest'].' طيرة',
-                                    '13' => '13 طيرة',
-                                ],
-                            ],
-                            [
-                                'key' => 'q4',
-                                'text' => 'ما هو إجمالي الأعشاش؟',
-                                'options' => [
-                                    (string)($example['total_nests'] - 200) => number_format($example['total_nests'] - 200).' عش',
-                                    (string)$example['total_nests'] => number_format($example['total_nests']).' عش',
-                                    (string)($example['total_nests'] + 100) => number_format($example['total_nests'] + 100).' عش',
-                                    (string)($example['nests_per_line']) => number_format($example['nests_per_line']).' عش',
-                                ],
-                            ],
-                            [
-                                'key' => 'q5',
-                                'text' => 'كم عدد الشفاطات الرئيسية المطلوبة؟',
-                                'options' => [
-                                    (string)($example['main_fans'] - 2) => ($example['main_fans'] - 2).' شفاطات',
-                                    (string)($example['main_fans'] + 2) => ($example['main_fans'] + 2).' شفاطات',
-                                    (string)$example['main_fans'] => $example['main_fans'].' شفاطات',
-                                    (string)($example['main_fans'] + 4) => ($example['main_fans'] + 4).' شفاطات',
-                                ],
-                            ],
-                        ];
-
-                        // Shuffle each question's options so correct answer isn't predictable
-                        foreach ($questions as &$q) {
-                            $opts = $q['options'];
-                            $keys = array_keys($opts);
-                            shuffle($keys);
-                            $shuffled = [];
-                            foreach ($keys as $k) {
-                                $shuffled[$k] = $opts[$k];
-                            }
-                            $q['options'] = $shuffled;
-                        }
-                        unset($q);
+                        $correctMap = $quizQuestions['correctMap'] ?? [];
+                        $questions = $quizQuestions['questions'] ?? [];
                     @endphp
 
                     @foreach ($questions as $qi => $q)
@@ -532,7 +461,11 @@
             </div>
 
             @else
-            @php $score = $this->quizScore(); @endphp
+            @php
+                $score = $this->quizScore();
+                $resultQuestions = $quizQuestions['questions'] ?? [];
+                $resultCorrectMap = $quizQuestions['correctMap'] ?? [];
+            @endphp
             <div class="rounded-xl border {{ $score >= 4 ? 'border-green-300 dark:border-green-700' : ($score >= 3 ? 'border-amber-300 dark:border-amber-700' : 'border-red-300 dark:border-red-700') }} {{ $score >= 4 ? 'bg-green-50 dark:bg-green-950/15' : ($score >= 3 ? 'bg-amber-50 dark:bg-amber-950/15' : 'bg-red-50 dark:bg-red-950/15') }} p-8 text-center space-y-4">
                 <div class="inline-flex items-center justify-center w-16 h-16 rounded-full {{ $score >= 4 ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : ($score >= 3 ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600' : 'bg-red-100 dark:bg-red-900/30 text-red-600') }}">
                     <x-dynamic-component :component="$score >= 4 ? 'heroicon-o-trophy' : ($score >= 3 ? 'heroicon-o-hand-thumb-up' : 'heroicon-o-book-open')" class="w-8 h-8" />
@@ -554,10 +487,10 @@
 
                 {{-- Detailed Results --}}
                 <div class="text-right max-w-md mx-auto mt-4 space-y-2">
-                    @foreach ($questions as $qi => $q)
+                    @foreach ($resultQuestions as $qi => $q)
                         @php
                             $selected = $quizAnswers[$q['key']] ?? null;
-                            $correctVal = $correctMap[$q['key']];
+                            $correctVal = $resultCorrectMap[$q['key']] ?? null;
                             $isCorrect = $selected === $correctVal;
                         @endphp
                         <div class="flex items-center gap-2 text-sm {{ $isCorrect ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300' }}">
