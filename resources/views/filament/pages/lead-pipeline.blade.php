@@ -209,150 +209,139 @@
 </div>
 
 {{-- ══════════════════════════════════════════════════════════
-     Create Lead Modal  — teleported to <body> to bypass Filament transforms
+     Create Lead Modal  — Filament-style, teleported to <body>
 ═══════════════════════════════════════════════════════════ --}}
 @if($showModal)
 @php
-$sc = match($modalStatus) {
-    'contacted'   => ['bar'=>'bg-blue-500',    'badge'=>'bg-blue-100 text-blue-700',    'dot'=>'bg-blue-500'],
-    'qualified'   => ['bar'=>'bg-amber-500',   'badge'=>'bg-amber-100 text-amber-700',  'dot'=>'bg-amber-500'],
-    'opportunity' => ['bar'=>'bg-violet-500',  'badge'=>'bg-violet-100 text-violet-700','dot'=>'bg-violet-500'],
-    'won'         => ['bar'=>'bg-green-500',   'badge'=>'bg-green-100 text-green-700',  'dot'=>'bg-green-500'],
-    'lost'        => ['bar'=>'bg-red-500',     'badge'=>'bg-red-100 text-red-700',      'dot'=>'bg-red-500'],
-    default       => ['bar'=>'bg-gray-400',    'badge'=>'bg-gray-100 text-gray-600',    'dot'=>'bg-gray-400'],
-};
-// Inline styles avoid Tailwind purge of dynamic class names
 $priorities = [
-    'low'    => ['label'=>'منخفضة', 'bg'=>'#475569', 'dotColor'=>'#94a3b8'],
-    'medium' => ['label'=>'متوسطة', 'bg'=>'#2563eb', 'dotColor'=>'#93c5fd'],
-    'high'   => ['label'=>'عالية',  'bg'=>'#f97316', 'dotColor'=>'#fed7aa'],
-    'urgent' => ['label'=>'عاجلة',  'bg'=>'#dc2626', 'dotColor'=>'#fca5a5'],
+    'low'    => ['label'=>'منخفضة', 'bg'=>'#475569', 'dot'=>'#94a3b8'],
+    'medium' => ['label'=>'متوسطة', 'bg'=>'#2563eb', 'dot'=>'#93c5fd'],
+    'high'   => ['label'=>'عالية',  'bg'=>'#f97316', 'dot'=>'#fed7aa'],
+    'urgent' => ['label'=>'عاجلة',  'bg'=>'#dc2626', 'dot'=>'#fca5a5'],
 ];
+$statusColors = [
+    'new'         => '#6b7280',
+    'contacted'   => '#3b82f6',
+    'qualified'   => '#f59e0b',
+    'opportunity' => '#8b5cf6',
+    'won'         => '#10b981',
+    'lost'        => '#ef4444',
+];
+$statusDot = $statusColors[$modalStatus] ?? '#6b7280';
 @endphp
-<div
-    x-data
-    x-teleport="body"
->
-<div
-    class="fixed inset-0 flex items-center justify-center p-4"
-    style="z-index:99999; font-family: inherit;"
-    dir="rtl"
-    x-on:keydown.escape.window="$wire.closeModal()"
->
+<template x-teleport="body">
+<div x-data
+     class="fixed inset-0 overflow-y-auto"
+     style="z-index:99999; font-family:inherit;"
+     dir="rtl"
+     x-on:keydown.escape.window="$wire.closeModal()">
+
     {{-- Backdrop --}}
-    <div
-        class="absolute inset-0 bg-gray-950/80"
-        style="backdrop-filter: blur(4px);"
-        x-transition:enter="transition duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-        wire:click="closeModal"
-    ></div>
+    <div class="fixed inset-0 bg-black/50" wire:click="closeModal"></div>
 
-    {{-- Modal shell --}}
-    <div
-        class="relative z-10 w-full bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden"
-        style="max-width:860px; max-height:90vh;"
-        x-transition:enter="transition ease-out duration-250"
-        x-transition:enter-start="opacity-0 scale-95"
-        x-transition:enter-end="opacity-100 scale-100"
-        x-transition:leave="transition ease-in duration-150"
-        x-transition:leave-start="opacity-100 scale-100"
-        x-transition:leave-end="opacity-0 scale-95"
-    >
-        {{-- Colour bar --}}
-        <div class="h-1 w-full {{ $sc['bar'] }} shrink-0"></div>
+    {{-- Center wrapper --}}
+    <div class="flex min-h-full items-center justify-center p-4">
 
-        {{-- ── Header ─────────────────────────────── --}}
-        <div class="flex items-center gap-3 px-6 py-4 border-b border-gray-100 dark:border-gray-800 shrink-0">
-            <div class="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center shrink-0">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-primary-600 dark:text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z"/>
-                </svg>
-            </div>
-            <div class="flex-1 min-w-0">
-                <h2 class="text-base font-bold text-gray-800 dark:text-gray-100 leading-tight">إضافة عميل محتمل جديد</h2>
-                <div class="flex items-center gap-1.5 mt-0.5">
-                    <span class="w-2 h-2 rounded-full {{ $sc['dot'] }} shrink-0"></span>
-                    <span class="text-xs font-semibold {{ $sc['badge'] }} px-2 py-0.5 rounded-full">{{ \App\Models\Lead::STATUSES[$modalStatus] }}</span>
+        {{-- Modal panel --}}
+        <div class="relative w-full bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col"
+             style="max-width:640px; max-height:90vh;">
+
+            {{-- ── Header ──────────────────────────────── --}}
+            <div class="flex items-start justify-between gap-4 px-6 py-5 border-b border-gray-200 dark:border-gray-700 shrink-0">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                         style="background:{{ $statusDot }}1a;">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" style="color:{{ $statusDot }}">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-semibold text-gray-950 dark:text-white leading-tight">إضافة عميل محتمل جديد</h2>
+                        <div class="flex items-center gap-1.5 mt-0.5">
+                            <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background:{{ $statusDot }};"></span>
+                            <span class="text-xs text-gray-500 dark:text-gray-400">{{ \App\Models\Lead::STATUSES[$modalStatus] }}</span>
+                        </div>
+                    </div>
                 </div>
+                <button type="button" wire:click="closeModal"
+                    class="shrink-0 rounded-lg p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-white/5 dark:hover:text-gray-300 transition-colors">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
             </div>
-            <button type="button" wire:click="closeModal"
-                class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors shrink-0">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-        </div>
 
-        {{-- ── Body: two panels ───────────────────── --}}
-        <div class="flex flex-row overflow-hidden" style="flex:1; min-height:0;">
-
-            {{-- LEFT: form (scrollable) --}}
-            <div class="overflow-y-auto px-6 py-5" style="flex:1; min-width:0;">
+            {{-- ── Scrollable body ─────────────────────── --}}
+            <div class="overflow-y-auto px-6 py-5 space-y-4 flex-1">
 
                 {{-- Name --}}
-                <div class="mb-4">
-                    <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">اسم العميل <span class="text-red-500">*</span></label>
+                <div>
+                    <label class="fi-fo-field-wrp-label block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                        اسم العميل <span class="text-danger-600 dark:text-danger-400">*</span>
+                    </label>
                     <input wire:model="newName" type="text" placeholder="الاسم الكامل..."
-                        class="w-full h-10 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 text-sm text-gray-800 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-400/40 focus:border-primary-400 transition-all placeholder-gray-300">
+                        class="fi-input block w-full rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2 text-sm text-gray-950 dark:text-white shadow-sm placeholder-gray-400 dark:placeholder-white/30 outline-none transition focus:ring-2 focus:ring-inset focus:ring-primary-600 dark:focus:ring-primary-500">
                     @error('newName')
-                    <p class="text-xs text-red-500 mt-1 flex items-center gap-1">
-                        <svg class="w-3 h-3 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                    <p class="mt-1 text-xs text-danger-600 dark:text-danger-400 flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
                         {{ $message }}
                     </p>
                     @enderror
                 </div>
 
                 {{-- Phone + WhatsApp --}}
-                <div class="grid grid-cols-2 gap-3 mb-4">
+                <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">الهاتف</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">الهاتف</label>
                         <div class="relative">
-                            <span class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-300">
+                            <span class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400 dark:text-gray-500">
                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
                             </span>
                             <input wire:model="newPhone" type="tel" placeholder="01xxxxxxxxx"
-                                class="w-full h-10 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 pr-9 pl-3 text-sm outline-none focus:ring-2 focus:ring-primary-400/40 focus:border-primary-400 transition-all placeholder-gray-300">
+                                class="block w-full rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 pr-9 pl-3 py-2 text-sm text-gray-950 dark:text-white shadow-sm placeholder-gray-400 dark:placeholder-white/30 outline-none transition focus:ring-2 focus:ring-inset focus:ring-primary-600 dark:focus:ring-primary-500">
                         </div>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">واتساب</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">واتساب</label>
                         <div class="relative">
-                            <span class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-[#25D366]">
+                            <span class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none" style="color:#25D366;">
                                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                             </span>
                             <input wire:model="newWhatsapp" type="tel" placeholder="اتركه فارغاً إذا نفس الهاتف"
-                                class="w-full h-10 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 pr-9 pl-3 text-sm outline-none focus:ring-2 focus:ring-primary-400/40 focus:border-primary-400 transition-all placeholder-gray-300">
+                                class="block w-full rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 pr-9 pl-3 py-2 text-sm text-gray-950 dark:text-white shadow-sm placeholder-gray-400 dark:placeholder-white/30 outline-none transition focus:ring-2 focus:ring-inset focus:ring-primary-600 dark:focus:ring-primary-500">
                         </div>
                     </div>
                 </div>
 
                 {{-- Company + Budget --}}
-                <div class="grid grid-cols-2 gap-3 mb-4">
+                <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">الشركة / المزرعة</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">الشركة / المزرعة</label>
                         <div class="relative">
-                            <span class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-300">
+                            <span class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400 dark:text-gray-500">
                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21"/></svg>
                             </span>
                             <input wire:model="newCompany" type="text" placeholder="اسم المنشأة..."
-                                class="w-full h-10 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 pr-9 pl-3 text-sm outline-none focus:ring-2 focus:ring-primary-400/40 focus:border-primary-400 transition-all placeholder-gray-300">
+                                class="block w-full rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 pr-9 pl-3 py-2 text-sm text-gray-950 dark:text-white shadow-sm placeholder-gray-400 dark:placeholder-white/30 outline-none transition focus:ring-2 focus:ring-inset focus:ring-primary-600 dark:focus:ring-primary-500">
                         </div>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">الميزانية التقديرية</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">الميزانية التقديرية</label>
                         <div class="relative">
-                            <span class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-xs font-semibold text-gray-300">ج.م</span>
+                            <span class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-xs font-semibold text-gray-400 dark:text-gray-500">ج.م</span>
                             <input wire:model="newEstimatedBudget" type="number" min="0" placeholder="0"
-                                class="w-full h-10 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 pr-10 pl-3 text-sm outline-none focus:ring-2 focus:ring-primary-400/40 focus:border-primary-400 transition-all placeholder-gray-300">
+                                class="block w-full rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 pr-10 pl-3 py-2 text-sm text-gray-950 dark:text-white shadow-sm placeholder-gray-400 dark:placeholder-white/30 outline-none transition focus:ring-2 focus:ring-inset focus:ring-primary-600 dark:focus:ring-primary-500">
                         </div>
                     </div>
                 </div>
 
                 {{-- Source + Assigned --}}
-                <div class="grid grid-cols-2 gap-3 mb-4">
+                <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">مصدر العميل</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">مصدر العميل</label>
                         <div class="relative">
                             <select wire:model="newSource"
-                                class="w-full h-10 appearance-none rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 pr-3 pl-8 text-sm text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-primary-400/40 focus:border-primary-400 transition-all cursor-pointer">
+                                class="block w-full appearance-none rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 pr-3 pl-8 py-2 text-sm text-gray-950 dark:text-white shadow-sm outline-none transition focus:ring-2 focus:ring-inset focus:ring-primary-600 dark:focus:ring-primary-500 cursor-pointer">
                                 @foreach(\App\Models\Lead::SOURCES as $k => $v)
                                 <option value="{{ $k }}">{{ $v }}</option>
                                 @endforeach
@@ -363,10 +352,10 @@ $priorities = [
                         </div>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">تعيين إلى</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">تعيين إلى</label>
                         <div class="relative">
                             <select wire:model="newAssignedTo"
-                                class="w-full h-10 appearance-none rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 pr-3 pl-8 text-sm text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-primary-400/40 focus:border-primary-400 transition-all cursor-pointer">
+                                class="block w-full appearance-none rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 pr-3 pl-8 py-2 text-sm text-gray-950 dark:text-white shadow-sm outline-none transition focus:ring-2 focus:ring-inset focus:ring-primary-600 dark:focus:ring-primary-500 cursor-pointer">
                                 <option value="">أنا ({{ Auth::user()->name }})</option>
                                 @foreach($this->getSalesReps() as $id => $name)
                                 <option value="{{ $id }}">{{ $name }}</option>
@@ -380,15 +369,18 @@ $priorities = [
                 </div>
 
                 {{-- Priority --}}
-                <div class="mb-4">
-                    <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">الأولوية</label>
-                    <div class="flex gap-2">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">الأولوية</label>
+                    <div class="grid grid-cols-4 gap-2">
                         @foreach($priorities as $k => $p)
                         @php $isActive = $newPriority === $k; @endphp
                         <button type="button" wire:click="$set('newPriority','{{ $k }}')"
-                            class="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg text-xs font-semibold border transition-all"
-                            style="{{ $isActive ? 'background:'.$p['bg'].';color:#fff;border-color:transparent;box-shadow:0 1px 3px rgba(0,0,0,.2);' : 'background:#fff;border-color:#e5e7eb;color:#9ca3af;' }}">
-                            <span class="w-1.5 h-1.5 rounded-full" style="background:{{ $isActive ? 'rgba(255,255,255,0.6)' : $p['dotColor'] }}"></span>
+                            class="flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-medium border transition-all"
+                            style="{{ $isActive
+                                ? 'background:'.$p['bg'].';color:#fff;border-color:transparent;box-shadow:0 1px 4px rgba(0,0,0,.18);'
+                                : 'background:transparent;border-color:rgb(209,213,219);color:rgb(107,114,128);' }}">
+                            <span class="w-2 h-2 rounded-full shrink-0"
+                                  style="background:{{ $isActive ? 'rgba(255,255,255,.55)' : $p['dot'] }};"></span>
                             {{ $p['label'] }}
                         </button>
                         @endforeach
@@ -397,109 +389,111 @@ $priorities = [
 
                 {{-- Notes --}}
                 <div>
-                    <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">ملاحظات</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">ملاحظات</label>
                     <textarea wire:model="newNotes" rows="3" placeholder="أي تفاصيل إضافية عن العميل..."
-                        class="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary-400/40 focus:border-primary-400 transition-all resize-none placeholder-gray-300"></textarea>
-                </div>
-            </div>
-
-            {{-- RIGHT: task panel --}}
-            <div class="flex flex-col bg-gray-50 dark:bg-gray-800/50 border-r border-gray-100 dark:border-gray-800" style="width:272px; min-width:272px;">
-
-                {{-- Panel header --}}
-                <div class="flex items-center gap-2 px-4 py-3.5 border-b border-gray-100 dark:border-gray-800 shrink-0">
-                    <svg class="w-4 h-4 text-primary-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
-                    </svg>
-                    <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">قائمة المهام</span>
-                    @if(count($modalTasks) > 0)
-                    <span class="mr-auto text-xs bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400 px-1.5 py-0.5 rounded-full font-bold tabular-nums">{{ count($modalTasks) }}</span>
-                    @endif
+                        class="block w-full rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2 text-sm text-gray-950 dark:text-white shadow-sm placeholder-gray-400 dark:placeholder-white/30 outline-none transition resize-none focus:ring-2 focus:ring-inset focus:ring-primary-600 dark:focus:ring-primary-500"></textarea>
                 </div>
 
-                {{-- Task input --}}
-                <div class="px-3 py-3 border-b border-gray-100 dark:border-gray-800 shrink-0">
-                    <div class="flex items-center h-9 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden focus-within:ring-2 focus-within:ring-primary-400/40 focus-within:border-primary-400 transition-all">
-                        <input
-                            wire:model="newTaskInput"
-                            wire:keydown.enter.prevent="addModalTask"
-                            type="text"
-                            placeholder="اكتب مهمة واضغط ↵"
-                            class="flex-1 h-full px-3 text-sm bg-transparent outline-none text-gray-700 dark:text-gray-200 placeholder-gray-300 dark:placeholder-gray-600 min-w-0"
-                        >
-                        <button type="button" wire:click="addModalTask"
-                            class="w-9 h-9 flex items-center justify-center text-gray-300 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors shrink-0 border-r border-gray-100 dark:border-gray-700">
-                            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
-                        </button>
-                    </div>
-                </div>
-
-                {{-- Task list --}}
-                <div class="overflow-y-auto" style="flex:1;">
-                    @forelse($modalTasks as $i => $task)
-                    <div class="flex items-start gap-2.5 px-3 py-2.5 group/t hover:bg-white dark:hover:bg-gray-800 transition-colors border-b border-gray-100/70 dark:border-gray-700/50">
-                        <button type="button" wire:click="toggleModalTask({{ $i }})"
-                            class="mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-all
-                                {{ $task['done'] ? 'bg-green-500 border-green-500' : 'border-gray-300 dark:border-gray-600 hover:border-primary-400' }}">
-                            @if($task['done'])
-                            <svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                {{-- Tasks section --}}
+                <div class="rounded-lg border border-gray-200 dark:border-white/10 overflow-hidden" x-data="{ open: {{ count($modalTasks) > 0 ? 'true' : 'false' }} }">
+                    <button type="button" @click="open = !open"
+                        class="w-full flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+                        <div class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200">
+                            <svg class="w-4 h-4 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                            </svg>
+                            قائمة المهام
+                            @if(count($modalTasks) > 0)
+                            <span class="inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold bg-primary-100 text-primary-700 dark:bg-primary-500/20 dark:text-primary-400">{{ count($modalTasks) }}</span>
                             @endif
-                        </button>
-                        <span class="flex-1 text-sm leading-relaxed {{ $task['done'] ? 'line-through text-gray-400' : 'text-gray-700 dark:text-gray-300' }}">{{ $task['text'] }}</span>
-                        <button type="button" wire:click="removeModalTask({{ $i }})"
-                            class="w-5 h-5 mt-0.5 flex items-center justify-center text-gray-300 hover:text-red-500 opacity-0 group-hover/t:opacity-100 transition-all shrink-0">
-                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-                        </button>
+                        </div>
+                        <svg class="w-4 h-4 text-gray-400 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+
+                    <div x-show="open" x-collapse>
+                        {{-- Task input --}}
+                        <div class="flex items-center gap-2 px-4 py-3 border-t border-gray-200 dark:border-white/10 bg-white dark:bg-gray-900">
+                            <input
+                                wire:model="newTaskInput"
+                                wire:keydown.enter.prevent="addModalTask"
+                                type="text"
+                                placeholder="اكتب مهمة واضغط ↵"
+                                class="flex-1 rounded-lg border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-white/5 px-3 py-1.5 text-sm text-gray-950 dark:text-white placeholder-gray-400 dark:placeholder-white/30 outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition"
+                            >
+                            <button type="button" wire:click="addModalTask"
+                                class="flex items-center justify-center w-8 h-8 rounded-lg bg-primary-600 hover:bg-primary-700 text-white transition-colors shrink-0">
+                                <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+                            </button>
+                        </div>
+
+                        {{-- Task list --}}
+                        @if(count($modalTasks) > 0)
+                        <ul class="divide-y divide-gray-100 dark:divide-white/5 bg-white dark:bg-gray-900">
+                            @foreach($modalTasks as $i => $task)
+                            <li class="flex items-center gap-3 px-4 py-2.5 group/t hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                                <button type="button" wire:click="toggleModalTask({{ $i }})"
+                                    class="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all"
+                                    style="{{ $task['done'] ? 'background:#10b981;border-color:#10b981;' : 'border-color:#d1d5db;' }}">
+                                    @if($task['done'])
+                                    <svg class="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                    @endif
+                                </button>
+                                <span class="flex-1 text-sm {{ $task['done'] ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200' }}">{{ $task['text'] }}</span>
+                                <button type="button" wire:click="removeModalTask({{ $i }})"
+                                    class="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 opacity-0 group-hover/t:opacity-100 transition-all">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                            </li>
+                            @endforeach
+                        </ul>
+                        @else
+                        <div class="flex flex-col items-center justify-center gap-2 py-8 text-center bg-white dark:bg-gray-900">
+                            <svg class="w-8 h-8 text-gray-200 dark:text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                            </svg>
+                            <p class="text-xs text-gray-400 dark:text-gray-500">لا توجد مهام — اكتب مهمة أعلاه واضغط ↵</p>
+                        </div>
+                        @endif
                     </div>
-                    @empty
-                    <div class="flex flex-col items-center justify-center gap-3 py-10 px-4 text-center text-gray-300 dark:text-gray-600">
-                        <svg class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                        </svg>
-                        <p class="text-xs leading-relaxed">لا توجد مهام بعد<br><span class="text-gray-200 dark:text-gray-700">اكتب مهمة أعلاه واضغط ↵</span></p>
-                    </div>
-                    @endforelse
                 </div>
 
-                @if(count($modalTasks) > 0)
-                <div class="px-4 py-2 border-t border-gray-100 dark:border-gray-800 flex items-center gap-2 text-xs shrink-0">
-                    <svg class="w-3 h-3 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                    <span class="text-green-600 dark:text-green-400 font-medium">{{ count(array_filter($modalTasks, fn($t)=>$t['done'])) }} مكتملة</span>
-                    <span class="text-gray-300">·</span>
-                    <span class="text-gray-400 font-medium">{{ count(array_filter($modalTasks, fn($t)=>!$t['done'])) }} معلّقة</span>
+            </div>{{-- end body --}}
+
+            {{-- ── Footer ──────────────────────────────── --}}
+            <div class="flex items-center justify-between gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-white/5 rounded-b-xl shrink-0">
+                <div class="flex items-center gap-3">
+                    <button
+                        type="button"
+                        wire:click="saveLead"
+                        wire:loading.attr="disabled"
+                        wire:loading.class="opacity-70 cursor-wait"
+                        class="fi-btn inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors"
+                        style="background:#4f46e5;">
+                        <span wire:loading.remove wire:target="saveLead">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        </span>
+                        <span wire:loading wire:target="saveLead">
+                            <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                        </span>
+                        <span wire:loading.remove wire:target="saveLead">حفظ العميل</span>
+                        <span wire:loading wire:target="saveLead">جارٍ الحفظ...</span>
+                    </button>
+                    <button type="button" wire:click="closeModal"
+                        class="inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-white/5 border border-gray-300 dark:border-white/10 shadow-sm hover:bg-gray-50 dark:hover:bg-white/10 transition-colors">
+                        إلغاء
+                    </button>
                 </div>
+                @if(count($modalTasks) > 0)
+                <span class="text-xs text-gray-400 dark:text-gray-500">
+                    {{ count($modalTasks) }} {{ count($modalTasks) === 1 ? 'مهمة ستُحفظ' : 'مهام ستُحفظ' }}
+                </span>
                 @endif
             </div>
-        </div>
 
-        {{-- ── Footer ──────────────────────────────── --}}
-        <div class="flex items-center gap-3 px-6 py-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900 shrink-0">
-            <button
-                type="button"
-                wire:click="saveLead"
-                wire:loading.attr="disabled"
-                wire:loading.class="opacity-60 cursor-wait"
-                class="inline-flex items-center gap-2 h-10 px-6 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white text-sm font-semibold rounded-xl shadow-sm transition-all">
-                <span wire:loading.remove wire:target="saveLead">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                </span>
-                <span wire:loading wire:target="saveLead">
-                    <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                </span>
-                <span wire:loading.remove wire:target="saveLead">حفظ العميل</span>
-                <span wire:loading wire:target="saveLead">جارٍ الحفظ...</span>
-            </button>
-            <button type="button" wire:click="closeModal"
-                class="h-10 px-5 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all">
-                إلغاء
-            </button>
-            @if(count($modalTasks) > 0)
-            <span class="mr-auto text-xs text-gray-400">{{ count($modalTasks) }} {{ count($modalTasks) === 1 ? 'مهمة ستُحفظ' : 'مهام ستُحفظ' }} مع العميل</span>
-            @endif
-        </div>
-    </div>
-</div>
-</div>
+        </div>{{-- end panel --}}
+    </div>{{-- end center --}}
+</div>{{-- end fixed --}}
+</template>{{-- end teleport --}}
 @endif
 
 <script>
