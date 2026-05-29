@@ -108,8 +108,14 @@
                             </svg>
                         </div>
                         <div>
-                            <h3 class="font-semibold text-gray-800 dark:text-gray-200">مهامي المعلّقة</h3>
-                            <p class="text-xs text-gray-400">{{ $pendingCount }} مهمة · {{ $overdueCount > 0 ? $overdueCount . ' متأخرة' : 'كلها في الوقت' }}</p>
+                            <h3 class="font-semibold text-gray-800 dark:text-gray-200">
+                                @if($selectedDate === now()->toDateString())
+                                    مهام اليوم
+                                @else
+                                    مهام {{ \Carbon\Carbon::parse($selectedDate)->translatedFormat('j F') }}
+                                @endif
+                            </h3>
+                            <p class="text-xs text-gray-400">{{ $pendingCount }} مهمة{{ $overdueCount > 0 ? ' · ' . $overdueCount . ' متأخرة' : '' }}</p>
                         </div>
                     </div>
                     <button
@@ -284,8 +290,14 @@
                         </svg>
                     </div>
                     <div class="text-center">
-                        <p class="font-semibold text-gray-700 dark:text-gray-300">لا توجد مهام معلّقة</p>
-                        <p class="text-sm text-gray-400 mt-1">يوم منتج! أضف مهمة جديدة للبدء.</p>
+                        <p class="font-semibold text-gray-700 dark:text-gray-300">لا توجد مهام</p>
+                        <p class="text-sm text-gray-400 mt-1">
+                            @if($selectedDate === now()->toDateString())
+                                يوم منتج! أضف مهمة جديدة للبدء.
+                            @else
+                                لا توجد مهام مجدولة في {{ \Carbon\Carbon::parse($selectedDate)->translatedFormat('j F') }}.
+                            @endif
+                        </p>
                     </div>
                 </div>
                 @endif
@@ -315,22 +327,35 @@
                         @if($day === null)
                         <div></div>
                         @else
-                        <div class="relative rounded-lg py-1.5 cursor-default transition-colors
-                            {{ $day['is_today']
-                                ? 'bg-primary-600 text-white font-bold shadow-sm'
-                                : ($day['count'] > 0 ? 'hover:bg-primary-50 dark:hover:bg-primary-950/30' : 'hover:bg-gray-50 dark:hover:bg-gray-800') }}
-                        ">
+                        <button
+                            wire:click="selectDay('{{ $day['date'] }}')"
+                            type="button"
+                            class="relative rounded-lg py-1.5 transition-all focus:outline-none
+                                @if($day['is_selected'] && $day['is_today'])
+                                    bg-primary-600 text-white font-bold shadow-sm ring-2 ring-primary-300
+                                @elseif($day['is_selected'])
+                                    bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 font-bold ring-2 ring-primary-400
+                                @elseif($day['is_today'])
+                                    bg-primary-600 text-white font-bold shadow-sm
+                                @elseif($day['count'] > 0)
+                                    hover:bg-primary-50 dark:hover:bg-primary-950/30 text-gray-700 dark:text-gray-300
+                                @else
+                                    hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400
+                                @endif
+                            "
+                        >
                             {{ $day['day'] }}
                             @if($day['count'] > 0)
-                            <span class="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full {{ $day['is_today'] ? 'bg-white/80' : 'bg-primary-400' }}"></span>
+                            <span class="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full
+                                {{ $day['is_today'] || $day['is_selected'] ? 'bg-white/80' : 'bg-primary-400' }}"></span>
                             @endif
-                        </div>
+                        </button>
                         @endif
                         @endforeach
                     </div>
                     <p class="text-center text-xs text-gray-400 mt-3 flex items-center justify-center gap-1">
                         <span class="w-1.5 h-1.5 rounded-full bg-primary-400 inline-block"></span>
-                        النقطة = لديك موعد في هذا اليوم
+                        اضغط على يوم لعرض مهامه
                     </p>
                 </div>
             </div>

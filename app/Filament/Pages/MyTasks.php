@@ -23,11 +23,12 @@ class MyTasks extends Page
 
     protected static string $view = 'filament.pages.my-tasks';
 
-    public array $todayTasks      = [];
-    public array $dueReminders    = [];
-    public array $upcomingMeetings = [];
-    public array $calendarDays    = [];
-    public array $leadsForSelect  = [];
+    public array  $todayTasks       = [];
+    public array  $dueReminders     = [];
+    public array  $upcomingMeetings = [];
+    public array  $calendarDays     = [];
+    public array  $leadsForSelect   = [];
+    public string $selectedDate     = '';
 
     // Add-task form state
     public bool    $showAddTask     = false;
@@ -43,7 +44,14 @@ class MyTasks extends Page
 
     public function mount(): void
     {
+        $this->selectedDate   = now()->toDateString();
         $this->newScheduledAt = now()->format('Y-m-d\TH:i');
+        $this->loadData();
+    }
+
+    public function selectDay(string $date): void
+    {
+        $this->selectedDate = $date;
         $this->loadData();
     }
 
@@ -51,11 +59,23 @@ class MyTasks extends Page
     {
         $userId = Auth::id();
 
-        $this->todayTasks = LeadActivity::with('lead')
+        $isToday  = $this->selectedDate === now()->toDateString();
+        $isPast   = $this->selectedDate < now()->toDateString();
+
+        $taskQuery = LeadActivity::with('lead')
             ->where('user_id', $userId)
             ->where('is_completed', false)
-            ->whereNotNull('scheduled_at')
-            ->whereDate('scheduled_at', '<=', now()->toDateString())
+            ->whereNotNull('scheduled_at');
+
+        if ($isToday) {
+            // today: show today + anything overdue from previous days
+            $taskQuery->whereDate('scheduled_at', '<=', $this->selectedDate);
+        } else {
+            // specific day (past or future): exact date only
+            $taskQuery->whereDate('scheduled_at', $this->selectedDate);
+        }
+
+        $this->todayTasks = $taskQuery
             ->orderBy('scheduled_at')
             ->get()
             ->map(fn ($a) => [
@@ -131,17 +151,19 @@ class MyTasks extends Page
             ->pluck('cnt', 'day')
             ->toArray();
 
-        $days    = [];
-        $blanks  = $start->dayOfWeek;
+        $days   = [];
+        $blanks = $start->dayOfWeek;
         for ($i = 0; $i < $blanks; $i++) {
             $days[] = null;
         }
         for ($d = 1; $d <= $end->day; $d++) {
             $dateKey = now()->format('Y-m') . '-' . str_pad($d, 2, '0', STR_PAD_LEFT);
             $days[]  = [
-                'day'      => $d,
-                'is_today' => $d === now()->day,
-                'count'    => $activityDays[$dateKey] ?? 0,
+                'day'         => $d,
+                'date'        => $dateKey,
+                'is_today'    => $dateKey === now()->toDateString(),
+                'is_selected' => $dateKey === $this->selectedDate,
+                'count'       => $activityDays[$dateKey] ?? 0,
             ];
         }
 
