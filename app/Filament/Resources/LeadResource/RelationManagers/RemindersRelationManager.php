@@ -54,30 +54,33 @@ class RemindersRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('title')
                     ->label('العنوان')
                     ->searchable(),
-                Tables\Columns\BadgeColumn::make('type')
+                Tables\Columns\TextColumn::make('type')
                     ->label('النوع')
+                    ->badge()
                     ->formatStateUsing(fn ($state) => LeadReminder::TYPES[$state] ?? $state)
-                    ->colors([
-                        'primary' => 'call',
-                        'success' => 'whatsapp',
-                        'info' => 'email',
-                        'warning' => 'visit',
-                        'danger' => 'meeting',
-                        'gray' => 'other',
-                    ]),
+                    ->color(fn ($state) => match($state) {
+                        'call'     => 'primary',
+                        'whatsapp' => 'success',
+                        'email'    => 'info',
+                        'visit'    => 'warning',
+                        'meeting'  => 'danger',
+                        default    => 'gray',
+                    }),
                 Tables\Columns\TextColumn::make('remind_at')
                     ->label('وقت التذكير')
                     ->dateTime('Y-m-d H:i')
                     ->color(fn ($state) => $state && $state->isPast() ? 'danger' : 'success'),
-                Tables\Columns\BadgeColumn::make('status')
+                Tables\Columns\TextColumn::make('status')
                     ->label('الحالة')
+                    ->badge()
                     ->formatStateUsing(fn ($state) => LeadReminder::STATUSES[$state] ?? $state)
-                    ->colors([
-                        'warning' => 'pending',
-                        'success' => 'completed',
-                        'info' => 'snoozed',
-                        'danger' => 'cancelled',
-                    ]),
+                    ->color(fn ($state) => match($state) {
+                        'pending'   => 'warning',
+                        'completed' => 'success',
+                        'snoozed'   => 'info',
+                        'cancelled' => 'danger',
+                        default     => 'gray',
+                    }),
                 Tables\Columns\TextColumn::make('user.name')
                     ->label('لـ'),
                 Tables\Columns\IconColumn::make('notified')
@@ -94,7 +97,11 @@ class RemindersRelationManager extends RelationManager
                     ->native(false),
             ])
             ->headerActions([
-                Tables\Actions\CreateAction::make()->label('إضافة تذكير'),
+                Tables\Actions\CreateAction::make()
+                    ->label('إضافة تذكير')
+                    ->mutateFormDataBeforeCreate(fn (array $data) => array_merge($data, [
+                        'user_id' => auth()->id(),
+                    ])),
             ])
             ->actions([
                 Tables\Actions\Action::make('complete')

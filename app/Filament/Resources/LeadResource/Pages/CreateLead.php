@@ -13,4 +13,12 @@ class CreateLead extends CreateRecord
     {
         return 'إضافة عميل محتمل';
     }
+
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        if ($status = request()->query('status')) {
+            $data['status'] = $status;
+        }
+        return $data;
+    }
 }

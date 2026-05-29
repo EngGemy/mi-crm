@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\Lead;
 use App\Models\LeadActivity;
 use App\Models\LeadReminder;
 use Filament\Notifications\Notification;
@@ -22,13 +23,18 @@ class MyTasks extends Page
 
     protected static string $view = 'filament.pages.my-tasks';
 
-    public array $todayTasks = [];
-
-    public array $dueReminders = [];
-
+    public array $todayTasks      = [];
+    public array $dueReminders    = [];
     public array $upcomingMeetings = [];
+    public array $calendarDays    = [];
+    public array $leadsForSelect  = [];
 
-    public array $calendarDays = [];
+    // Add-task form state
+    public bool    $showAddTask     = false;
+    public string  $newType         = 'call';
+    public string  $newSubject      = '';
+    public ?int    $newLeadId       = null;
+    public ?string $newScheduledAt  = null;
 
     public static function canAccess(): bool
     {
@@ -37,6 +43,7 @@ class MyTasks extends Page
 
     public function mount(): void
     {
+        $this->newScheduledAt = now()->format('Y-m-d\TH:i');
         $this->loadData();
     }
 
@@ -44,7 +51,6 @@ class MyTasks extends Page
     {
         $userId = Auth::id();
 
-        // مهام اليوم: أنشطة مجدولة غير مكتملة
         $this->todayTasks = LeadActivity::with('lead')
             ->where('user_id', $userId)
             ->where('is_completed', false)
@@ -53,19 +59,19 @@ class MyTasks extends Page
             ->orderBy('scheduled_at')
             ->get()
             ->map(fn ($a) => [
-                'id' => $a->id,
-                'type' => $a->type,
-                'type_label' => LeadActivity::TYPES[$a->type] ?? $a->type,
-                'subject' => $a->subject,
-                'lead_name' => $a->lead?->name,
-                'lead_id' => $a->lead_id,
-                'scheduled_at' => $a->scheduled_at?->format('H:i'),
-                'is_overdue' => $a->scheduled_at?->isPast(),
-                'edit_url' => route('filament.admin.resources.leads.edit', $a->lead_id),
+                'id'             => $a->id,
+                'type'           => $a->type,
+                'type_label'     => LeadActivity::TYPES[$a->type] ?? $a->type,
+                'subject'        => $a->subject,
+                'lead_name'      => $a->lead?->name,
+                'lead_id'        => $a->lead_id,
+                'scheduled_at'   => $a->scheduled_at?->format('H:i'),
+                'scheduled_date' => $a->scheduled_at?->format('Y-m-d'),
+                'is_overdue'     => $a->scheduled_at?->isPast(),
+                'edit_url'       => route('filament.admin.resources.leads.edit', $a->lead_id),
             ])
             ->toArray();
 
-        // تذكيرات مستحقة
         $this->dueReminders = LeadReminder::with('lead')
             ->where('user_id', $userId)
             ->where('status', 'pending')
@@ -73,15 +79,14 @@ class MyTasks extends Page
             ->orderBy('remind_at')
             ->get()
             ->map(fn ($r) => [
-                'id' => $r->id,
-                'title' => $r->title,
-                'lead_name' => $r->lead?->name,
-                'remind_at' => $r->remind_at?->format('Y-m-d H:i'),
+                'id'         => $r->id,
+                'title'      => $r->title,
+                'lead_name'  => $r->lead?->name,
+                'remind_at'  => $r->remind_at?->format('Y-m-d H:i'),
                 'type_label' => LeadReminder::TYPES[$r->type] ?? $r->type,
             ])
             ->toArray();
 
-        // مواعيد قادمة (هذا الأسبوع)
         $this->upcomingMeetings = LeadActivity::with('lead')
             ->where('user_id', $userId)
             ->where('is_completed', false)
@@ -91,25 +96,31 @@ class MyTasks extends Page
             ->orderBy('scheduled_at')
             ->get()
             ->map(fn ($a) => [
-                'id' => $a->id,
-                'type' => $a->type,
-                'type_label' => LeadActivity::TYPES[$a->type] ?? $a->type,
-                'subject' => $a->subject,
-                'lead_name' => $a->lead?->name,
+                'id'           => $a->id,
+                'type'         => $a->type,
+                'type_label'   => LeadActivity::TYPES[$a->type] ?? $a->type,
+                'subject'      => $a->subject,
+                'lead_name'    => $a->lead?->name,
                 'scheduled_at' => $a->scheduled_at?->format('Y-m-d H:i'),
-                'day_label' => $a->scheduled_at?->isToday() ? 'اليوم' : ($a->scheduled_at?->isTomorrow() ? 'غداً' : $a->scheduled_at?->format('D d/m')),
-                'edit_url' => route('filament.admin.resources.leads.edit', $a->lead_id),
+                'day_label'    => $a->scheduled_at?->isToday() ? 'اليوم'
+                    : ($a->scheduled_at?->isTomorrow() ? 'غداً'
+                    : $a->scheduled_at?->format('D d/m')),
+                'edit_url'     => route('filament.admin.resources.leads.edit', $a->lead_id),
             ])
             ->toArray();
 
-        // بناء تقويم الشهر الحالي
+        $this->leadsForSelect = Lead::whereIn('status', ['new', 'contacted', 'qualified', 'opportunity'])
+            ->orderBy('name')
+            ->pluck('name', 'id')
+            ->toArray();
+
         $this->buildCalendar($userId);
     }
 
     protected function buildCalendar(int $userId): void
     {
         $start = now()->startOfMonth();
-        $end = now()->endOfMonth();
+        $end   = now()->endOfMonth();
 
         $activityDays = LeadActivity::where('user_id', $userId)
             ->whereNotNull('scheduled_at')
@@ -119,21 +130,52 @@ class MyTasks extends Page
             ->pluck('cnt', 'day')
             ->toArray();
 
-        $days = [];
-        $blanks = $start->dayOfWeek; // 0=Sunday
+        $days    = [];
+        $blanks  = $start->dayOfWeek;
         for ($i = 0; $i < $blanks; $i++) {
             $days[] = null;
         }
         for ($d = 1; $d <= $end->day; $d++) {
-            $dateKey = now()->format('Y-m').'-'.str_pad($d, 2, '0', STR_PAD_LEFT);
-            $days[] = [
-                'day' => $d,
+            $dateKey = now()->format('Y-m') . '-' . str_pad($d, 2, '0', STR_PAD_LEFT);
+            $days[]  = [
+                'day'      => $d,
                 'is_today' => $d === now()->day,
-                'count' => $activityDays[$dateKey] ?? 0,
+                'count'    => $activityDays[$dateKey] ?? 0,
             ];
         }
 
         $this->calendarDays = $days;
+    }
+
+    public function saveNewTask(): void
+    {
+        $this->validate(
+            [
+                'newSubject' => 'required|min:2',
+                'newLeadId'  => 'required|exists:leads,id',
+            ],
+            [
+                'newSubject.required' => 'الموضوع مطلوب',
+                'newLeadId.required'  => 'اختر عميلاً محتملاً',
+            ]
+        );
+
+        LeadActivity::create([
+            'lead_id'      => $this->newLeadId,
+            'user_id'      => Auth::id(),
+            'type'         => $this->newType,
+            'subject'      => $this->newSubject,
+            'scheduled_at' => $this->newScheduledAt ?: now(),
+            'is_completed' => false,
+        ]);
+
+        $this->newSubject    = '';
+        $this->newLeadId     = null;
+        $this->newScheduledAt = now()->format('Y-m-d\TH:i');
+        $this->showAddTask   = false;
+        $this->loadData();
+
+        Notification::make()->title('تمت إضافة المهمة بنجاح')->success()->send();
     }
 
     public function completeTask(int $activityId): void
@@ -150,7 +192,7 @@ class MyTasks extends Page
     {
         $reminder = LeadReminder::findOrFail($reminderId);
         $reminder->update([
-            'status' => 'snoozed',
+            'status'       => 'snoozed',
             'snoozed_until' => now()->addHour(),
             'snooze_count' => $reminder->snooze_count + 1,
         ]);
