@@ -11,6 +11,8 @@ class LeadsBySourceChart extends ChartWidget
 
     protected static ?int $sort = 4;
 
+    protected int|string|array $columnSpan = 6;
+
     protected function getData(): array
     {
         $data = [];

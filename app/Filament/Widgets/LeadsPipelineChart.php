@@ -11,6 +11,8 @@ class LeadsPipelineChart extends ChartWidget
 
     protected static ?int $sort = 3;
 
+    protected int|string|array $columnSpan = 6;
+
     protected function getData(): array
     {
         $statuses = ['new', 'contacted', 'qualified', 'opportunity', 'won', 'lost'];

@@ -11,7 +11,8 @@ class LeadActivity extends Model
     use HasFactory;
 
     protected $fillable = [
-        'lead_id', 'user_id', 'type', 'subject', 'description',
+        'lead_id', 'user_id', 'assigned_by', 'color',
+        'type', 'subject', 'description',
         'duration_minutes', 'outcome', 'attachments',
         'scheduled_at', 'completed_at', 'is_completed',
     ];
@@ -52,6 +53,23 @@ class LeadActivity extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function assigner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_by');
+    }
+
+    public const TYPE_COLORS = [
+        'call'     => '#22c55e',
+        'whatsapp' => '#25D366',
+        'email'    => '#f97316',
+        'sms'      => '#eab308',
+        'visit'    => '#8b5cf6',
+        'meeting'  => '#3b82f6',
+        'note'     => '#6b7280',
+        'reminder' => '#ef4444',
+        'status_change' => '#64748b',
+    ];
 
     protected static function boot()
     {
