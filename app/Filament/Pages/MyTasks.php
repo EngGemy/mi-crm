@@ -74,8 +74,8 @@ class MyTasks extends Page
 
         $this->dueReminders = LeadReminder::with('lead')
             ->where('user_id', $userId)
-            ->where('status', 'pending')
-            ->where('remind_at', '<=', now())
+            ->whereIn('status', ['pending', 'snoozed'])
+            ->whereDate('remind_at', '<=', now()->toDateString())
             ->orderBy('remind_at')
             ->get()
             ->map(fn ($r) => [
@@ -84,6 +84,7 @@ class MyTasks extends Page
                 'lead_name'  => $r->lead?->name,
                 'remind_at'  => $r->remind_at?->format('Y-m-d H:i'),
                 'type_label' => LeadReminder::TYPES[$r->type] ?? $r->type,
+                'is_overdue' => $r->remind_at?->isPast(),
             ])
             ->toArray();
 
@@ -109,7 +110,7 @@ class MyTasks extends Page
             ])
             ->toArray();
 
-        $this->leadsForSelect = Lead::whereIn('status', ['new', 'contacted', 'qualified', 'opportunity'])
+        $this->leadsForSelect = Lead::whereNotIn('status', ['lost'])
             ->orderBy('name')
             ->pluck('name', 'id')
             ->toArray();

@@ -53,30 +53,40 @@
         {{-- Left column: reminders + tasks table --}}
         <div class="lg:col-span-2 space-y-4">
 
-            {{-- Due Reminders --}}
+            {{-- Reminders (today + overdue) --}}
             @if($reminderCount > 0)
-            <div class="rounded-xl border border-red-200 dark:border-red-800 bg-white dark:bg-gray-900 overflow-hidden shadow-sm">
-                <div class="bg-red-50 dark:bg-red-950/30 px-4 py-3 flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/50 flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-red-500" viewBox="0 0 24 24" fill="currentColor">
+            <div class="rounded-xl border border-amber-200 dark:border-amber-800 bg-white dark:bg-gray-900 overflow-hidden shadow-sm">
+                <div class="bg-amber-50 dark:bg-amber-950/30 px-4 py-3 flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-amber-500" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M5.85 3.5a.75.75 0 00-1.117-1 9.719 9.719 0 00-2.348 4.876.75.75 0 001.479.248A8.219 8.219 0 015.85 3.5zM19.267 2.5a.75.75 0 10-1.118 1 8.22 8.22 0 011.987 4.124.75.75 0 001.479-.248A9.72 9.72 0 0019.267 2.5zM12 2.25A6.75 6.75 0 005.25 9v.75a8.217 8.217 0 01-2.119 5.52.75.75 0 00.298 1.206c1.544.57 3.16.99 4.831 1.243a3.75 3.75 0 107.48 0 24.583 24.583 0 004.83-1.244.75.75 0 00.298-1.205 8.217 8.217 0 01-2.118-5.52V9A6.75 6.75 0 0012 2.25z"/>
                         </svg>
                     </div>
-                    <h3 class="font-semibold text-red-700 dark:text-red-300">تذكيرات مستحقة ({{ $reminderCount }})</h3>
+                    <h3 class="font-semibold text-amber-700 dark:text-amber-300">تذكيرات اليوم ({{ $reminderCount }})</h3>
                 </div>
-                <div class="divide-y divide-red-50 dark:divide-gray-800">
+                <div class="divide-y divide-amber-50 dark:divide-gray-800">
                     @foreach($dueReminders as $r)
-                    <div class="flex items-center justify-between px-4 py-3 hover:bg-red-50/30 transition-colors">
-                        <div>
-                            <p class="font-medium text-sm text-gray-800 dark:text-gray-200">{{ $r['title'] }}</p>
-                            @if($r['lead_name'])
-                            <p class="text-xs text-gray-400 mt-0.5">{{ $r['lead_name'] }} · {{ $r['type_label'] }}</p>
+                    <div class="flex items-center justify-between px-4 py-3 hover:bg-amber-50/30 dark:hover:bg-amber-950/10 transition-colors">
+                        <div class="flex items-start gap-3 min-w-0">
+                            @if($r['is_overdue'])
+                            <span class="mt-0.5 w-2 h-2 rounded-full bg-red-500 shrink-0 animate-pulse"></span>
+                            @else
+                            <span class="mt-0.5 w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
                             @endif
-                            <p class="text-xs text-red-400 font-mono mt-0.5">{{ $r['remind_at'] }}</p>
+                            <div class="min-w-0">
+                                <p class="font-medium text-sm text-gray-800 dark:text-gray-200">{{ $r['title'] }}</p>
+                                @if($r['lead_name'])
+                                <p class="text-xs text-gray-400 mt-0.5">{{ $r['lead_name'] }} · {{ $r['type_label'] }}</p>
+                                @endif
+                                <p class="text-xs font-mono mt-0.5 {{ $r['is_overdue'] ? 'text-red-400' : 'text-amber-500' }}">
+                                    {{ $r['remind_at'] }}
+                                    @if($r['is_overdue']) <span class="font-sans normal-case"> — متأخر</span>@endif
+                                </p>
+                            </div>
                         </div>
                         <button
                             wire:click="snoozeReminder({{ $r['id'] }})"
-                            class="text-xs font-medium text-orange-600 hover:text-orange-800 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg px-3 py-1.5 transition-colors whitespace-nowrap"
+                            class="shrink-0 text-xs font-medium text-orange-600 hover:text-orange-800 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg px-3 py-1.5 transition-colors whitespace-nowrap mr-3"
                         >تأجيل ساعة</button>
                     </div>
                     @endforeach
