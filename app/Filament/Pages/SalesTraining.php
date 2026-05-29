@@ -32,6 +32,8 @@ class SalesTraining extends Page
 
     public bool $quizSubmitted = false;
 
+    public array $quizQuestions = [];
+
     public static function canAccess(): bool
     {
         return auth()->check();
@@ -128,6 +130,90 @@ class SalesTraining extends Page
 
         $this->pricingParams = $pricingParams;
         $this->vatRate = $vatRate;
+
+        $this->buildQuizQuestions();
+    }
+
+    public function buildQuizQuestions(): void
+    {
+        $correctMap = [
+            'q1' => (string) $this->example['effective_length'],
+            'q2' => (string) $this->example['lines'],
+            'q3' => (string) $this->example['birds_per_nest'],
+            'q4' => (string) $this->example['total_nests'],
+            'q5' => (string) $this->example['main_fans'],
+        ];
+
+        $questions = [
+            [
+                'key' => 'q1',
+                'text' => 'ما هو الطول الفعّال للعنبر؟',
+                'options' => [
+                    (string) $this->example['effective_length'] => $this->example['effective_length'].' م',
+                    (string) ($this->example['effective_length'] + 5) => ($this->example['effective_length'] + 5).' م',
+                    (string) $this->example['barn_length'] => $this->example['barn_length'].' م',
+                    (string) ($this->example['effective_length'] - 10) => ($this->example['effective_length'] - 10).' م',
+                ],
+            ],
+            [
+                'key' => 'q2',
+                'text' => 'كم عدد الخطوط لعنبر عرضه '.$this->example['hall_width'].'م؟',
+                'options' => [
+                    '3' => '3 خطوط',
+                    (string) $this->example['lines'] => $this->example['lines'].' خطوط',
+                    '5' => '5 خطوط',
+                    '6' => '6 خطوط',
+                ],
+            ],
+            [
+                'key' => 'q3',
+                'text' => 'كم عدد الطيور/العش لوزن '.$this->example['bird_weight'].' كجم؟',
+                'options' => [
+                    '18' => '18 طيرة',
+                    '21' => '21 طيرة',
+                    (string) $this->example['birds_per_nest'] => $this->example['birds_per_nest'].' طيرة',
+                    '13' => '13 طيرة',
+                ],
+            ],
+            [
+                'key' => 'q4',
+                'text' => 'ما هو إجمالي الأعشاش؟',
+                'options' => [
+                    (string) ($this->example['total_nests'] - 200) => number_format($this->example['total_nests'] - 200).' عش',
+                    (string) $this->example['total_nests'] => number_format($this->example['total_nests']).' عش',
+                    (string) ($this->example['total_nests'] + 100) => number_format($this->example['total_nests'] + 100).' عش',
+                    (string) $this->example['nests_per_line'] => number_format($this->example['nests_per_line']).' عش',
+                ],
+            ],
+            [
+                'key' => 'q5',
+                'text' => 'كم عدد الشفاطات الرئيسية المطلوبة؟',
+                'options' => [
+                    (string) ($this->example['main_fans'] - 2) => ($this->example['main_fans'] - 2).' شفاطات',
+                    (string) ($this->example['main_fans'] + 2) => ($this->example['main_fans'] + 2).' شفاطات',
+                    (string) $this->example['main_fans'] => $this->example['main_fans'].' شفاطات',
+                    (string) ($this->example['main_fans'] + 4) => ($this->example['main_fans'] + 4).' شفاطات',
+                ],
+            ],
+        ];
+
+        // Shuffle options once so correct answer position is randomized per session
+        foreach ($questions as &$q) {
+            $opts = $q['options'];
+            $keys = array_keys($opts);
+            shuffle($keys);
+            $shuffled = [];
+            foreach ($keys as $k) {
+                $shuffled[$k] = $opts[$k];
+            }
+            $q['options'] = $shuffled;
+        }
+        unset($q);
+
+        $this->quizQuestions = [
+            'correctMap' => $correctMap,
+            'questions' => $questions,
+        ];
     }
 
     public function submitQuiz(): void
