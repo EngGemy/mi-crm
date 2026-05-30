@@ -10,6 +10,13 @@ Route::get('/', function () {
     return redirect('/admin');
 });
 
+// PDF حاسبة أسعار الدواجن
+Route::middleware(['auth'])->group(function () {
+    Route::get('/poultry-quotations/{record}/pdf', function (App\Models\PoultryQuotation $record) {
+        return app(App\Services\PoultryQuotationPdfGenerator::class)->download($record);
+    })->name('poultry-quotations.pdf');
+});
+
 // مسارات العقود (محمية بالمصادقة)
 Route::middleware(['auth'])->group(function () {
     Route::get('/contracts/{contract}/preview', [ContractController::class, 'preview'])

@@ -332,6 +332,13 @@ class PoultryQuotationResource extends Resource
                 Tables\Actions\ViewAction::make()->label('عرض'),
                 Tables\Actions\EditAction::make()->label('تعديل'),
 
+                Tables\Actions\Action::make('downloadPdf')
+                    ->label('PDF')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->color('primary')
+                    ->url(fn (PoultryQuotation $record) => route('poultry-quotations.pdf', $record))
+                    ->openUrlInNewTab(),
+
                 Tables\Actions\Action::make('generateCard')
                     ->label('توليد الكارت')
                     ->icon('heroicon-o-sparkles')

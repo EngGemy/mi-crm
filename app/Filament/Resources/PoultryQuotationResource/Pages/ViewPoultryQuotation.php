@@ -97,6 +97,13 @@ class ViewPoultryQuotation extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('downloadPdf')
+                ->label('تحميل PDF')
+                ->icon('heroicon-o-document-arrow-down')
+                ->color('primary')
+                ->url(fn () => route('poultry-quotations.pdf', $this->record))
+                ->openUrlInNewTab(),
+
             Actions\Action::make('generateCard')
                 ->label('توليد كارت المشاركة')
                 ->icon('heroicon-o-sparkles')
