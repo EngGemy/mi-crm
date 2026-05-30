@@ -61,7 +61,11 @@ class PoultryQuotationResource extends Resource
                         ->required()
                         ->native(false)
                         ->live()
-                        ->afterStateUpdated($live),
+                        ->afterStateUpdated(function (Forms\Set $set, Forms\Get $get) use ($live) {
+                            // reset height to the correct default for this project type
+                            $set('height', $get('project_type') === 'layer' ? '3.5' : '3.7');
+                            $live($set, $get);
+                        }),
 
                     Forms\Components\Select::make('pricing_scope')
                         ->label('نطاق التسعير')
@@ -108,7 +112,8 @@ class PoultryQuotationResource extends Resource
                         ->required()
                         ->numeric()
                         ->default(81)
-                        ->minValue(1)
+                        ->minValue(81)
+                        ->helperText('الحد الأدنى 81م')
                         ->suffix('م')
                         ->live(debounce: 400)
                         ->afterStateUpdated($live),
@@ -123,14 +128,16 @@ class PoultryQuotationResource extends Resource
                         ->live(debounce: 400)
                         ->afterStateUpdated($live),
 
-                    Forms\Components\TextInput::make('height')
+                    Forms\Components\Select::make('height')
                         ->label('الارتفاع (م)')
                         ->required()
-                        ->numeric()
-                        ->default(3.5)
-                        ->minValue(1)
-                        ->suffix('م')
-                        ->live(debounce: 400)
+                        ->native(false)
+                        ->options(fn (Forms\Get $get) => match ($get('project_type') ?? 'broiler') {
+                            'layer' => ['3.5' => '3.5 م', '4.0' => '4.0 م', '4.5' => '4.5 م'],
+                            default => ['3.7' => '3.7 م', '4.0' => '4.0 م', '4.5' => '4.5 م'],
+                        })
+                        ->default('3.7')
+                        ->live()
                         ->afterStateUpdated($live),
                 ])
                 ->columns(3),

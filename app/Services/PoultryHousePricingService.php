@@ -276,6 +276,9 @@ class PoultryHousePricingService
         if ((float) $input['hall_length'] <= 0) {
             throw new \InvalidArgumentException('الطول يجب أن يكون أكبر من صفر');
         }
+        if ((float) $input['hall_length'] < 81) {
+            throw new \InvalidArgumentException('الطول الأدنى للعنبر هو 81م — لا يُقبل 80م أو أقل');
+        }
         if ((float) $input['hall_width'] <= 0) {
             throw new \InvalidArgumentException('العرض يجب أن يكون أكبر من صفر');
         }

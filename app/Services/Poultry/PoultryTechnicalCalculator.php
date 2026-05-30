@@ -42,7 +42,9 @@ class PoultryTechnicalCalculator
             );
         }
 
-        $effectiveLength = $barnLength - $serviceLength;
+        // result must be even — round up by 1 if odd (e.g. 81-10=71 → 72)
+        $raw = $barnLength - $serviceLength;
+        $effectiveLength = fmod($raw, 2) == 0 ? $raw : $raw + 1;
         $lines = (int) ($input['lines'] ?? $this->resolveLinesFromWidth((float) ($input['barn_width'] ?? 0), $config));
         $tiers = (int) $input['tiers'];
 
