@@ -42,6 +42,8 @@ class PoultryConfigLoader
             'width_lines_map' => PoultryTechnicalCalculator::DEFAULT_WIDTH_LINES_MAP,
             'side_fan_rules' => $this->defaultSideFanRules(),
             'heater_rules' => $this->defaultHeaterRules(),
+            'broiler_height_options' => [3.7, 4.0, 4.5],
+            'layer_height_options' => [3.5, 4.0, 4.5],
         ];
     }
 
@@ -68,6 +70,8 @@ class PoultryConfigLoader
             ),
             'side_fan_rules' => $this->decodeJsonSetting('poultry_pricing.side_fan_rules', $this->defaultSideFanRules()),
             'heater_rules' => $this->decodeJsonSetting('poultry_pricing.heater_rules', $this->defaultHeaterRules()),
+            'broiler_height_options' => $this->decodeJsonSetting('poultry_pricing.broiler_height_options', [3.7, 4.0, 4.5]),
+            'layer_height_options' => $this->decodeJsonSetting('poultry_pricing.layer_height_options', [3.5, 4.0, 4.5]),
         ];
     }
 

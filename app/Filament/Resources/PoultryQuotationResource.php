@@ -8,6 +8,7 @@ use App\Filament\Concerns\HasLivePoultryPricing;
 use App\Filament\Resources\PoultryQuotationResource\Pages;
 use App\Models\PoultryQuotation;
 use App\Services\Pricing\PricingCardImageGenerator;
+use App\Services\Poultry\PoultryConfigLoader;
 use App\Support\BroilerWeightReference;
 use App\Support\HeaterOptions;
 use Filament\Forms;
@@ -62,8 +63,8 @@ class PoultryQuotationResource extends Resource
                         ->native(false)
                         ->live()
                         ->afterStateUpdated(function (Forms\Set $set, Forms\Get $get) use ($live) {
-                            // reset height to the correct default for this project type
-                            $set('height', $get('project_type') === 'layer' ? '3.5' : '3.7');
+                            $opts = static::heightOptionsForType($get('project_type') ?? 'broiler');
+                            $set('height', array_key_first($opts) ?? ($get('project_type') === 'layer' ? '3.5' : '3.7'));
                             $live($set, $get);
                         }),
 
@@ -132,11 +133,8 @@ class PoultryQuotationResource extends Resource
                         ->label('الارتفاع (م)')
                         ->required()
                         ->native(false)
-                        ->options(fn (Forms\Get $get) => match ($get('project_type') ?? 'broiler') {
-                            'layer' => ['3.5' => '3.5 م', '4.0' => '4.0 م', '4.5' => '4.5 م'],
-                            default => ['3.7' => '3.7 م', '4.0' => '4.0 م', '4.5' => '4.5 م'],
-                        })
-                        ->default('3.7')
+                        ->options(fn (Forms\Get $get) => static::heightOptionsForType($get('project_type') ?? 'broiler'))
+                        ->default(fn () => array_key_first(static::heightOptionsForType('broiler')) ?? '3.7')
                         ->live()
                         ->afterStateUpdated($live),
                 ])
@@ -404,6 +402,23 @@ class PoultryQuotationResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    /** @return array<string, string> */
+    public static function heightOptionsForType(string $type): array
+    {
+        $config = (new PoultryConfigLoader)->loadTechnicalConfig();
+        $heights = $type === 'layer'
+            ? ($config['layer_height_options'] ?? [3.5, 4.0, 4.5])
+            : ($config['broiler_height_options'] ?? [3.7, 4.0, 4.5]);
+
+        $options = [];
+        foreach ($heights as $h) {
+            $key = number_format((float) $h, 1);
+            $options[$key] = $key.' م';
+        }
+
+        return $options;
     }
 
     public static function getPages(): array

@@ -46,8 +46,8 @@ class SalesTraining extends Page
         $techConfig = $configLoader->loadTechnicalConfig();
         $pricingParams = $configLoader->loadPricingParams();
 
-        // مثال قياسي: عنبر 80م × 12م، 3 أدوار، وزن طائر 2.1 كجم
-        $barnLength = 80;
+        // مثال قياسي: عنبر 81م × 12م، 3 أدوار، وزن طائر 2.1 كجم (الحد الأدنى 81م)
+        $barnLength = 81;
         $hallWidth = 12;
         $serviceLength = (float) $techConfig['default_service_length'];
         $tiers = 3;
@@ -55,7 +55,9 @@ class SalesTraining extends Page
 
         $lines = $calculator->resolveLinesFromWidth($hallWidth, $techConfig);
         $birdsPerNest = $calculator->birdsPerNestFromWeight($birdWeight, $techConfig);
-        $effectiveLength = $barnLength - $serviceLength;
+        // الطول الفعّال يجب أن يكون زوجياً — نجبر للأعلى إذا كان فردياً (مثال: 81-10=71 → 72)
+        $rawEffective = $barnLength - $serviceLength;
+        $effectiveLength = fmod($rawEffective, 2) == 0 ? $rawEffective : $rawEffective + 1;
         $nestsPerLine = (int) ($effectiveLength * 2 * $tiers);
         $totalNests = $nestsPerLine * $lines;
         $totalBirds = $totalNests * $birdsPerNest;
@@ -71,7 +73,7 @@ class SalesTraining extends Page
         $pricePerBird = (float) $pricingParams['price_per_bird'];
         $concreteArea = $barnLength * $hallWidth;
         $steelArea = $barnLength * $hallWidth;
-        $hallHeight = 3;
+        $hallHeight = 3.7;
         $wallsArea = $barnLength * $hallHeight * 2;
         $batteryTotal = $totalBirds * $pricePerBird;
         $fansTotal = $mainFans * (float) $pricingParams['back_fan_unit_price'];

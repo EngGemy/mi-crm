@@ -257,6 +257,32 @@ class PoultryPricingSettingsSeeder extends Seeder
                 'sort_order' => 19,
                 'validation_rules' => ['numeric', 'min:0'],
             ],
+            [
+                'key' => 'poultry_pricing.broiler_height_options',
+                'value' => '[3.7,4.0,4.5]',
+                'type' => 'json',
+                'category' => 'poultry_pricing',
+                'label_ar' => 'خيارات الارتفاع — تسمين',
+                'label_en' => 'Broiler height options',
+                'description' => 'قائمة ارتفاعات عنابر التسمين المتاحة (JSON) — مثال: [3.7,4.0,4.5]',
+                'is_public' => false,
+                'is_required' => false,
+                'sort_order' => 20,
+                'validation_rules' => [],
+            ],
+            [
+                'key' => 'poultry_pricing.layer_height_options',
+                'value' => '[3.5,4.0,4.5]',
+                'type' => 'json',
+                'category' => 'poultry_pricing',
+                'label_ar' => 'خيارات الارتفاع — بياض',
+                'label_en' => 'Layer height options',
+                'description' => 'قائمة ارتفاعات عنابر البياض المتاحة (JSON) — مثال: [3.5,4.0,4.5]',
+                'is_public' => false,
+                'is_required' => false,
+                'sort_order' => 21,
+                'validation_rules' => [],
+            ],
         ];
 
         foreach ($settings as $setting) {

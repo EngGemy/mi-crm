@@ -317,6 +317,16 @@ class CompanySettings extends Page implements HasForms
                                             ->helperText('مثال: {"3":45000,"4":55000,"5":65000,"6":75000,"8":95000}')
                                             ->rows(3)
                                             ->columnSpanFull(),
+                                        Textarea::make('poultry_pricing.broiler_height_options')
+                                            ->label('ارتفاعات عنابر التسمين (JSON)')
+                                            ->helperText('قائمة الارتفاعات المتاحة في الحاسبة — مثال: [3.7,4.0,4.5]')
+                                            ->rows(2)
+                                            ->columnSpanFull(),
+                                        Textarea::make('poultry_pricing.layer_height_options')
+                                            ->label('ارتفاعات عنابر البياض (JSON)')
+                                            ->helperText('قائمة الارتفاعات المتاحة في الحاسبة — مثال: [3.5,4.0,4.5]')
+                                            ->rows(2)
+                                            ->columnSpanFull(),
                                     ])->columns(2),
                             ]),
 
