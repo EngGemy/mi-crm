@@ -4,10 +4,13 @@ namespace App\Services\Pricing;
 
 use App\Models\PoultryQuotation;
 use Illuminate\Support\Facades\View;
-use Symfony\Component\Process\Process;
 
 class PricingCardImageGenerator
 {
+    public function __construct(
+        protected HtmlScreenshotService $screenshotService,
+    ) {}
+
     public function generate(PoultryQuotation $quotation): string
     {
         $html = $this->renderHtml($quotation);
@@ -20,35 +23,9 @@ class PricingCardImageGenerator
         $htmlPath = $tempDir."/card-{$quotation->quote_number}.html";
         file_put_contents($htmlPath, $html);
 
-        $outputDir = storage_path('app/public/pricing-cards');
-        if (! is_dir($outputDir)) {
-            mkdir($outputDir, 0755, true);
-        }
+        $outputPath = storage_path("app/public/pricing-cards/{$quotation->quote_number}.png");
 
-        $outputPath = $outputDir."/{$quotation->quote_number}.png";
-
-        $scriptPath = base_path('scripts/screenshot.cjs');
-        $env = array_merge($_SERVER, [
-            'TEMP' => sys_get_temp_dir(),
-            'TMP' => sys_get_temp_dir(),
-        ]);
-        $process = new Process([
-            'node',
-            $scriptPath,
-            $htmlPath,
-            $outputPath,
-            '1080',
-            '1080',
-        ], null, $env);
-
-        $process->setTimeout(60);
-        $process->run();
-
-        if (! $process->isSuccessful()) {
-            throw new \RuntimeException(
-                'Card generation failed: '.$process->getErrorOutput()
-            );
-        }
+        $this->screenshotService->capture($htmlPath, $outputPath, 1080, 1080);
 
         @unlink($htmlPath);
 
@@ -57,8 +34,22 @@ class PricingCardImageGenerator
 
     public function renderHtml(PoultryQuotation $quotation): string
     {
+        $snap = $quotation->pricing_snapshot ?? [];
+        $financial = $snap['financial'] ?? [];
+
+        $displayTotal = (float) $quotation->total;
+        if ($displayTotal <= 0) {
+            $displayTotal = (float) (
+                $financial['total']
+                ?? $financial['grand_total']
+                ?? $quotation->subtotal
+                ?? 0
+            );
+        }
+
         return View::make('pricing-calculator.card', [
             'quotation' => $quotation,
+            'displayTotal' => $displayTotal,
             'companyName' => settings('company.name_ar', 'MI Metal Industries'),
             'managerName' => env('SALES_MANAGER_NAME', 'م. كريم العش'),
         ])->render();

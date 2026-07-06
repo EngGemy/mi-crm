@@ -66,6 +66,13 @@ jobs:
               -o StrictHostKeyChecking=no \
               "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
               "set -e && cd '${{ secrets.DEPLOY_PATH }}' && \
+               NODE_BIN='${{ secrets.NODE_BINARY }}'; \
+               if [ -n \"\$NODE_BIN\" ] && [ -x \"\$NODE_BIN\" ]; then export PATH=\"\$(dirname \"\$NODE_BIN\"):\$PATH\"; fi; \
+               if command -v node >/dev/null 2>&1; then \
+                 export PLAYWRIGHT_BROWSERS_PATH=\"\$(pwd)/storage/app/playwright-browsers\"; \
+                 npm ci --omit=dev; \
+                 npx playwright install chromium; \
+               fi; \
                php artisan migrate --force && \
                php artisan config:cache && \
                php artisan route:cache && \

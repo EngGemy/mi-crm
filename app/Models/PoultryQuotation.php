@@ -140,6 +140,7 @@ class PoultryQuotation extends Model
                 $quotation->windows_count = $computed['windows_count'] ?? $quotation->windows_count;
                 $quotation->side_fans_count = $computed['side_fans_count'] ?? $quotation->side_fans_count;
                 $quotation->heaters_count = $computed['heaters_count'] ?? $quotation->heaters_count;
+                $quotation->syncCostsFromSnapshot();
 
                 return;
             }
@@ -192,18 +193,8 @@ class PoultryQuotation extends Model
         $this->heaters_count = $computed['heaters_count'];
         $this->pricing_snapshot = $result;
 
-        $this->concrete_cost = $items->firstWhere('key', 'concrete')['total_price'] ?? 0;
-        $this->steel_cost = $items->firstWhere('key', 'steel')['total_price'] ?? 0;
-        $this->walls_cost = $items->firstWhere('key', 'walls')['total_price'] ?? 0;
-        $this->tanks_cost = $items->firstWhere('key', 'tanks')['total_price'] ?? 0;
-        $this->battery_cost = $items->firstWhere('key', 'battery')['total_price'] ?? 0;
-        $this->back_fans_cost = $items->firstWhere('key', 'main_fans')['total_price'] ?? 0;
-        $this->cooling_cost = $items->firstWhere('key', 'cooling')['total_price'] ?? 0;
-        $this->windows_cost = $items->firstWhere('key', 'windows')['total_price'] ?? 0;
-        $this->side_fans_cost = $items->firstWhere('key', 'side_fans')['total_price'] ?? 0;
-        $this->heaters_cost = $items->firstWhere('key', 'heaters')['total_price'] ?? 0;
-        $this->control_cost = $items->firstWhere('key', 'control')['total_price'] ?? 0;
-        $this->electricity_cost = $items->firstWhere('key', 'electricity')['total_price'] ?? 0;
+        $this->syncCostsFromSnapshot();
+
         $this->subtotal = $result['subtotal'];
 
         $vatPercentage = (float) $this->vat_percentage > 0
@@ -219,6 +210,56 @@ class PoultryQuotation extends Model
 
         $this->vat_amount = FinancialEngine::toFloat($financial['vat_amount']);
         $this->total = FinancialEngine::toFloat($financial['total']);
+    }
+
+    public function syncCostsFromSnapshot(): void
+    {
+        $items = collect($this->pricing_snapshot['items'] ?? []);
+
+        $this->concrete_cost = $this->totalForItemKey($items, 'concrete');
+        $this->steel_cost = $this->totalForItemKey($items, 'steel');
+        $this->walls_cost = $this->totalForItemKey($items, 'walls');
+        $this->tanks_cost = $this->totalForItemKey($items, 'tanks');
+        $this->battery_cost = $this->totalForItemKey($items, 'battery');
+        $this->back_fans_cost = $this->totalForItemKey($items, 'main_fans');
+        $this->cooling_cost = $this->totalForItemKey($items, 'cooling');
+        $this->windows_cost = $this->totalForItemKey($items, 'windows');
+        $this->side_fans_cost = $this->totalForItemKey($items, 'side_fans');
+        $this->heaters_cost = $this->totalForItemKey($items, 'heaters');
+        $this->control_cost = $this->totalForItemKey($items, 'control');
+        $this->electricity_cost = $this->totalForItemKey($items, 'electricity');
+    }
+
+    public function costForItemKey(string $key): float
+    {
+        $column = match ($key) {
+            'concrete' => 'concrete_cost',
+            'steel' => 'steel_cost',
+            'walls' => 'walls_cost',
+            'tanks' => 'tanks_cost',
+            'battery' => 'battery_cost',
+            'main_fans' => 'back_fans_cost',
+            'cooling' => 'cooling_cost',
+            'windows' => 'windows_cost',
+            'side_fans' => 'side_fans_cost',
+            'heaters' => 'heaters_cost',
+            'control' => 'control_cost',
+            'electricity' => 'electricity_cost',
+            default => null,
+        };
+
+        if ($column && (float) ($this->{$column} ?? 0) > 0) {
+            return (float) $this->{$column};
+        }
+
+        return $this->totalForItemKey(collect($this->pricing_snapshot['items'] ?? []), $key);
+    }
+
+    protected function totalForItemKey(\Illuminate\Support\Collection $items, string $key): float
+    {
+        $item = $items->firstWhere('key', $key);
+
+        return (float) ($item['total_price'] ?? 0);
     }
 
     public function creator(): BelongsTo

@@ -5,10 +5,13 @@ namespace App\Services\Pricing;
 use App\Models\PoultryQuotation;
 use App\Services\Pricing\DTOs\QuotationResult;
 use Illuminate\Support\Facades\View;
-use Symfony\Component\Process\Process;
 
 class QuotationImageGenerator
 {
+    public function __construct(
+        protected HtmlScreenshotService $screenshotService,
+    ) {}
+
     public function generate(PoultryQuotation $quotation, QuotationResult $result): string
     {
         $html = $this->renderHtml($quotation, $result);
@@ -21,35 +24,9 @@ class QuotationImageGenerator
         $htmlPath = $tempDir."/{$quotation->quote_number}.html";
         file_put_contents($htmlPath, $html);
 
-        $outputDir = storage_path('app/public/quotations');
-        if (! is_dir($outputDir)) {
-            mkdir($outputDir, 0755, true);
-        }
+        $outputPath = storage_path("app/public/quotations/{$quotation->quote_number}.png");
 
-        $outputPath = $outputDir."/{$quotation->quote_number}.png";
-
-        $scriptPath = base_path('scripts/screenshot.cjs');
-        $env = array_merge($_SERVER, [
-            'TEMP' => sys_get_temp_dir(),
-            'TMP' => sys_get_temp_dir(),
-        ]);
-        $process = new Process([
-            'node',
-            $scriptPath,
-            $htmlPath,
-            $outputPath,
-            '1240',
-            '1754',
-        ], null, $env);
-
-        $process->setTimeout(60);
-        $process->run();
-
-        if (! $process->isSuccessful()) {
-            throw new \RuntimeException(
-                'Image generation failed: '.$process->getErrorOutput()
-            );
-        }
+        $this->screenshotService->capture($htmlPath, $outputPath, 1240, 1754);
 
         @unlink($htmlPath);
 

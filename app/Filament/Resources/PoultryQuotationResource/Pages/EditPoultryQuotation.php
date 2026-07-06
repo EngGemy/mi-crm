@@ -10,6 +10,17 @@ class EditPoultryQuotation extends EditRecord
 {
     protected static string $resource = PoultryQuotationResource::class;
 
+    protected function afterSave(): void
+    {
+        try {
+            $this->record->refresh();
+            $this->record->autoCompute();
+            $this->record->saveQuietly();
+        } catch (\Throwable) {
+            // incomplete dimensions — preserved as-is
+        }
+    }
+
     protected function getHeaderActions(): array
     {
         return [

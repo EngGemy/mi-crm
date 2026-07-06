@@ -28,4 +28,8 @@ return [
         'from' => env('TWILIO_FROM'),
         'whatsapp_from' => env('TWILIO_WHATSAPP_FROM'),
     ],
+
+    'node' => [
+        'binary' => env('NODE_BINARY'),
+    ],
 ];

@@ -410,6 +410,7 @@ class QuotationResource extends Resource
                                     ->options(QuotationSection::active()->pluck('title_ar', 'id'))
                                     ->searchable()
                                     ->required()
+                                    ->disableOptionsWhenSelectedInSiblingRepeaterItems()
                                     ->live()
                                     ->columnSpan(2),
 
@@ -438,6 +439,18 @@ class QuotationResource extends Resource
                             ->collapsible()
                             ->orderColumn('sort_order')
                             ->addActionLabel('+ إضافة قسم')
+                            ->mutateRelationshipDataBeforeCreateUsing(function (array $data, Forms\Components\Repeater $component): ?array {
+                                $deduped = static::dedupeRelationshipAttachmentRow($data, 'quotation_section_id');
+                                if ($deduped === null) {
+                                    return null;
+                                }
+
+                                if ($component->getRelationship()->where('quotation_section_id', $deduped['quotation_section_id'])->exists()) {
+                                    return null;
+                                }
+
+                                return $deduped;
+                            })
                             ->itemLabel(function (array $state) {
                                 $sectionId = $state['quotation_section_id'] ?? null;
                                 if ($sectionId) {
@@ -755,6 +768,7 @@ class QuotationResource extends Resource
                                     ->options(QuotationTerm::active()->pluck('title_ar', 'id'))
                                     ->searchable()
                                     ->required()
+                                    ->disableOptionsWhenSelectedInSiblingRepeaterItems()
                                     ->live()
                                     ->columnSpan(2),
 
@@ -784,6 +798,18 @@ class QuotationResource extends Resource
                             ->collapsible()
                             ->orderColumn('sort_order')
                             ->addActionLabel('+ إضافة بند')
+                            ->mutateRelationshipDataBeforeCreateUsing(function (array $data, Forms\Components\Repeater $component): ?array {
+                                $deduped = static::dedupeRelationshipAttachmentRow($data, 'quotation_term_id');
+                                if ($deduped === null) {
+                                    return null;
+                                }
+
+                                if ($component->getRelationship()->where('quotation_term_id', $deduped['quotation_term_id'])->exists()) {
+                                    return null;
+                                }
+
+                                return $deduped;
+                            })
                             ->itemLabel(function (array $state) {
                                 $termId = $state['quotation_term_id'] ?? null;
                                 if ($termId) {
@@ -1236,7 +1262,7 @@ class QuotationResource extends Resource
         }
 
         // تحميل الأقسام الافتراضية
-        $sectionIds = $type->default_sections ?? [];
+        $sectionIds = array_values(array_unique($type->default_sections ?? []));
         if (! empty($sectionIds)) {
             $sections = QuotationSection::whereIn('id', $sectionIds)->orderBy('sort_order')->get();
             $set('sectionAttachments', $sections->map(fn ($s, $idx) => [
@@ -1247,15 +1273,37 @@ class QuotationResource extends Resource
         }
 
         // تحميل البنود الافتراضية
-        $termIds = $type->default_terms ?? [];
+        $termIds = array_values(array_unique($type->default_terms ?? []));
         if (! empty($termIds)) {
             $terms = QuotationTerm::whereIn('id', $termIds)->orderBy('sort_order')->get();
-            $set('termAttachments', $terms->map(fn ($t, $idx) => [
+            $set('termAttachments', $terms->unique('id')->values()->map(fn ($t, $idx) => [
                 'quotation_term_id' => $t->id,
                 'is_visible' => true,
                 'sort_order' => $idx,
             ])->values()->toArray());
         }
+    }
+
+    /**
+     * يمنع إدراج نفس البند/القسم مرتين في نفس عملية الحفظ (Repeater).
+     */
+    protected static function dedupeRelationshipAttachmentRow(array $data, string $foreignKey): ?array
+    {
+        $foreignId = $data[$foreignKey] ?? null;
+        if (! $foreignId) {
+            return null;
+        }
+
+        static $seen = [];
+        $seen[$foreignKey] ??= [];
+
+        if (isset($seen[$foreignKey][$foreignId])) {
+            return null;
+        }
+
+        $seen[$foreignKey][$foreignId] = true;
+
+        return $data;
     }
 
     protected static function updateItemTotalAndRollup(Forms\Set $set, Forms\Get $get): void

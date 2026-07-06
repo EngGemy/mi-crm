@@ -60,12 +60,50 @@ body { direction:rtl; color:#1a1a1a; font-size:10.5pt; line-height:1.65; backgro
 }
 
 /* ─── Info table ─── */
-.it { width:100%; border-collapse:collapse; font-size:10pt; margin-bottom:4mm; }
-.it tr:nth-child(even) td { background:#f7f7f7; }
-.it td { padding:2.2mm 4mm; border-bottom:1pt solid #ebebeb; vertical-align:middle; }
-.it .l { color:#555; width:38%; font-size:9.5pt; }
-.it .v { font-weight:bold; color:#111; }
-.it .hi { color:{{ settings('branding.primary_color','#C00000') }}; font-weight:bold; }
+.it { width:100%; border-collapse:separate; border-spacing:2.5mm; font-size:10pt; margin-bottom:4mm; }
+.spec-card {
+    background:#f7f7f7;
+    border:1pt solid #e8e8e8;
+    border-radius:2.5mm;
+    padding:3.5mm 4mm;
+    vertical-align:top;
+}
+.spec-card .lbl {
+    color:#666;
+    font-size:8.5pt;
+    margin-bottom:1.5mm;
+    display:block;
+}
+.spec-card .val {
+    font-weight:bold;
+    color:#111;
+    font-size:11pt;
+    line-height:1.3;
+    white-space:nowrap;
+}
+.spec-card .val.hi { color:{{ settings('branding.primary_color','#C00000') }}; }
+.spec-card .val.ltr { direction:ltr; text-align:right; font-variant-numeric:tabular-nums; }
+.dim-pills { direction:ltr; text-align:right; white-space:nowrap; }
+.dim-pill {
+    display:inline-block;
+    background:#fff;
+    border:1pt solid #ddd;
+    border-radius:1.5mm;
+    padding:1mm 2.5mm;
+    margin-left:1.5mm;
+    font-weight:bold;
+    font-size:10.5pt;
+    color:{{ settings('branding.primary_color','#C00000') }};
+}
+.dim-sep { color:#999; font-weight:normal; margin:0 0.5mm; }
+
+/* legacy row table (technical section) */
+.it-rows { width:100%; border-collapse:collapse; font-size:10pt; margin-bottom:4mm; }
+.it-rows tr:nth-child(even) td { background:#f7f7f7; }
+.it-rows td { padding:2.2mm 4mm; border-bottom:1pt solid #ebebeb; vertical-align:middle; }
+.it-rows .l { color:#555; width:38%; font-size:9.5pt; }
+.it-rows .v { font-weight:bold; color:#111; white-space:nowrap; }
+.it-rows .hi { color:{{ settings('branding.primary_color','#C00000') }}; font-weight:bold; }
 
 /* ─── Birds highlight row ─── */
 .birds-row { background:{{ settings('branding.primary_color','#C00000') }} !important; }
@@ -101,11 +139,11 @@ body { direction:rtl; color:#1a1a1a; font-size:10.5pt; line-height:1.65; backgro
 .fin table { width:100%; border-collapse:collapse; }
 .fin td { padding:2.5mm 4mm; border-bottom:1pt solid #ebebeb; font-size:10.5pt; }
 .fin .fl { color:#555; }
-.fin .fr { font-weight:bold; direction:ltr; text-align:left; }
+.fin .fr { font-weight:bold; direction:ltr; text-align:left; white-space:nowrap; }
 .fin .grand td {
     background:{{ settings('branding.primary_color','#C00000') }} !important;
     color:#fff !important; font-weight:bold; font-size:13pt;
-    border-bottom:none !important;
+    border-bottom:none !important; white-space:nowrap;
 }
 
 /* ─── Notes ─── */
@@ -215,28 +253,70 @@ body { direction:rtl; color:#1a1a1a; font-size:10.5pt; line-height:1.65; backgro
 <div class="sec-head">مواصفات المشروع والعنبر</div>
 <table class="it">
     <tr>
-        <td class="l">نوع المشروع</td>
-        <td class="v">{{ $projectType }}</td>
-        <td class="l">نطاق التسعير</td>
-        <td class="v">{{ $scope }}</td>
+        <td style="width:50%; padding:0;">
+            <div class="spec-card">
+                <span class="lbl">نوع المشروع</span>
+                <span class="val">{{ $projectType }}</span>
+            </div>
+        </td>
+        <td style="width:50%; padding:0;">
+            <div class="spec-card">
+                <span class="lbl">نطاق التسعير</span>
+                <span class="val">{{ $scope }}</span>
+            </div>
+        </td>
     </tr>
     <tr>
-        <td class="l">أبعاد العنبر</td>
-        <td class="v" dir="ltr">{{ number_format($barnLen,0) }} × {{ number_format($barnW,0) }} × {{ number_format($barnH,2) }} م</td>
-        <td class="l">منطقة الخدمات</td>
-        <td class="v">{{ $svcLen }} م</td>
+        <td style="width:50%; padding:0;">
+            <div class="spec-card">
+                <span class="lbl">أبعاد العنبر (ط × ع × ارت)</span>
+                <div class="val dim-pills">
+                    <span class="dim-pill">{{ number_format($barnLen, 0) }}م</span>
+                    <span class="dim-sep">×</span>
+                    <span class="dim-pill">{{ number_format($barnW, 0) }}م</span>
+                    <span class="dim-sep">×</span>
+                    <span class="dim-pill">{{ number_format($barnH, 2) }}م</span>
+                </div>
+            </div>
+        </td>
+        <td style="width:50%; padding:0;">
+            <div class="spec-card">
+                <span class="lbl">منطقة الخدمات</span>
+                <span class="val ltr">{{ $svcLen }} م</span>
+            </div>
+        </td>
     </tr>
     <tr>
-        <td class="l">الطول الفعّال</td>
-        <td class="hi">{{ number_format($effLen,0) }} م</td>
-        <td class="l">نوع الحوائط</td>
-        <td class="v">{{ $wallType }}</td>
+        <td style="width:50%; padding:0;">
+            <div class="spec-card">
+                <span class="lbl">الطول الفعّال</span>
+                <span class="val hi ltr">{{ number_format($effLen, 0) }} م</span>
+            </div>
+        </td>
+        <td style="width:50%; padding:0;">
+            <div class="spec-card">
+                <span class="lbl">نوع الحوائط</span>
+                <span class="val">{{ $wallType }}</span>
+            </div>
+        </td>
     </tr>
     <tr>
-        <td class="l">الخطوط × الأدوار</td>
-        <td class="v">{{ $tech['lines'] ?? $q->lines }} خطوط × {{ $tech['tiers'] ?? $q->tiers }} أدوار</td>
-        <td class="l">تاريخ العرض</td>
-        <td class="v" dir="ltr">{{ $q->created_at?->format('Y-m-d') }}</td>
+        <td style="width:50%; padding:0;">
+            <div class="spec-card">
+                <span class="lbl">الخطوط × الأدوار</span>
+                <div class="val dim-pills">
+                    <span class="dim-pill">{{ $tech['lines'] ?? $q->lines }} خط</span>
+                    <span class="dim-sep">×</span>
+                    <span class="dim-pill">{{ $tech['tiers'] ?? $q->tiers }} دور</span>
+                </div>
+            </div>
+        </td>
+        <td style="width:50%; padding:0;">
+            <div class="spec-card">
+                <span class="lbl">تاريخ العرض</span>
+                <span class="val ltr">{{ $q->created_at?->format('Y-m-d') }}</span>
+            </div>
+        </td>
     </tr>
 </table>
 
@@ -257,7 +337,7 @@ body { direction:rtl; color:#1a1a1a; font-size:10.5pt; line-height:1.65; backgro
     $coolingFormula = $tech['cooling_formula']          ?? null;
 @endphp
 <div class="sec-head">البيانات الفنية وعدد الطيور</div>
-<table class="it">
+<table class="it-rows">
     @if($nestsPerLine)
     <tr>
         <td class="l">أعشاش / الخط</td>
@@ -292,7 +372,7 @@ body { direction:rtl; color:#1a1a1a; font-size:10.5pt; line-height:1.65; backgro
 
 {{-- Birds total highlight --}}
 @if($totalBirds)
-<table class="it" style="margin-top:-2mm;">
+<table class="it-rows" style="margin-top:-2mm;">
     <tr class="birds-row">
         <td style="width:38%; padding:3mm 4mm;">إجمالي عدد الطيور (السعة)</td>
         <td style="width:62%; font-size:14pt; padding:3mm 4mm; direction:ltr; text-align:left;">
@@ -356,10 +436,13 @@ body { direction:rtl; color:#1a1a1a; font-size:10.5pt; line-height:1.65; backgro
 
 {{-- ══ FINANCIAL SUMMARY ══ --}}
 @php
-    $subtotal  = (float)($q->subtotal        ?? $snap['subtotal']           ?? 0);
+    $subtotal  = (float)($q->subtotal        ?? $snap['subtotal']           ?? $fin['subtotal'] ?? 0);
     $vatPct    = (float)($q->vat_percentage  ?? 0);
     $vatAmt    = (float)($q->vat_amount      ?? $fin['vat_amount']          ?? 0);
-    $grandTotal= (float)($q->total           ?? $fin['grand_total']         ?? ($subtotal + $vatAmt));
+    $grandTotal= (float)($q->total           ?? $fin['total'] ?? $fin['grand_total'] ?? 0);
+    if ($grandTotal <= 0 && $subtotal > 0) {
+        $grandTotal = $subtotal + $vatAmt;
+    }
 @endphp
 <div class="fin">
     <table>

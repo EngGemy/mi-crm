@@ -94,11 +94,15 @@ class EditQuotation extends EditRecord
 
                     // نسخ الأقسام
                     foreach ($record->sectionAttachments as $att) {
-                        $new->sectionAttachments()->create($att->toArray());
+                        $new->sectionAttachments()->create(
+                            $att->only(['quotation_section_id', 'sort_order', 'is_visible', 'content_override_ar', 'content_override_en'])
+                        );
                     }
                     // نسخ البنود
                     foreach ($record->termAttachments as $att) {
-                        $new->termAttachments()->create($att->toArray());
+                        $new->termAttachments()->create(
+                            $att->only(['quotation_term_id', 'sort_order', 'is_visible', 'variables_values', 'content_override'])
+                        );
                     }
                     // نسخ الـ items
                     foreach ($record->items as $item) {

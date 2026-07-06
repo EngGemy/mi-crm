@@ -16,6 +16,7 @@ use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use App\Models\Setting;
 use Illuminate\Support\Facades\Auth;
 
 class CompanySettings extends Page implements HasForms
@@ -44,6 +45,15 @@ class CompanySettings extends Page implements HasForms
 
     protected static ?string $title = 'إعدادات الشركة';
 
+    /** إعدادات JSON تُعرض في Textarea كنص */
+    protected const JSON_TEXTAREA_KEYS = [
+        'finance.payment_schedule',
+        'poultry_pricing.heater_lot_prices',
+        'poultry_pricing.broiler_height_options',
+        'poultry_pricing.layer_height_options',
+        'pdf.disinfection_steps',
+    ];
+
     public ?array $data = [];
 
     public function mount(): void
@@ -62,10 +72,42 @@ class CompanySettings extends Page implements HasForms
                 continue;
             }
             [$group, $field] = explode('.', $dotKey, 2);
+
+            if (in_array($dotKey, self::JSON_TEXTAREA_KEYS, true)) {
+                $nested[$group][$field] = $this->encodeJsonForTextarea($value, $dotKey);
+
+                continue;
+            }
+
             $nested[$group][$field] = $value;
         }
 
         return $nested;
+    }
+
+    protected function encodeJsonForTextarea(mixed $value, string $key): string
+    {
+        if (is_array($value) && $value !== []) {
+            return json_encode(
+                $value,
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT
+            );
+        }
+
+        $raw = Setting::where('key', $key)->value('value');
+        if (is_string($raw) && trim($raw) !== '') {
+            $decoded = json_decode($raw, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                return json_encode(
+                    $decoded,
+                    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT
+                );
+            }
+
+            return $raw;
+        }
+
+        return '';
     }
 
     public function form(Form $form): Form
@@ -430,6 +472,21 @@ class CompanySettings extends Page implements HasForms
                 $key = "{$group}.{$field}";
                 $current = $allCurrent[$key] ?? null;
 
+                if (in_array($key, self::JSON_TEXTAREA_KEYS, true)) {
+                    $trimmed = is_string($value) ? trim($value) : '';
+                    if ($trimmed === '') {
+                        $value = '[]';
+                    } elseif (is_string($value)) {
+                        json_decode($value, true);
+                        if (json_last_error() !== JSON_ERROR_NONE) {
+                            $errors[] = "{$key}: JSON غير صالح";
+
+                            continue;
+                        }
+                        $value = $trimmed;
+                    }
+                }
+
                 // Normalise for comparison
                 $normalisedValue = $this->normaliseValue($value);
                 $normalisedCurrent = $this->normaliseValue($current);
@@ -481,6 +538,17 @@ class CompanySettings extends Page implements HasForms
         }
         if (is_array($value)) {
             return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        }
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            if ($trimmed !== '' && ($trimmed[0] === '{' || $trimmed[0] === '[')) {
+                $decoded = json_decode($trimmed, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    return json_encode($decoded, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+                }
+            }
+
+            return $trimmed;
         }
 
         return (string) $value;

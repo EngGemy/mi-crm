@@ -79,17 +79,66 @@ class ViewPoultryQuotation extends ViewRecord
                     ->icon('heroicon-o-calculator')
                     ->columns(3)
                     ->schema([
-                        Components\TextEntry::make('concrete_cost')->label('الخرسانات')->money('EGP'),
-                        Components\TextEntry::make('steel_cost')->label('الاستيل')->money('EGP'),
-                        Components\TextEntry::make('walls_cost')->label('الحوائط')->money('EGP'),
-                        Components\TextEntry::make('tanks_cost')->label('الخزانات')->money('EGP'),
-                        Components\TextEntry::make('battery_cost')->label('البطاريات')->money('EGP'),
-                        Components\TextEntry::make('back_fans_cost')->label('الشفاطات الخلفية')->money('EGP'),
-                        Components\TextEntry::make('cooling_cost')->label('التبريد')->money('EGP'),
-                        Components\TextEntry::make('windows_cost')->label('الشبابيك')->money('EGP'),
-                        Components\TextEntry::make('side_fans_cost')->label('الشفاطات الجانبية')->money('EGP'),
-                        Components\TextEntry::make('heaters_cost')->label('الدفايات')->money('EGP'),
-                        Components\TextEntry::make('control_cost')->label('نظام التحكم')->money('EGP'),
+                        Components\TextEntry::make('concrete_cost')
+                            ->label('الخرسانات')
+                            ->formatStateUsing(fn (PoultryQuotation $record) => $record->costForItemKey('concrete'))
+                            ->money('EGP')
+                            ->visible(fn (PoultryQuotation $record) => $record->costForItemKey('concrete') > 0),
+                        Components\TextEntry::make('steel_cost')
+                            ->label('الاستيل')
+                            ->formatStateUsing(fn (PoultryQuotation $record) => $record->costForItemKey('steel'))
+                            ->money('EGP')
+                            ->visible(fn (PoultryQuotation $record) => $record->costForItemKey('steel') > 0),
+                        Components\TextEntry::make('walls_cost')
+                            ->label('الحوائط')
+                            ->formatStateUsing(fn (PoultryQuotation $record) => $record->costForItemKey('walls'))
+                            ->money('EGP')
+                            ->visible(fn (PoultryQuotation $record) => $record->costForItemKey('walls') > 0),
+                        Components\TextEntry::make('tanks_cost')
+                            ->label('الخزانات')
+                            ->formatStateUsing(fn (PoultryQuotation $record) => $record->costForItemKey('tanks'))
+                            ->money('EGP')
+                            ->visible(fn (PoultryQuotation $record) => $record->costForItemKey('tanks') > 0),
+                        Components\TextEntry::make('battery_cost')
+                            ->label('البطاريات')
+                            ->formatStateUsing(fn (PoultryQuotation $record) => $record->costForItemKey('battery'))
+                            ->money('EGP')
+                            ->visible(fn (PoultryQuotation $record) => $record->costForItemKey('battery') > 0),
+                        Components\TextEntry::make('back_fans_cost')
+                            ->label('الشفاطات الخلفية')
+                            ->formatStateUsing(fn (PoultryQuotation $record) => $record->costForItemKey('main_fans'))
+                            ->money('EGP')
+                            ->visible(fn (PoultryQuotation $record) => $record->costForItemKey('main_fans') > 0),
+                        Components\TextEntry::make('cooling_cost')
+                            ->label('التبريد')
+                            ->formatStateUsing(fn (PoultryQuotation $record) => $record->costForItemKey('cooling'))
+                            ->money('EGP')
+                            ->visible(fn (PoultryQuotation $record) => $record->costForItemKey('cooling') > 0),
+                        Components\TextEntry::make('windows_cost')
+                            ->label('الشبابيك')
+                            ->formatStateUsing(fn (PoultryQuotation $record) => $record->costForItemKey('windows'))
+                            ->money('EGP')
+                            ->visible(fn (PoultryQuotation $record) => $record->costForItemKey('windows') > 0),
+                        Components\TextEntry::make('side_fans_cost')
+                            ->label('الشفاطات الجانبية')
+                            ->formatStateUsing(fn (PoultryQuotation $record) => $record->costForItemKey('side_fans'))
+                            ->money('EGP')
+                            ->visible(fn (PoultryQuotation $record) => $record->costForItemKey('side_fans') > 0),
+                        Components\TextEntry::make('heaters_cost')
+                            ->label('الدفايات')
+                            ->formatStateUsing(fn (PoultryQuotation $record) => $record->costForItemKey('heaters'))
+                            ->money('EGP')
+                            ->visible(fn (PoultryQuotation $record) => $record->costForItemKey('heaters') > 0),
+                        Components\TextEntry::make('control_cost')
+                            ->label('جهاز المونيتر')
+                            ->formatStateUsing(fn (PoultryQuotation $record) => $record->costForItemKey('control'))
+                            ->money('EGP')
+                            ->visible(fn (PoultryQuotation $record) => $record->costForItemKey('control') > 0),
+                        Components\TextEntry::make('electricity_cost')
+                            ->label('الكهرباء والإنارة')
+                            ->formatStateUsing(fn (PoultryQuotation $record) => $record->costForItemKey('electricity'))
+                            ->money('EGP')
+                            ->visible(fn (PoultryQuotation $record) => $record->costForItemKey('electricity') > 0),
                     ]),
             ]);
     }

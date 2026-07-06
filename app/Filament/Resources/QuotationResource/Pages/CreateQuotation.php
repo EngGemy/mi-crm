@@ -69,28 +69,26 @@ class CreateQuotation extends CreateRecord
         }
 
         // ملء الأقسام الافتراضية
-        $sectionIds = $type->default_sections ?? [];
-        if (! empty($sectionIds) && $quotation->sectionAttachments()->count() === 0) {
+        $sectionIds = array_values(array_unique($type->default_sections ?? []));
+        if (! empty($sectionIds)) {
             $sections = QuotationSection::whereIn('id', $sectionIds)->orderBy('sort_order')->get();
             foreach ($sections as $idx => $section) {
-                $quotation->sectionAttachments()->create([
-                    'quotation_section_id' => $section->id,
-                    'sort_order' => $idx,
-                    'is_visible' => true,
-                ]);
+                $quotation->sectionAttachments()->firstOrCreate(
+                    ['quotation_section_id' => $section->id],
+                    ['sort_order' => $idx, 'is_visible' => true]
+                );
             }
         }
 
         // ملء البنود الافتراضية
-        $termIds = $type->default_terms ?? [];
-        if (! empty($termIds) && $quotation->termAttachments()->count() === 0) {
+        $termIds = array_values(array_unique($type->default_terms ?? []));
+        if (! empty($termIds)) {
             $terms = QuotationTerm::whereIn('id', $termIds)->orderBy('sort_order')->get();
             foreach ($terms as $idx => $term) {
-                $quotation->termAttachments()->create([
-                    'quotation_term_id' => $term->id,
-                    'sort_order' => $idx,
-                    'is_visible' => true,
-                ]);
+                $quotation->termAttachments()->firstOrCreate(
+                    ['quotation_term_id' => $term->id],
+                    ['sort_order' => $idx, 'is_visible' => true]
+                );
             }
         }
     }
