@@ -96,6 +96,19 @@ class QuotationSeeder extends Seeder
                 'sort_order' => 2,
             ],
             [
+                'code' => 'CAGES_AND_ACCESSORIES',
+                'name' => 'بطاريات ومشتملات',
+                'name_en' => 'Cages & Accessories',
+                'description' => 'بطاريات + تهوية + تبريد + كهرباء ولوحات تحكم بدون إنشاءات',
+                'icon' => 'heroicon-o-squares-2x2',
+                'color' => 'warning',
+                'default_sections' => [],
+                'default_terms' => [],
+                'default_payment_schedule' => [70, 30],
+                'default_validity_days' => 7,
+                'sort_order' => 3,
+            ],
+            [
                 'code' => 'FULL_PROJECT',
                 'name' => 'مشروع كامل',
                 'name_en' => 'Full Project',
@@ -106,7 +119,7 @@ class QuotationSeeder extends Seeder
                 'default_terms' => [],
                 'default_payment_schedule' => [70, 25, 5],
                 'default_validity_days' => 3,
-                'sort_order' => 3,
+                'sort_order' => 4,
             ],
             [
                 'code' => 'ACCESSORIES_ONLY',
@@ -119,7 +132,7 @@ class QuotationSeeder extends Seeder
                 'default_terms' => [],
                 'default_payment_schedule' => [70, 30],
                 'default_validity_days' => 7,
-                'sort_order' => 4,
+                'sort_order' => 5,
             ],
         ];
 

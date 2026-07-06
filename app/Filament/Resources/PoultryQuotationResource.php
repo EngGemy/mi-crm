@@ -270,6 +270,36 @@ class PoultryQuotationResource extends Resource
                         ->label('الشبابيك')
                         ->readOnly(),
 
+                    Forms\Components\Toggle::make('include_monitor')
+                        ->label('جهاز المونيتر (اختياري)')
+                        ->default(false)
+                        ->live()
+                        ->afterStateUpdated($live),
+
+                    Forms\Components\TextInput::make('monitor_cost')
+                        ->label('مبلغ المونيتر (ج.م)')
+                        ->numeric()
+                        ->minValue(0)
+                        ->placeholder('أدخل المبلغ')
+                        ->visible(fn (Forms\Get $get) => (bool) $get('include_monitor'))
+                        ->live(debounce: 150)
+                        ->afterStateUpdated($live),
+
+                    Forms\Components\Toggle::make('include_electricity')
+                        ->label('الكهرباء ولوحات التحكم والإنارة (اختياري)')
+                        ->default(false)
+                        ->live()
+                        ->afterStateUpdated($live),
+
+                    Forms\Components\TextInput::make('electricity_cost')
+                        ->label('مبلغ الكهرباء والإنارة (ج.م)')
+                        ->numeric()
+                        ->minValue(0)
+                        ->placeholder('أدخل المبلغ')
+                        ->visible(fn (Forms\Get $get) => (bool) $get('include_electricity'))
+                        ->live(debounce: 150)
+                        ->afterStateUpdated($live),
+
                     ...static::accessoriesPreviewTableSchema(),
                 ])
                 ->columns(3)

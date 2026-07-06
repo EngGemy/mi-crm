@@ -227,7 +227,7 @@ class PoultryAutoPricingFlowTest extends TestCase
         // Control and electricity are separate items inside accessories
         $accessoryItems = collect($grouped['المشتملات'] ?? []);
         $controlItem = $accessoryItems->first(fn ($i) => str_contains($i->description_ar, 'مونيتر'));
-        $electricityItem = $accessoryItems->first(fn ($i) => str_contains($i->description_ar, 'الكهرباء والإنارة'));
+        $electricityItem = $accessoryItems->first(fn ($i) => str_contains($i->description_ar, 'الكهرباء'));
         $this->assertNotNull($controlItem);
         $this->assertNotNull($electricityItem);
     }

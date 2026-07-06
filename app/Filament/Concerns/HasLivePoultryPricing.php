@@ -68,6 +68,10 @@ trait HasLivePoultryPricing
                 'side_fans_count' => $get('side_fans_count') ?: null,
                 'heaters_count' => $get('heaters_count') ?: null,
                 'wall_type' => $get('wall_type'),
+                'include_monitor' => (bool) ($get('include_monitor') ?? false),
+                'monitor_cost' => $get('monitor_cost'),
+                'include_electricity' => (bool) ($get('include_electricity') ?? false),
+                'electricity_cost' => $get('electricity_cost'),
             ];
 
             $result = app(PoultryHousePricingService::class)->compute($input);
@@ -141,6 +145,7 @@ trait HasLivePoultryPricing
         return in_array(static::pricingScopeFromForm($get), [
             PoultryPricingScope::FullProject->value,
             PoultryPricingScope::BatteriesOnly->value,
+            PoultryPricingScope::BatteriesAndAccessories->value,
             PoultryPricingScope::Custom->value,
         ], true);
     }
@@ -150,13 +155,17 @@ trait HasLivePoultryPricing
         return in_array(static::pricingScopeFromForm($get), [
             PoultryPricingScope::FullProject->value,
             PoultryPricingScope::AccessoriesOnly->value,
+            PoultryPricingScope::BatteriesAndAccessories->value,
             PoultryPricingScope::Custom->value,
         ], true);
     }
 
     protected static function showsWallTypeField(Get $get): bool
     {
-        return static::pricingScopeFromForm($get) !== PoultryPricingScope::AccessoriesOnly->value;
+        return ! in_array(static::pricingScopeFromForm($get), [
+            PoultryPricingScope::AccessoriesOnly->value,
+            PoultryPricingScope::BatteriesAndAccessories->value,
+        ], true);
     }
 
     public static function broilerWeightTableSchema(): array
@@ -203,8 +212,26 @@ trait HasLivePoultryPricing
                         ['الشبابيك', e((string) ($c['windows_count'] ?? 0)), false],
                     ];
 
+                    $items = collect($preview['items'] ?? []);
+                    $monitorItem = $items->firstWhere('key', 'control');
+                    if ($monitorItem && (float) ($monitorItem['qty'] ?? 0) > 0) {
+                        $rows[] = [
+                            'جهاز المونيتر',
+                            '<strong>'.e(number_format((float) ($monitorItem['total_price'] ?? 0), 0)).' ج.م</strong>',
+                            true,
+                        ];
+                    }
+                    $electricityItem = $items->firstWhere('key', 'electricity');
+                    if ($electricityItem && (float) ($electricityItem['qty'] ?? 0) > 0) {
+                        $rows[] = [
+                            'الكهرباء ولوحات التحكم والإنارة',
+                            '<strong>'.e(number_format((float) ($electricityItem['total_price'] ?? 0), 0)).' ج.م</strong>',
+                            true,
+                        ];
+                    }
+
                     $html = '<table style="width:100%;font-size:13px;border-collapse:collapse;background:#f8fafc;border-radius:8px;">';
-                    $html .= '<thead><tr style="background:#e2e8f0;"><th style="padding:8px;text-align:right;">البند</th><th style="padding:8px;text-align:left;">الكمية</th></tr></thead><tbody>';
+                    $html .= '<thead><tr style="background:#e2e8f0;"><th style="padding:8px;text-align:right;">البند</th><th style="padding:8px;text-align:left;">الكمية / المبلغ</th></tr></thead><tbody>';
                     foreach ($rows as [$label, $val, $isHtml]) {
                         $cell = $isHtml ? $val : e((string) $val);
                         $html .= '<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:8px;color:#475569;">'.e($label).'</td><td style="padding:8px;font-weight:700;text-align:left;direction:ltr;">'.$cell.'</td></tr>';
@@ -259,6 +286,7 @@ trait HasLivePoultryPricing
 
                     $title = match ($scope) {
                         PoultryPricingScope::BatteriesOnly->value => 'ملخص البطاريات',
+                        PoultryPricingScope::BatteriesAndAccessories->value => 'ملخص البطاريات والمشتملات',
                         PoultryPricingScope::AccessoriesOnly->value => 'ملخص المشتملات',
                         PoultryPricingScope::ConstructionOnly->value => 'ملخص الإنشاءات',
                         default => 'ملخص المشروع',

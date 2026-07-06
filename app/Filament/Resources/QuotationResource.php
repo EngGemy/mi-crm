@@ -1230,6 +1230,11 @@ class QuotationResource extends Resource
         $date = now()->format('Y-m-d');
         $set('valid_until', now()->addDays((int) $type->default_validity_days)->format('Y-m-d'));
 
+        $pricingScope = PoultryPricingScope::fromQuotationTypeCode($type->code);
+        if ($pricingScope) {
+            $set('pricing_scope', $pricingScope->value);
+        }
+
         // تحميل الأقسام الافتراضية
         $sectionIds = $type->default_sections ?? [];
         if (! empty($sectionIds)) {

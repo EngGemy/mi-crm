@@ -201,7 +201,14 @@ body { direction:rtl; color:#1a1a1a; font-size:10.5pt; line-height:1.65; backgro
     $svcLen   = $snap['inputs']['service_length'] ?? '—';
     $effLen   = (float)($tech['effective_length']  ?? $computed['effective_length'] ?? 0);
     $wallType = $q->wall_type === 'sandwich' ? 'ساندوتش' : 'خرسانة';
-    $scopeMap = ['full_project'=>'المشروع كاملاً','batteries_only'=>'البطاريات فقط','construction_only'=>'الإنشاءات فقط','custom'=>'مخصص'];
+    $scopeMap = [
+        'full_project' => 'المشروع كاملاً',
+        'batteries_only' => 'البطاريات فقط',
+        'batteries_and_accessories' => 'بطاريات ومشتملات',
+        'accessories_only' => 'المشتملات فقط',
+        'construction_only' => 'الإنشاءات فقط',
+        'custom' => 'مخصص',
+    ];
     $scope    = $scopeMap[$q->pricing_scope ?? ''] ?? 'المشروع كاملاً';
 @endphp
 

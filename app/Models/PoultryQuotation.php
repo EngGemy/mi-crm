@@ -55,6 +55,10 @@ class PoultryQuotation extends Model
         'side_fans_cost',
         'heaters_cost',
         'control_cost',
+        'include_monitor',
+        'monitor_cost',
+        'include_electricity',
+        'electricity_cost',
         'subtotal',
         'vat_amount',
         'total',
@@ -84,6 +88,10 @@ class PoultryQuotation extends Model
         'side_fans_cost' => 'decimal:2',
         'heaters_cost' => 'decimal:2',
         'control_cost' => 'decimal:2',
+        'monitor_cost' => 'decimal:2',
+        'electricity_cost' => 'decimal:2',
+        'include_monitor' => 'boolean',
+        'include_electricity' => 'boolean',
         'subtotal' => 'decimal:2',
         'vat_amount' => 'decimal:2',
         'total' => 'decimal:2',
@@ -164,6 +172,10 @@ class PoultryQuotation extends Model
             'side_fans_count' => $this->side_fans_count,
             'heaters_count' => $this->heaters_count,
             'wall_type' => $this->wall_type,
+            'include_monitor' => (bool) $this->include_monitor,
+            'monitor_cost' => $this->monitor_cost,
+            'include_electricity' => (bool) $this->include_electricity,
+            'electricity_cost' => $this->electricity_cost,
         ];
 
         $result = $service->compute($input);
@@ -191,6 +203,7 @@ class PoultryQuotation extends Model
         $this->side_fans_cost = $items->firstWhere('key', 'side_fans')['total_price'] ?? 0;
         $this->heaters_cost = $items->firstWhere('key', 'heaters')['total_price'] ?? 0;
         $this->control_cost = $items->firstWhere('key', 'control')['total_price'] ?? 0;
+        $this->electricity_cost = $items->firstWhere('key', 'electricity')['total_price'] ?? 0;
         $this->subtotal = $result['subtotal'];
 
         $vatPercentage = (float) $this->vat_percentage > 0

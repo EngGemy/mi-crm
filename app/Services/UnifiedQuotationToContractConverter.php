@@ -199,6 +199,7 @@ class UnifiedQuotationToContractConverter
         $mapping = [
             'CONSTRUCTION_ONLY' => 'CONSTRUCTION_ONLY',
             'CAGES_ONLY' => 'CAGES_ONLY',
+            'CAGES_AND_ACCESSORIES' => 'FATTENING_FULL',
             'FULL_PROJECT' => 'FATTENING_FULL',
             'ACCESSORIES_ONLY' => 'ACCESSORIES_ONLY',
         ];

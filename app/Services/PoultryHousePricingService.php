@@ -80,6 +80,26 @@ class PoultryHousePricingService
         $fanLabelEn = $projectType === PoultryProjectType::Layer ? 'Rear exhaust fans' : 'Main exhaust fans';
 
         $heaterLine = $this->buildHeaterLineItem($heatersQty, $pricingParams);
+        $monitorLine = $this->buildOptionalElectricalItem(
+            $input,
+            $pricingParams,
+            includeKey: 'include_monitor',
+            costKey: 'monitor_cost',
+            settingsKey: 'control_fixed_cost',
+            key: 'control',
+            descAr: 'جهاز المونيتر',
+            descEn: 'Monitor device',
+        );
+        $electricityLine = $this->buildOptionalElectricalItem(
+            $input,
+            $pricingParams,
+            includeKey: 'include_electricity',
+            costKey: 'electricity_cost',
+            settingsKey: 'electricity_fixed_cost',
+            key: 'electricity',
+            descAr: 'الكهرباء ولوحات التحكم والإنارة',
+            descEn: 'Electricity, control panels & lighting',
+        );
 
         $allItems = [
             ['section' => 'civil', 'key' => 'concrete', 'desc_ar' => 'الخرسانات (الطول × العرض)', 'desc_en' => 'Concrete', 'unit' => 'm²', 'qty' => round($concreteArea, 2), 'unit_price' => $pricingParams['concrete_cost_per_m2']],
@@ -93,15 +113,15 @@ class PoultryHousePricingService
             ['section' => 'ventilation', 'key' => 'windows', 'desc_ar' => 'الشبابيك (Inlets)', 'desc_en' => 'Windows', 'unit' => 'piece', 'qty' => $windowsCount, 'unit_price' => $pricingParams['window_unit_price']],
             ['section' => 'ventilation', 'key' => 'side_fans', 'desc_ar' => 'الشفاطات الجانبية', 'desc_en' => 'Side fans', 'unit' => 'piece', 'qty' => $sideFansQty, 'unit_price' => $pricingParams['side_fan_unit_price']],
             $heaterLine,
-            ['section' => 'electrical', 'key' => 'control', 'desc_ar' => 'لوحة مونيتر', 'desc_en' => 'Monitor panel', 'unit' => 'lot', 'qty' => 1, 'unit_price' => $pricingParams['control_fixed_cost']],
-            ['section' => 'electrical', 'key' => 'electricity', 'desc_ar' => 'الكهرباء والإنارة واللوحة وحوامل الكابلات', 'desc_en' => 'Electricity, lighting & cable trays', 'unit' => 'lot', 'qty' => 1, 'unit_price' => $pricingParams['electricity_fixed_cost'] ?? 0],
+            $monitorLine,
+            $electricityLine,
         ];
 
         $includedSections = $scope->includedSections();
         $customKeys = $input['custom_item_keys'] ?? null;
 
         $items = array_values(array_filter($allItems, function ($item) use ($includedSections, $scope, $customKeys, $technical) {
-            if ($item['qty'] <= 0 && in_array($item['key'], ['tanks', 'windows', 'side_fans', 'heaters'], true)) {
+            if ($item['qty'] <= 0 && in_array($item['key'], ['tanks', 'windows', 'side_fans', 'heaters', 'control', 'electricity'], true)) {
                 return false;
             }
             if (! ($technical['include_side_fans'] ?? true) && $item['key'] === 'side_fans') {
@@ -202,6 +222,39 @@ class PoultryHousePricingService
             'desc_ar' => "الدفايات — {$count} دفاية",
             'qty' => $count,
             'unit_price' => (float) ($pricingParams['heater_unit_price'] ?? 0),
+        ];
+    }
+
+    /**
+     * @return array{section: string, key: string, desc_ar: string, desc_en: string, unit: string, qty: int, unit_price: float}
+     */
+    protected function buildOptionalElectricalItem(
+        array $input,
+        array $pricingParams,
+        string $includeKey,
+        string $costKey,
+        string $settingsKey,
+        string $key,
+        string $descAr,
+        string $descEn,
+    ): array {
+        $hasExplicitToggle = array_key_exists($includeKey, $input);
+        $included = $hasExplicitToggle ? (bool) $input[$includeKey] : true;
+
+        $customCost = isset($input[$costKey]) && $input[$costKey] !== '' && $input[$costKey] !== null
+            ? (float) $input[$costKey]
+            : null;
+
+        $unitPrice = $customCost ?? (float) ($pricingParams[$settingsKey] ?? 0);
+
+        return [
+            'section' => 'electrical',
+            'key' => $key,
+            'desc_ar' => $descAr,
+            'desc_en' => $descEn,
+            'unit' => 'lot',
+            'qty' => $included ? 1 : 0,
+            'unit_price' => $unitPrice,
         ];
     }
 
