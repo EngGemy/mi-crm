@@ -15,6 +15,8 @@ use Illuminate\Support\HtmlString;
 
 trait HasLivePoultryPricing
 {
+    protected const LIVE_DEBOUNCE_MS = 150;
+
     protected static function poultryPricingLiveCallback(bool $applyItems = false): \Closure
     {
         return function (Set $set, Get $get) use ($applyItems) {
@@ -129,6 +131,34 @@ trait HasLivePoultryPricing
         };
     }
 
+    protected static function pricingScopeFromForm(Get $get): string
+    {
+        return $get('pricing_scope') ?? PoultryPricingScope::FullProject->value;
+    }
+
+    protected static function showsBatteryPreview(Get $get): bool
+    {
+        return in_array(static::pricingScopeFromForm($get), [
+            PoultryPricingScope::FullProject->value,
+            PoultryPricingScope::BatteriesOnly->value,
+            PoultryPricingScope::Custom->value,
+        ], true);
+    }
+
+    protected static function showsAccessoriesPreview(Get $get): bool
+    {
+        return in_array(static::pricingScopeFromForm($get), [
+            PoultryPricingScope::FullProject->value,
+            PoultryPricingScope::AccessoriesOnly->value,
+            PoultryPricingScope::Custom->value,
+        ], true);
+    }
+
+    protected static function showsWallTypeField(Get $get): bool
+    {
+        return static::pricingScopeFromForm($get) !== PoultryPricingScope::AccessoriesOnly->value;
+    }
+
     public static function broilerWeightTableSchema(): array
     {
         return [
@@ -142,7 +172,48 @@ trait HasLivePoultryPricing
 
                     return BroilerWeightReference::htmlTable($weight, $totalNests > 0 ? $totalNests : null);
                 })
-                ->visible(fn (Get $get) => static::resolveProjectTypeFromForm($get) === 'broiler'),
+                ->visible(fn (Get $get) => static::showsBatteryPreview($get)
+                    && static::resolveProjectTypeFromForm($get) === 'broiler'),
+        ];
+    }
+
+    public static function accessoriesPreviewTableSchema(): array
+    {
+        return [
+            Forms\Components\Placeholder::make('accessories_preview_table')
+                ->label('جدول المشتملات')
+                ->columnSpanFull()
+                ->content(function (Get $get) {
+                    $preview = $get('pricing_preview');
+                    if (! is_array($preview) || isset($preview['error'])) {
+                        return new HtmlString('<p style="color:#64748b;font-size:13px;">أدخل الأبعاد لحساب المشتملات…</p>');
+                    }
+
+                    $c = $preview['computed'] ?? [];
+                    $tech = $preview['technical'] ?? [];
+                    $fanCount = $c['back_fans_count'] ?? 0;
+                    $fanFormula = $tech['fan_formula'] ?? '';
+                    $coolingFormula = $tech['cooling_formula'] ?? '';
+
+                    $rows = [
+                        ['المراوح', '<strong>'.e((string) $fanCount).'</strong>'
+                            .($fanFormula ? '<br><span style="font-size:11px;color:#64748b">'.e($fanFormula).'</span>' : ''), true],
+                        ['التبريد (م)', '<strong>'.e((string) ($c['cooling_units'] ?? 0)).'</strong>'
+                            .($coolingFormula ? '<br><span style="font-size:11px;color:#64748b">'.e($coolingFormula).'</span>' : ''), true],
+                        ['الشبابيك', e((string) ($c['windows_count'] ?? 0)), false],
+                    ];
+
+                    $html = '<table style="width:100%;font-size:13px;border-collapse:collapse;background:#f8fafc;border-radius:8px;">';
+                    $html .= '<thead><tr style="background:#e2e8f0;"><th style="padding:8px;text-align:right;">البند</th><th style="padding:8px;text-align:left;">الكمية</th></tr></thead><tbody>';
+                    foreach ($rows as [$label, $val, $isHtml]) {
+                        $cell = $isHtml ? $val : e((string) $val);
+                        $html .= '<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:8px;color:#475569;">'.e($label).'</td><td style="padding:8px;font-weight:700;text-align:left;direction:ltr;">'.$cell.'</td></tr>';
+                    }
+                    $html .= '</tbody></table>';
+
+                    return new HtmlString($html);
+                })
+                ->visible(fn (Get $get) => static::showsAccessoriesPreview($get)),
         ];
     }
 
@@ -150,7 +221,7 @@ trait HasLivePoultryPricing
     {
         return [
             Forms\Components\Placeholder::make('live_preview_html')
-                ->label('معاينة الحساب المباشر')
+                ->label('ملخص التسعير')
                 ->columnSpanFull()
                 ->content(function (Get $get) {
                     $preview = $get('pricing_preview');
@@ -163,31 +234,38 @@ trait HasLivePoultryPricing
 
                     $c = $preview['computed'] ?? [];
                     $subtotal = number_format((float) ($preview['subtotal'] ?? 0), 0);
-
                     $tech = $preview['technical'] ?? [];
-                    $fanCount = $c['back_fans_count'] ?? 0;
-                    $fanFormula = $tech['fan_formula'] ?? '';
-                    $coolingFormula = $tech['cooling_formula'] ?? '';
+                    $scope = static::pricingScopeFromForm($get);
 
-                    $rows = [
-                        ['الطول الفعال', e(($c['effective_length'] ?? '-').' م'), false],
-                        ['أعشاش / خط', e(number_format($c['nests_per_line'] ?? 0)), false],
-                        ['إجمالي الأعشاش', e(number_format($c['total_nests'] ?? 0)), false],
-                        ['طيور / عش', e(number_format($tech['birds_per_nest'] ?? 0)), false],
-                        ['عدد الطيور', e(number_format($c['bird_count'] ?? 0)), false],
-                        ['الشفاطات', '<strong>'.e((string) $fanCount).'</strong>'
-                            .($fanFormula ? '<br><span style="font-size:11px;color:#64748b">'.e($fanFormula).'</span>' : ''), true],
-                        ['التبريد (م)', '<strong>'.e((string) ($c['cooling_units'] ?? 0)).'</strong>'
-                            .($coolingFormula ? '<br><span style="font-size:11px;color:#64748b">'.e($coolingFormula).'</span>' : ''), true],
-                        ['الشبابيك', e((string) ($c['windows_count'] ?? 0)), false],
-                        ['المجموع الفرعي', e($subtotal.' ج.م'), false],
-                    ];
+                    $rows = [];
+
+                    if (static::showsBatteryPreview($get)) {
+                        $rows[] = ['الطول الفعال', e(($c['effective_length'] ?? '-').' م'), false];
+                        $rows[] = ['أعشاش / خط', e(number_format($c['nests_per_line'] ?? 0)), false];
+                        $rows[] = ['إجمالي الأعشاش', e(number_format($c['total_nests'] ?? 0)), false];
+                        $rows[] = ['طيور / عش', e(number_format($tech['birds_per_nest'] ?? 0)), false];
+                        $rows[] = ['عدد الطيور', e(number_format($c['bird_count'] ?? 0)), false];
+                    }
+
+                    $rows[] = ['المجموع الفرعي', e($subtotal.' ج.م'), false];
 
                     if (! empty($preview['currency']['total_usd'])) {
                         $rows[] = ['بالدولار (تقريبي)', e(number_format($preview['currency']['total_usd'], 2).' $'), false];
                     }
 
-                    $html = '<table style="width:100%;font-size:13px;border-collapse:collapse;">';
+                    if ($rows === []) {
+                        return new HtmlString('<p style="color:#64748b;font-size:13px;">اختر نطاق التسعير لعرض الملخص…</p>');
+                    }
+
+                    $title = match ($scope) {
+                        PoultryPricingScope::BatteriesOnly->value => 'ملخص البطاريات',
+                        PoultryPricingScope::AccessoriesOnly->value => 'ملخص المشتملات',
+                        PoultryPricingScope::ConstructionOnly->value => 'ملخص الإنشاءات',
+                        default => 'ملخص المشروع',
+                    };
+
+                    $html = '<p style="font-weight:700;margin:0 0 8px;color:#334155;">'.e($title).'</p>';
+                    $html .= '<table style="width:100%;font-size:13px;border-collapse:collapse;">';
                     foreach ($rows as [$label, $val, $isHtml]) {
                         $cell = $isHtml ? $val : e((string) $val);
                         $html .= '<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:6px 8px;color:#64748b;">'.e($label).'</td><td style="padding:6px 8px;font-weight:700;text-align:left;direction:ltr;">'.$cell.'</td></tr>';
@@ -205,7 +283,7 @@ trait HasLivePoultryPricing
 
         return [
             'live' => true,
-            'liveDebounce' => 400,
+            'liveDebounce' => static::LIVE_DEBOUNCE_MS,
             'afterStateUpdated' => [$cb],
         ];
     }

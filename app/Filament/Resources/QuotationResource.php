@@ -324,6 +324,7 @@ class QuotationResource extends Resource
                                     ->label('نوع الحوائط')
                                     ->options(['sandwich' => 'ساندوتش', 'cement' => 'خرسانة'])
                                     ->default('sandwich')
+                                    ->visible(fn (Forms\Get $get) => static::showsWallTypeField($get))
                                     ->live()
                                     ->afterStateUpdated(static::poultryPricingLiveCallback(true)),
 

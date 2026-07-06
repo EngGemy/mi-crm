@@ -53,6 +53,8 @@ class PoultryQuotationResource extends Resource
                 ->dehydrated(false)
                 ->afterStateHydrated(fn (Forms\Set $set, Forms\Get $get) => static::refreshLivePoultryPricing($set, $get, false)),
 
+            Forms\Components\Hidden::make('pricing_preview')->dehydrated(false),
+
             Forms\Components\Section::make('نوع المشروع والنطاق')
                 ->schema([
                     Forms\Components\Select::make('project_type')
@@ -64,7 +66,7 @@ class PoultryQuotationResource extends Resource
                         ->live()
                         ->afterStateUpdated(function (Forms\Set $set, Forms\Get $get) use ($live) {
                             $opts = static::heightOptionsForType($get('project_type') ?? 'broiler');
-                            $set('height', array_key_first($opts) ?? ($get('project_type') === 'layer' ? '3.5' : '3.7'));
+                            $set('height', (string) (array_key_first($opts) ?? ($get('project_type') === 'layer' ? '3.5' : '3.7')));
                             $live($set, $get);
                         }),
 
@@ -112,30 +114,35 @@ class PoultryQuotationResource extends Resource
                         ->label('الطول (م)')
                         ->required()
                         ->numeric()
+                        ->step(0.01)
                         ->default(81)
-                        ->minValue(81)
-                        ->helperText('الحد الأدنى 81م')
+                        ->minValue(1)
+                        ->helperText('أي قيمة مخصصة — مثال: 72، 81، 90')
                         ->suffix('م')
-                        ->live(debounce: 400)
+                        ->live(debounce: 150)
                         ->afterStateUpdated($live),
 
                     Forms\Components\TextInput::make('width')
                         ->label('العرض (م)')
                         ->required()
                         ->numeric()
+                        ->step(0.01)
                         ->default(12)
                         ->minValue(1)
                         ->suffix('م')
-                        ->live(debounce: 400)
+                        ->live(debounce: 150)
                         ->afterStateUpdated($live),
 
-                    Forms\Components\Select::make('height')
+                    Forms\Components\TextInput::make('height')
                         ->label('الارتفاع (م)')
                         ->required()
-                        ->native(false)
-                        ->options(fn (Forms\Get $get) => static::heightOptionsForType($get('project_type') ?? 'broiler'))
-                        ->default(fn () => array_key_first(static::heightOptionsForType('broiler')) ?? '3.7')
-                        ->live()
+                        ->numeric()
+                        ->step(0.1)
+                        ->default(fn () => (string) (array_key_first(static::heightOptionsForType('broiler')) ?? '3.7'))
+                        ->minValue(0.1)
+                        ->suffix('م')
+                        ->helperText(fn (Forms\Get $get) => 'قيم شائعة: '.implode('، ', array_keys(static::heightOptionsForType($get('project_type') ?? 'broiler'))).' — أو أدخل قيمة مخصصة')
+                        ->live(debounce: 150)
                         ->afterStateUpdated($live),
                 ])
                 ->columns(3),
@@ -145,26 +152,27 @@ class PoultryQuotationResource extends Resource
                     Forms\Components\TextInput::make('service_length')
                         ->label('طول منطقة الخدمات (م)')
                         ->numeric()
+                        ->step(0.01)
                         ->default(10)
                         ->suffix('م')
                         ->helperText('تسمين: 9–10م | بياض: 7–9م')
-                        ->live(debounce: 400)
+                        ->live(debounce: 150)
                         ->afterStateUpdated($live),
 
                     Forms\Components\Select::make('bird_weight_kg')
                         ->label('وزن الطائر المستهدف (تسمين)')
                         ->options(BroilerWeightReference::selectOptions())
                         ->default('2.100')
-                        ->visible(fn (Forms\Get $get) => ($get('project_type') ?? 'broiler') === 'broiler')
+                        ->visible(fn (Forms\Get $get) => ($get('project_type') ?? 'broiler') === 'broiler'
+                            && static::showsBatteryPreview($get))
                         ->live()
                         ->afterStateUpdated($live),
 
-                    ...static::broilerWeightTableSchema(),
-
                     Forms\Components\Select::make('wall_type')
-                        ->label('نوع الحوائط')
+                        ->label('نوع الحوائط (ساندوتش بانل)')
                         ->options(['sandwich' => 'ساندوتش (1200)', 'cement' => 'خرسانة (2000)'])
                         ->default('sandwich')
+                        ->visible(fn (Forms\Get $get) => static::showsWallTypeField($get))
                         ->live()
                         ->afterStateUpdated($live),
                 ])
@@ -181,7 +189,7 @@ class PoultryQuotationResource extends Resource
                         ->default(4)
                         ->minValue(1)
                         ->maxValue(8)
-                        ->live(debounce: 400)
+                        ->live(debounce: 150)
                         ->afterStateUpdated($live),
 
                     Forms\Components\TextInput::make('lines')
@@ -192,7 +200,7 @@ class PoultryQuotationResource extends Resource
                         ->default(4)
                         ->minValue(1)
                         ->maxValue(12)
-                        ->live(debounce: 400)
+                        ->live(debounce: 150)
                         ->afterStateUpdated($live),
                 ])
                 ->columns(2),
@@ -205,25 +213,26 @@ class PoultryQuotationResource extends Resource
                         ->numeric()
                         ->integer()
                         ->helperText('اتركه فارغاً للحساب التلقائي')
-                        ->live(debounce: 400)
+                        ->live(debounce: 150)
                         ->afterStateUpdated($live),
 
                     Forms\Components\Select::make('heaters_count')
                         ->label('الدفايات (اختياري)')
                         ->options(HeaterOptions::selectOptions())
                         ->default(0)
-                        ->visible(fn (Forms\Get $get) => ($get('project_type') ?? 'broiler') === 'broiler')
+                        ->visible(fn (Forms\Get $get) => ($get('project_type') ?? 'broiler') === 'broiler'
+                            && static::showsAccessoriesPreview($get))
                         ->live()
                         ->afterStateUpdated($live),
                 ])
                 ->columns(2)
-                ->visible(fn (Forms\Get $get) => ($get('project_type') ?? 'broiler') === 'broiler'),
+                ->visible(fn (Forms\Get $get) => ($get('project_type') ?? 'broiler') === 'broiler'
+                    && static::showsAccessoriesPreview($get)),
 
-            Forms\Components\Section::make('ملخص الحساب المباشر')
-                ->icon('heroicon-o-chart-bar')
+            Forms\Components\Section::make('ملخص البطاريات')
+                ->icon('heroicon-o-cube')
+                ->description('يتحدث فوراً عند تغيير الأبعاد أو الوزن')
                 ->schema([
-                    Forms\Components\Hidden::make('pricing_preview')->dehydrated(false),
-
                     Forms\Components\TextInput::make('bird_count')
                         ->label('عدد الطيور')
                         ->readOnly(),
@@ -240,6 +249,15 @@ class PoultryQuotationResource extends Resource
                         ->label('أعشاش / خط')
                         ->readOnly(),
 
+                    ...static::broilerWeightTableSchema(),
+                ])
+                ->columns(3)
+                ->visible(fn (Forms\Get $get) => static::showsBatteryPreview($get)),
+
+            Forms\Components\Section::make('جدول المشتملات')
+                ->icon('heroicon-o-arrow-path')
+                ->description('المراوح والتبريد والشبابيك — منفصل عن البطاريات')
+                ->schema([
                     Forms\Components\TextInput::make('back_fans_count')
                         ->label('المراوح')
                         ->readOnly(),
@@ -252,13 +270,21 @@ class PoultryQuotationResource extends Resource
                         ->label('الشبابيك')
                         ->readOnly(),
 
+                    ...static::accessoriesPreviewTableSchema(),
+                ])
+                ->columns(3)
+                ->visible(fn (Forms\Get $get) => static::showsAccessoriesPreview($get)),
+
+            Forms\Components\Section::make('ملخص التسعير')
+                ->icon('heroicon-o-chart-bar')
+                ->schema([
                     Forms\Components\TextInput::make('subtotal')
                         ->label('المجموع الفرعي (ج.م)')
                         ->readOnly(),
 
                     ...static::livePricingPreviewSchema(),
                 ])
-                ->columns(3),
+                ->columns(1),
 
             Forms\Components\Section::make('الضريبة')
                 ->icon('heroicon-o-receipt-percent')
