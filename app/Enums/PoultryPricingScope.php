@@ -45,13 +45,14 @@ enum PoultryPricingScope: string
     /** @return list<string> */
     public function includedSections(): array
     {
+        // التبريد / الشبابيك / الشفاطات مستبعدة من حاسبة الأسعار وعروضها
         return match ($this) {
-            self::FullProject => ['civil', 'cages', 'ventilation', 'cooling', 'technical', 'electrical'],
+            self::FullProject => ['civil', 'cages', 'technical', 'electrical'],
             self::BatteriesOnly => ['cages'],
-            self::BatteriesAndAccessories => ['cages', 'ventilation', 'cooling', 'technical', 'electrical'],
-            self::AccessoriesOnly => ['ventilation', 'cooling', 'technical', 'electrical'],
+            self::BatteriesAndAccessories => ['cages', 'technical', 'electrical'],
+            self::AccessoriesOnly => ['technical', 'electrical'],
             self::ConstructionOnly => ['civil'],
-            self::Custom => ['civil', 'cages', 'ventilation', 'cooling', 'technical', 'electrical'],
+            self::Custom => ['civil', 'cages', 'technical', 'electrical'],
         };
     }
 }

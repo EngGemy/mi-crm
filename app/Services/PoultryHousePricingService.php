@@ -120,11 +120,13 @@ class PoultryHousePricingService
         $includedSections = $scope->includedSections();
         $customKeys = $input['custom_item_keys'] ?? null;
 
-        $items = array_values(array_filter($allItems, function ($item) use ($includedSections, $scope, $customKeys, $technical) {
-            if ($item['qty'] <= 0 && in_array($item['key'], ['tanks', 'windows', 'side_fans', 'heaters', 'control', 'electricity'], true)) {
+        $excludedKeys = ['main_fans', 'cooling', 'windows', 'side_fans'];
+
+        $items = array_values(array_filter($allItems, function ($item) use ($includedSections, $scope, $customKeys, $technical, $excludedKeys) {
+            if (in_array($item['key'], $excludedKeys, true)) {
                 return false;
             }
-            if (! ($technical['include_side_fans'] ?? true) && $item['key'] === 'side_fans') {
+            if ($item['qty'] <= 0 && in_array($item['key'], ['tanks', 'heaters', 'control', 'electricity'], true)) {
                 return false;
             }
             if (! ($technical['include_heaters'] ?? true) && $item['key'] === 'heaters') {

@@ -208,14 +208,6 @@ class PoultryQuotationResource extends Resource
             Forms\Components\Section::make('المعدات الإضافية')
                 ->icon('heroicon-o-cog')
                 ->schema([
-                    Forms\Components\TextInput::make('side_fans_count')
-                        ->label('الشفاطات الجانبية')
-                        ->numeric()
-                        ->integer()
-                        ->helperText('اتركه فارغاً للحساب التلقائي')
-                        ->live(debounce: 150)
-                        ->afterStateUpdated($live),
-
                     Forms\Components\Select::make('heaters_count')
                         ->label('الدفايات (اختياري)')
                         ->options(HeaterOptions::selectOptions())
@@ -225,7 +217,7 @@ class PoultryQuotationResource extends Resource
                         ->live()
                         ->afterStateUpdated($live),
                 ])
-                ->columns(2)
+                ->columns(1)
                 ->visible(fn (Forms\Get $get) => ($get('project_type') ?? 'broiler') === 'broiler'
                     && static::showsAccessoriesPreview($get)),
 
@@ -254,22 +246,10 @@ class PoultryQuotationResource extends Resource
                 ->columns(3)
                 ->visible(fn (Forms\Get $get) => static::showsBatteryPreview($get)),
 
-            Forms\Components\Section::make('جدول المشتملات')
-                ->icon('heroicon-o-arrow-path')
-                ->description('المراوح والتبريد والشبابيك — منفصل عن البطاريات')
+            Forms\Components\Section::make('المشتملات الاختيارية')
+                ->icon('heroicon-o-bolt')
+                ->description('جهاز المونيتر والكهرباء — اختيارية')
                 ->schema([
-                    Forms\Components\TextInput::make('back_fans_count')
-                        ->label('المراوح')
-                        ->readOnly(),
-
-                    Forms\Components\TextInput::make('cooling_units')
-                        ->label('التبريد (م)')
-                        ->readOnly(),
-
-                    Forms\Components\TextInput::make('windows_count')
-                        ->label('الشبابيك')
-                        ->readOnly(),
-
                     Forms\Components\Toggle::make('include_monitor')
                         ->label('جهاز المونيتر (اختياري)')
                         ->default(false)
@@ -302,7 +282,7 @@ class PoultryQuotationResource extends Resource
 
                     ...static::accessoriesPreviewTableSchema(),
                 ])
-                ->columns(3)
+                ->columns(2)
                 ->visible(fn (Forms\Get $get) => static::showsAccessoriesPreview($get)),
 
             Forms\Components\Section::make('ملخص التسعير')
@@ -399,7 +379,7 @@ class PoultryQuotationResource extends Resource
                     ->color('success')
                     ->requiresConfirmation()
                     ->modalHeading('توليد كارت السوشيال ميديا')
-                    ->modalDescription('سيتم إنشاء صورة احترافية 1080×1080 للمشاركة على الواتساب والسوشيال ميديا.')
+                    ->modalDescription('سيتم إنشاء كارت مشاركة احترافي (بدون الحاجة لـ Node.js على السيرفر).')
                     ->action(function (PoultryQuotation $record) {
                         try {
                             $generator = app(PricingCardImageGenerator::class);
@@ -407,7 +387,7 @@ class PoultryQuotationResource extends Resource
                             $record->update(['image_path' => $path]);
                         } catch (\Throwable $e) {
                             Notification::make()
-                                ->title('خطأ في توليد الصورة')
+                                ->title('خطأ في توليد الكارت')
                                 ->body($e->getMessage())
                                 ->danger()
                                 ->send();
@@ -431,7 +411,7 @@ class PoultryQuotationResource extends Resource
 
                         if (! Storage::disk('public')->exists($path)) {
                             Notification::make()
-                                ->title('الصورة غير موجودة')
+                                ->title('الكارت غير موجود')
                                 ->body('يرجى توليد الكارت أولاً.')
                                 ->danger()
                                 ->send();
@@ -439,9 +419,11 @@ class PoultryQuotationResource extends Resource
                             return;
                         }
 
+                        $ext = pathinfo($path, PATHINFO_EXTENSION) ?: 'pdf';
+
                         return response()->download(
                             Storage::disk('public')->path($path),
-                            $record->quote_number.'-card.png'
+                            $record->quote_number.'-card.'.$ext
                         );
                     }),
 

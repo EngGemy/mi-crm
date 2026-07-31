@@ -83,14 +83,10 @@ trait HasLivePoultryPricing
             $set('total_nests', $computed['total_nests'] ?? 0);
             $set('nests_per_line', $computed['nests_per_line'] ?? 0);
             $set('birds_per_nest', $result['technical']['birds_per_nest'] ?? null);
-            $set('back_fans_count', $computed['back_fans_count']);
-            $set('cooling_units', $computed['cooling_units']);
-            $set('windows_count', $computed['windows_count']);
             $set('subtotal', $result['subtotal']);
             $set('dead_zone_meters', $serviceLength);
 
             if ($projectType === 'broiler') {
-                $set('side_fans_count', $computed['side_fans_count']);
                 $set('heaters_count', $computed['heaters_count']);
             }
 
@@ -198,21 +194,18 @@ trait HasLivePoultryPricing
                         return new HtmlString('<p style="color:#64748b;font-size:13px;">أدخل الأبعاد لحساب المشتملات…</p>');
                     }
 
-                    $c = $preview['computed'] ?? [];
-                    $tech = $preview['technical'] ?? [];
-                    $fanCount = $c['back_fans_count'] ?? 0;
-                    $fanFormula = $tech['fan_formula'] ?? '';
-                    $coolingFormula = $tech['cooling_formula'] ?? '';
-
-                    $rows = [
-                        ['المراوح', '<strong>'.e((string) $fanCount).'</strong>'
-                            .($fanFormula ? '<br><span style="font-size:11px;color:#64748b">'.e($fanFormula).'</span>' : ''), true],
-                        ['التبريد (م)', '<strong>'.e((string) ($c['cooling_units'] ?? 0)).'</strong>'
-                            .($coolingFormula ? '<br><span style="font-size:11px;color:#64748b">'.e($coolingFormula).'</span>' : ''), true],
-                        ['الشبابيك', e((string) ($c['windows_count'] ?? 0)), false],
-                    ];
+                    $rows = [];
 
                     $items = collect($preview['items'] ?? []);
+                    $heaterItem = $items->firstWhere('key', 'heaters');
+                    if ($heaterItem && (float) ($heaterItem['qty'] ?? 0) > 0) {
+                        $rows[] = [
+                            'الدفايات',
+                            '<strong>'.e(number_format((float) ($heaterItem['qty'] ?? 0), 0)).'</strong>'
+                            .' — '.e(number_format((float) ($heaterItem['total_price'] ?? 0), 0)).' ج.م',
+                            true,
+                        ];
+                    }
                     $monitorItem = $items->firstWhere('key', 'control');
                     if ($monitorItem && (float) ($monitorItem['qty'] ?? 0) > 0) {
                         $rows[] = [
@@ -230,8 +223,12 @@ trait HasLivePoultryPricing
                         ];
                     }
 
+                    if ($rows === []) {
+                        return new HtmlString('<p style="color:#64748b;font-size:13px;">لا توجد مشتملات اختيارية مفعّلة حالياً.</p>');
+                    }
+
                     $html = '<table style="width:100%;font-size:13px;border-collapse:collapse;background:#f8fafc;border-radius:8px;">';
-                    $html .= '<thead><tr style="background:#e2e8f0;"><th style="padding:8px;text-align:right;">البند</th><th style="padding:8px;text-align:left;">الكمية / المبلغ</th></tr></thead><tbody>';
+                    $html .= '<thead><tr style="background:#e2e8f0;"><th style="padding:8px;text-align:right;">البند</th><th style="padding:8px;text-align:left;">المبلغ</th></tr></thead><tbody>';
                     foreach ($rows as [$label, $val, $isHtml]) {
                         $cell = $isHtml ? $val : e((string) $val);
                         $html .= '<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:8px;color:#475569;">'.e($label).'</td><td style="padding:8px;font-weight:700;text-align:left;direction:ltr;">'.$cell.'</td></tr>';

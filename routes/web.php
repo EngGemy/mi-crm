@@ -13,7 +13,12 @@ Route::get('/', function () {
 // PDF حاسبة أسعار الدواجن
 Route::middleware(['auth'])->group(function () {
     Route::get('/poultry-quotations/{record}/pdf', function (App\Models\PoultryQuotation $record) {
-        return app(App\Services\PoultryQuotationPdfGenerator::class)->download($record);
+        try {
+            return app(App\Services\PoultryQuotationPdfGenerator::class)->download($record);
+        } catch (\Throwable $e) {
+            report($e);
+            abort(500, 'تعذر إنشاء ملف PDF. راجع سجل الأخطاء.');
+        }
     })->name('poultry-quotations.pdf');
 });
 

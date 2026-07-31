@@ -22,7 +22,8 @@ class ViewPoultryQuotation extends ViewRecord
             ->schema([
                 Components\Section::make('كارت المشاركة')
                     ->icon('heroicon-o-photo')
-                    ->visible(fn (PoultryQuotation $record): bool => $record->image_path !== null)
+                    ->visible(fn (PoultryQuotation $record): bool => $record->image_path !== null
+                        && str_ends_with(strtolower((string) $record->image_path), '.png'))
                     ->schema([
                         Components\ImageEntry::make('image_url')
                             ->label('')
@@ -104,26 +105,6 @@ class ViewPoultryQuotation extends ViewRecord
                             ->formatStateUsing(fn (PoultryQuotation $record) => $record->costForItemKey('battery'))
                             ->money('EGP')
                             ->visible(fn (PoultryQuotation $record) => $record->costForItemKey('battery') > 0),
-                        Components\TextEntry::make('back_fans_cost')
-                            ->label('الشفاطات الخلفية')
-                            ->formatStateUsing(fn (PoultryQuotation $record) => $record->costForItemKey('main_fans'))
-                            ->money('EGP')
-                            ->visible(fn (PoultryQuotation $record) => $record->costForItemKey('main_fans') > 0),
-                        Components\TextEntry::make('cooling_cost')
-                            ->label('التبريد')
-                            ->formatStateUsing(fn (PoultryQuotation $record) => $record->costForItemKey('cooling'))
-                            ->money('EGP')
-                            ->visible(fn (PoultryQuotation $record) => $record->costForItemKey('cooling') > 0),
-                        Components\TextEntry::make('windows_cost')
-                            ->label('الشبابيك')
-                            ->formatStateUsing(fn (PoultryQuotation $record) => $record->costForItemKey('windows'))
-                            ->money('EGP')
-                            ->visible(fn (PoultryQuotation $record) => $record->costForItemKey('windows') > 0),
-                        Components\TextEntry::make('side_fans_cost')
-                            ->label('الشفاطات الجانبية')
-                            ->formatStateUsing(fn (PoultryQuotation $record) => $record->costForItemKey('side_fans'))
-                            ->money('EGP')
-                            ->visible(fn (PoultryQuotation $record) => $record->costForItemKey('side_fans') > 0),
                         Components\TextEntry::make('heaters_cost')
                             ->label('الدفايات')
                             ->formatStateUsing(fn (PoultryQuotation $record) => $record->costForItemKey('heaters'))
@@ -159,7 +140,7 @@ class ViewPoultryQuotation extends ViewRecord
                 ->color('success')
                 ->requiresConfirmation()
                 ->modalHeading('توليد كارت السوشيال ميديا')
-                ->modalDescription('سيتم إنشاء صورة احترافية 1080×1080 للمشاركة على الواتساب والسوشيال ميديا.')
+                ->modalDescription('سيتم إنشاء كارت مشاركة احترافي (بدون الحاجة لـ Node.js على السيرفر).')
                 ->action(function () {
                     try {
                         $generator = app(PricingCardImageGenerator::class);
@@ -167,7 +148,7 @@ class ViewPoultryQuotation extends ViewRecord
                         $this->record->update(['image_path' => $path]);
                     } catch (\Throwable $e) {
                         Notification::make()
-                            ->title('خطأ في توليد الصورة')
+                            ->title('خطأ في توليد الكارت')
                             ->body($e->getMessage())
                             ->danger()
                             ->send();
@@ -193,7 +174,7 @@ class ViewPoultryQuotation extends ViewRecord
 
                     if (! Storage::disk('public')->exists($path)) {
                         Notification::make()
-                            ->title('الصورة غير موجودة')
+                            ->title('الكارت غير موجود')
                             ->body('يرجى توليد الكارت أولاً.')
                             ->danger()
                             ->send();
@@ -201,9 +182,11 @@ class ViewPoultryQuotation extends ViewRecord
                         return;
                     }
 
+                    $ext = pathinfo($path, PATHINFO_EXTENSION) ?: 'pdf';
+
                     return response()->download(
                         Storage::disk('public')->path($path),
-                        $this->record->quote_number.'-card.png'
+                        $this->record->quote_number.'-card.'.$ext
                     );
                 }),
 
