@@ -54,16 +54,31 @@ class EditQuotation extends EditRecord
                 ->icon('heroicon-o-photo')
                 ->color('success')
                 ->action(function () {
-                    $img = app(QuotationImageGenerator::class);
-                    $img->generate($this->record);
-                    $url = $img->getPublicUrl($this->record);
-                    Notification::make()
-                        ->title('تم توليد الصورة')
-                        ->body("الرابط: {$url}")
-                        ->success()->persistent()
-                        ->actions([
-                            \Filament\Notifications\Actions\Action::make('open')->label('فتح الصورة')->url($url, true),
-                        ])->send();
+                    try {
+                        $img = app(QuotationImageGenerator::class);
+                        $path = $img->generate($this->record);
+                        $url = $img->getPublicUrl($this->record);
+                        $isPdf = str_ends_with(strtolower($path), '.pdf');
+
+                        Notification::make()
+                            ->title($isPdf ? 'تم توليد ملف العرض' : 'تم توليد الصورة')
+                            ->body($isPdf
+                                ? 'السيرفر لا يدعم تحويل الصورة مباشرة — تم إنشاء PDF جاهز للمشاركة.'
+                                : "الرابط: {$url}")
+                            ->success()
+                            ->persistent()
+                            ->actions([
+                                \Filament\Notifications\Actions\Action::make('open')
+                                    ->label($isPdf ? 'فتح الملف' : 'فتح الصورة')
+                                    ->url($url, true),
+                            ])->send();
+                    } catch (\Throwable $e) {
+                        Notification::make()
+                            ->title('تعذر توليد العرض')
+                            ->body($e->getMessage())
+                            ->danger()
+                            ->send();
+                    }
                 }),
 
             Action::make('shareWhatsApp')

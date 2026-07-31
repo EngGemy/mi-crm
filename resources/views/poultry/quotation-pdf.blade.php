@@ -509,9 +509,10 @@ td, th { vertical-align: middle; }
         'q' => $q,
         'sealId' => $q->quote_number,
         'sealDate' => now()->format('Y'),
+        'sealColor' => '#1e40af',
     ])
     <div class="stamp-line" style="margin-top:4mm;">
-        ختم الشركة / Authorized Signature
+        ختم الشركة المعتمد للتوقيع
     </div>
 </div>
 

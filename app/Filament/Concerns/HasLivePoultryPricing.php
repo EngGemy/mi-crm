@@ -172,13 +172,26 @@ trait HasLivePoultryPricing
                 ->columnSpanFull()
                 ->content(function (Get $get) {
                     $preview = $get('pricing_preview');
-                    $totalNests = (int) ($preview['computed']['total_nests'] ?? $get('total_nests') ?? 0);
-                    $weight = (float) ($get('bird_weight_kg') ?? 2.1);
+                    $totalNests = (int) (
+                        $preview['computed']['total_nests']
+                        ?? $preview['technical']['total_nests']
+                        ?? $get('total_nests')
+                        ?? 0
+                    );
+                    $weight = (float) ($get('bird_weight_kg') ?? $get('average_weight_kg') ?? 2.1);
+
+                    // إن لم يُحسب بعد — قدّر من الطول الفعّال إن توفر في المعاينة
+                    if ($totalNests <= 0 && is_array($preview) && ! isset($preview['error'])) {
+                        $totalNests = (int) ($preview['computed']['total_nests'] ?? 0);
+                    }
 
                     return BroilerWeightReference::htmlTable($weight, $totalNests > 0 ? $totalNests : null);
                 })
-                ->visible(fn (Get $get) => static::showsBatteryPreview($get)
-                    && static::resolveProjectTypeFromForm($get) === 'broiler'),
+                ->visible(fn (Get $get) => (
+                    static::showsBatteryPreview($get)
+                    || filled($get('bird_weight_kg'))
+                    || filled($get('hall_type'))
+                ) && static::resolveProjectTypeFromForm($get) === 'broiler'),
         ];
     }
 

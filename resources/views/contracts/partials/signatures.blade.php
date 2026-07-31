@@ -16,8 +16,9 @@
 
             @include('components.company-seal', [
                 'contract' => $contract,
-                'sealId' => $contract->contract_number ?? $contract->project_code ?? 'MI',
+                'sealId' => $contract->contract_number ?? $contract->project_code ?? 'إم آي',
                 'sealDate' => $contract->contract_date?->format('Y') ?? now()->format('Y'),
+                'sealColor' => '#1e40af',
             ])
 
             <div style="border-bottom: 1px solid #999; margin: 8mm 8mm 2mm 8mm;"></div>

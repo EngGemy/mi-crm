@@ -106,6 +106,22 @@
         @endif
     </table>
 
+    @if(($projectTypeRaw === 'broiler' || $projectTypeRaw === null || $projectTypeAr === 'تسمين') && $birdWeight)
+    <h3>جدول أوزان الفراخ وعدد الطيور</h3>
+    <div style="background:#eff6ff;border:1pt solid #93c5fd;padding:2.5mm 3mm;margin-bottom:2mm;font-size:9pt;color:#1e3a8a;">
+        <strong>ملاحظة السعة:</strong>
+        عدد الطيور يعتمد على وزن الطائر المستهدف.
+        الوزن المختار:
+        <strong>{{ number_format((float)$birdWeight, 3) }} كجم</strong>
+        @if($birdsPerN) = <strong>{{ $birdsPerN }} طائر/عش</strong>@endif
+        @if($totalBirds) ← السعة <strong>{{ number_format((int)$totalBirds) }} طائر</strong>@endif
+    </div>
+    {!! \App\Support\BroilerWeightReference::pdfTableHtml(
+        $birdWeight ? (float) $birdWeight : null,
+        $totalNests ? (int) $totalNests : null
+    ) !!}
+    @endif
+
     {{-- جدول ب: الكميات المحسوبة + المعادلة --}}
     <h3>ثانيًا: الكميات المحسوبة</h3>
     <table style="margin-bottom: 5mm;">
