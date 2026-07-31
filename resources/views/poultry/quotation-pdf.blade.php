@@ -366,7 +366,23 @@ td, th { vertical-align: middle; }
 
 {{-- Weight table --}}
 @if(count($weightRows) > 0)
-<div class="sec">جدول أوزان الفراخ (تسمين)</div>
+<div class="sec">جدول أوزان الفراخ وعدد الطيور (تسمين)</div>
+<div style="background:#fff5f5; border:1pt solid #f5c2c2; padding:3mm 4mm; margin-bottom:3mm; font-size:9pt; color:#444;">
+    <strong style="color:{{ settings('branding.primary_color','#C00000') }};">ملاحظة السعة:</strong>
+    عدد الطيور يعتمد على وزن الطائر المستهدف.
+    الوزن المختار لهذا العرض:
+    <strong style="color:{{ settings('branding.primary_color','#C00000') }};">{{ $birdWeightKg > 0 ? number_format($birdWeightKg, 3) : '—' }} كجم</strong>
+    ←
+    <strong>{{ $birdsPerNest ?? '—' }} طائر/عش</strong>
+    ←
+    سعة معتمدة
+    <strong>{{ $totalBirds ? number_format((int)$totalBirds) : '—' }} طائر</strong>
+    @if($totalNests && $birdsPerNest)
+    <br>
+    المعادلة:
+    <span dir="ltr" style="font-weight:bold;">{{ number_format((int)$totalNests) }} عش × {{ number_format((int)$birdsPerNest) }} = {{ number_format((int)$totalBirds) }} طائر</span>
+    @endif
+</div>
 <table class="weight">
     <thead>
         <tr>
@@ -375,6 +391,7 @@ td, th { vertical-align: middle; }
             @if($totalNests)
             <th>إجمالي الطيور</th>
             @endif
+            <th>الحالة</th>
         </tr>
     </thead>
     <tbody>
@@ -386,10 +403,14 @@ td, th { vertical-align: middle; }
             @if($totalNests)
             <td dir="ltr">{{ number_format((int)$totalNests * $row['birds_per_nest']) }}</td>
             @endif
+            <td>{{ $sel ? 'المُطبَّق' : '—' }}</td>
         </tr>
     @endforeach
     </tbody>
 </table>
+<div style="font-size:8pt; color:#666; margin-bottom:4mm;">
+    الصف المظلّل بالأحمر هو الوزن المُطبَّق على هذا العرض. باقي الصفوف للمقارنة فقط.
+</div>
 @endif
 
 {{-- Pricing --}}
@@ -484,9 +505,14 @@ td, th { vertical-align: middle; }
 </div>
 
 <div class="stamp">
-    <div style="font-size:10pt; font-weight:bold; color:#333;">الختم والتوقيع المعتمد</div>
-    <div style="font-size:9pt; color:#666; margin-top:1mm;">@setting('company.name_ar','إم آي للصناعات المعدنية')</div>
-    <div class="stamp-line">ختم الشركة / Authorized Signature</div>
+    @include('components.company-seal', [
+        'q' => $q,
+        'sealId' => $q->quote_number,
+        'sealDate' => now()->format('Y'),
+    ])
+    <div class="stamp-line" style="margin-top:4mm;">
+        ختم الشركة / Authorized Signature
+    </div>
 </div>
 
 </body>

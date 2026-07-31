@@ -186,6 +186,7 @@ class PoultryQuotation extends Model
         $this->bird_count = $computed['bird_count'];
         $this->total_nests = $computed['total_nests'];
         $this->nests_per_line = $computed['nests_per_line'] ?? 0;
+        $this->birds_per_nest = $result['technical']['birds_per_nest'] ?? $this->birds_per_nest;
         $this->back_fans_count = $computed['back_fans_count'];
         $this->cooling_units = $computed['cooling_units'];
         $this->windows_count = $computed['windows_count'];

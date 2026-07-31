@@ -5,7 +5,9 @@ namespace App\Filament\Resources\PoultryQuotationResource\Pages;
 use App\Filament\Resources\PoultryQuotationResource;
 use App\Models\PoultryQuotation;
 use App\Services\Pricing\PricingCardImageGenerator;
+use App\Support\BroilerWeightReference;
 use Filament\Actions;
+use Filament\Forms;
 use Filament\Infolists\Components;
 use Filament\Infolists\Infolist;
 use Filament\Notifications\Notification;
@@ -76,6 +78,36 @@ class ViewPoultryQuotation extends ViewRecord
                         Components\TextEntry::make('bird_count')->label('عدد الطيور'),
                     ]),
 
+                Components\Section::make('جدول السعة وعدد الطيور')
+                    ->icon('heroicon-o-table-cells')
+                    ->description('الوزن المختار يتحكم في عدد الطيور لكل عش وإجمالي السعة — الملاحظة موضحة أدناه')
+                    ->visible(fn (PoultryQuotation $record): bool => ($record->project_type ?? 'broiler') === 'broiler')
+                    ->schema([
+                        Components\TextEntry::make('bird_weight_kg')
+                            ->label('وزن الطائر المستهدف')
+                            ->suffix(' كجم')
+                            ->weight('bold')
+                            ->color('danger'),
+                        Components\TextEntry::make('birds_per_nest')
+                            ->label('طيور / عش')
+                            ->weight('bold'),
+                        Components\TextEntry::make('total_nests')
+                            ->label('إجمالي الأعشاش'),
+                        Components\TextEntry::make('bird_count')
+                            ->label('السعة المعتمدة')
+                            ->weight('bold')
+                            ->color('primary')
+                            ->suffix(' طائر'),
+                        Components\ViewEntry::make('bird_capacity_panel')
+                            ->label('')
+                            ->columnSpanFull()
+                            ->view('filament.poultry.bird-capacity-panel')
+                            ->viewData(fn (PoultryQuotation $record): array => [
+                                'record' => $record,
+                            ]),
+                    ])
+                    ->columns(4),
+
                 Components\Section::make('تفاصيل التكلفة')
                     ->icon('heroicon-o-calculator')
                     ->columns(3)
@@ -127,6 +159,44 @@ class ViewPoultryQuotation extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('changeBirdWeight')
+                ->label('تغيير وزن الطائر')
+                ->icon('heroicon-o-scale')
+                ->color('danger')
+                ->visible(fn (): bool => ($this->record->project_type ?? 'broiler') === 'broiler')
+                ->modalHeading('التحكم في عدد الطيور عبر الوزن')
+                ->modalDescription('اختيار وزن مختلف يغيّر عدد الطيور لكل عش، إجمالي السعة، وسعر البطاريات تلقائياً.')
+                ->form([
+                    Forms\Components\Select::make('bird_weight_kg')
+                        ->label('وزن الطائر المستهدف')
+                        ->options(BroilerWeightReference::selectOptions())
+                        ->required()
+                        ->default(fn () => (string) ($this->record->bird_weight_kg ?: '2.100'))
+                        ->helperText('كل وزن = عدد طيور مختلف لكل عش حسب الجدول المعتمد'),
+                ])
+                ->action(function (array $data): void {
+                    try {
+                        $this->record->bird_weight_kg = $data['bird_weight_kg'];
+                        $this->record->birds_per_nest = null; // إعادة الحساب من خريطة الوزن
+                        $this->record->autoCompute();
+                        $this->record->save();
+
+                        Notification::make()
+                            ->title('تم تحديث السعة')
+                            ->body('الوزن: '.$this->record->bird_weight_kg.' كجم — السعة: '.number_format((int) $this->record->bird_count).' طائر')
+                            ->success()
+                            ->send();
+
+                        $this->redirect($this->getResource()::getUrl('view', ['record' => $this->record]));
+                    } catch (\Throwable $e) {
+                        Notification::make()
+                            ->title('تعذر تحديث السعة')
+                            ->body($e->getMessage())
+                            ->danger()
+                            ->send();
+                    }
+                }),
+
             Actions\Action::make('downloadPdf')
                 ->label('تحميل PDF')
                 ->icon('heroicon-o-document-arrow-down')

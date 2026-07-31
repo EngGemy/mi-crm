@@ -3,6 +3,16 @@
 
     {{-- Date filter --}}
     <div class="flex flex-wrap items-end gap-3 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 px-5 py-4 shadow-sm">
+        <div class="flex flex-wrap gap-2">
+            <button wire:click="applyPreset('daily')" type="button"
+                class="text-xs px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 transition-colors">اليوم</button>
+            <button wire:click="applyPreset('yesterday')" type="button"
+                class="text-xs px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 transition-colors">أمس</button>
+            <button wire:click="applyPreset('monthly')" type="button"
+                class="text-xs px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 transition-colors">هذا الشهر</button>
+            <button wire:click="applyPreset('weekly')" type="button"
+                class="text-xs px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 transition-colors">هذا الأسبوع</button>
+        </div>
         <div>
             <label class="block text-xs font-semibold text-gray-500 mb-1">من تاريخ</label>
             <input wire:model.live="dateFrom" type="date"
@@ -13,14 +23,10 @@
             <input wire:model.live="dateTo" type="date"
                 class="rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500">
         </div>
-        <div class="flex gap-2 mr-auto">
-            <button wire:click="$set('dateFrom', '{{ now()->startOfMonth()->format('Y-m-d') }}')"
-                wire:then="$set('dateTo', '{{ now()->endOfMonth()->format('Y-m-d') }}')"
-                onclick="Livewire.dispatch('refresh')"
-                class="text-xs px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 transition-colors">هذا الشهر</button>
-            <button wire:click="$set('dateFrom', '{{ now()->startOfQuarter()->format('Y-m-d') }}')"
-                class="text-xs px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 transition-colors">هذا الربع</button>
-        </div>
+        <button wire:click="exportExcel" type="button"
+            class="mr-auto inline-flex items-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-sm font-semibold">
+            تصدير Excel
+        </button>
     </div>
 
     @if(empty($reps))
@@ -102,6 +108,8 @@
                         <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">التحويل</th>
                         <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Pipeline</th>
                         <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">نشاطات</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">مكالمات</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">دقائق</th>
                         <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">مهام معلقة</th>
                     </tr>
                 </thead>
@@ -157,6 +165,8 @@
                         <td class="px-4 py-3 text-center">
                             <span class="text-blue-600 font-medium">{{ $rep['activities'] }}</span>
                         </td>
+                        <td class="px-4 py-3 text-center font-bold text-green-600">{{ $rep['calls'] ?? 0 }}</td>
+                        <td class="px-4 py-3 text-center font-mono text-xs">{{ $rep['duration_minutes'] ?? 0 }}</td>
                         <td class="px-4 py-3 text-center">
                             @if($rep['tasks_pending'] > 0)
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400 gap-1">
