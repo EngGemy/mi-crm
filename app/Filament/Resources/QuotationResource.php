@@ -255,7 +255,7 @@ class QuotationResource extends Resource
                                     ->step(0.01)
                                     ->suffix('متر')
                                     ->default(81)
-                                    ->live(debounce: 400)
+                                    ->live(onBlur: true)
                                     ->afterStateUpdated(static::poultryPricingLiveCallback(false)),
 
                                 Forms\Components\TextInput::make('hall_width')
@@ -264,7 +264,7 @@ class QuotationResource extends Resource
                                     ->step(0.01)
                                     ->suffix('متر')
                                     ->default(12)
-                                    ->live(debounce: 400)
+                                    ->live(onBlur: true)
                                     ->afterStateUpdated(static::poultryPricingLiveCallback(false)),
 
                                 Forms\Components\TextInput::make('hall_height')
@@ -273,7 +273,7 @@ class QuotationResource extends Resource
                                     ->step(0.01)
                                     ->suffix('متر')
                                     ->default(3.5)
-                                    ->live(debounce: 400)
+                                    ->live(onBlur: true)
                                     ->afterStateUpdated(static::poultryPricingLiveCallback(false)),
 
                                 Forms\Components\TextInput::make('service_length')
@@ -283,7 +283,7 @@ class QuotationResource extends Resource
                                     ->default(10)
                                     ->suffix('م')
                                     ->helperText('يُحفظ أيضاً في dead_zone_meters')
-                                    ->live(debounce: 400)
+                                    ->live(onBlur: true)
                                     ->afterStateUpdated(static::poultryPricingLiveCallback(false)),
 
                                 Forms\Components\TextInput::make('dead_zone_meters')
@@ -301,13 +301,13 @@ class QuotationResource extends Resource
                                 Forms\Components\TextInput::make('tiers')
                                     ->label('عدد الأدوار')
                                     ->numeric()->minValue(1)->default(4)->required()
-                                    ->live(debounce: 400)
+                                    ->live(onBlur: true)
                                     ->afterStateUpdated(static::poultryPricingLiveCallback(false)),
 
                                 Forms\Components\TextInput::make('lines')
                                     ->label('عدد الخطوط')
                                     ->numeric()->minValue(1)->default(4)->required()
-                                    ->live(debounce: 400)
+                                    ->live(onBlur: true)
                                     ->afterStateUpdated(static::poultryPricingLiveCallback(false)),
 
                                 Forms\Components\Select::make('bird_weight_kg')
@@ -334,7 +334,7 @@ class QuotationResource extends Resource
                                     ->integer()
                                     ->helperText('فارغ = تلقائي')
                                     ->visible(fn (Forms\Get $get) => ! in_array($get('hall_type'), ['بياض', 'layer'], true))
-                                    ->live(debounce: 400)
+                                    ->live(onBlur: true)
                                     ->afterStateUpdated(static::poultryPricingLiveCallback(false)),
 
                                 Forms\Components\Select::make('heaters_count')

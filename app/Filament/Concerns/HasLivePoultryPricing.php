@@ -15,7 +15,7 @@ use Illuminate\Support\HtmlString;
 
 trait HasLivePoultryPricing
 {
-    protected const LIVE_DEBOUNCE_MS = 150;
+    protected const LIVE_DEBOUNCE_MS = 800;
 
     protected static function poultryPricingLiveCallback(bool $applyItems = false): \Closure
     {

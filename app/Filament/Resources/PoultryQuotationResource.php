@@ -101,7 +101,7 @@ class PoultryQuotationResource extends Resource
 
             Forms\Components\Section::make('أبعاد العنبر')
                 ->icon('heroicon-o-home')
-                ->description('الحساب يتحدث فوراً عند تغيير أي قيمة')
+                ->description('الحساب يتحدث بعد الانتهاء من كتابة القيمة (عند الخروج من الحقل)')
                 ->schema([
                     Forms\Components\Toggle::make('auto_lines_from_width')
                         ->label('اقتراح الخطوط من العرض (12م→4، 15م→5)')
@@ -119,7 +119,7 @@ class PoultryQuotationResource extends Resource
                         ->minValue(1)
                         ->helperText('أي قيمة مخصصة — مثال: 72، 81، 90')
                         ->suffix('م')
-                        ->live(debounce: 150)
+                        ->live(onBlur: true)
                         ->afterStateUpdated($live),
 
                     Forms\Components\TextInput::make('width')
@@ -130,7 +130,7 @@ class PoultryQuotationResource extends Resource
                         ->default(12)
                         ->minValue(1)
                         ->suffix('م')
-                        ->live(debounce: 150)
+                        ->live(onBlur: true)
                         ->afterStateUpdated($live),
 
                     Forms\Components\TextInput::make('height')
@@ -142,7 +142,7 @@ class PoultryQuotationResource extends Resource
                         ->minValue(0.1)
                         ->suffix('م')
                         ->helperText(fn (Forms\Get $get) => 'قيم شائعة: '.implode('، ', array_keys(static::heightOptionsForType($get('project_type') ?? 'broiler'))).' — أو أدخل قيمة مخصصة')
-                        ->live(debounce: 150)
+                        ->live(onBlur: true)
                         ->afterStateUpdated($live),
                 ])
                 ->columns(3),
@@ -156,7 +156,7 @@ class PoultryQuotationResource extends Resource
                         ->default(10)
                         ->suffix('م')
                         ->helperText('تسمين: 9–10م | بياض: 7–9م')
-                        ->live(debounce: 150)
+                        ->live(onBlur: true)
                         ->afterStateUpdated($live),
 
                     Forms\Components\Select::make('bird_weight_kg')
@@ -189,7 +189,7 @@ class PoultryQuotationResource extends Resource
                         ->default(4)
                         ->minValue(1)
                         ->maxValue(8)
-                        ->live(debounce: 150)
+                        ->live(onBlur: true)
                         ->afterStateUpdated($live),
 
                     Forms\Components\TextInput::make('lines')
@@ -200,7 +200,7 @@ class PoultryQuotationResource extends Resource
                         ->default(4)
                         ->minValue(1)
                         ->maxValue(12)
-                        ->live(debounce: 150)
+                        ->live(onBlur: true)
                         ->afterStateUpdated($live),
                 ])
                 ->columns(2),
@@ -262,7 +262,7 @@ class PoultryQuotationResource extends Resource
                         ->minValue(0)
                         ->placeholder('أدخل المبلغ')
                         ->visible(fn (Forms\Get $get) => (bool) $get('include_monitor'))
-                        ->live(debounce: 150)
+                        ->live(onBlur: true)
                         ->afterStateUpdated($live),
 
                     Forms\Components\Toggle::make('include_electricity')
@@ -277,7 +277,7 @@ class PoultryQuotationResource extends Resource
                         ->minValue(0)
                         ->placeholder('أدخل المبلغ')
                         ->visible(fn (Forms\Get $get) => (bool) $get('include_electricity'))
-                        ->live(debounce: 150)
+                        ->live(onBlur: true)
                         ->afterStateUpdated($live),
 
                     ...static::accessoriesPreviewTableSchema(),

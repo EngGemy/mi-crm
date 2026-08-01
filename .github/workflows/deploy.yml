@@ -51,9 +51,15 @@ jobs:
             --exclude='.github' \
             --exclude='node_modules' \
             --exclude='.env' \
-            --exclude='storage/app' \
+            --exclude='storage/app/public' \
+            --exclude='storage/app/temp' \
+            --exclude='storage/app/quotations' \
+            --exclude='storage/app/contracts' \
+            --exclude='storage/app/lead-imports' \
+            --exclude='storage/app/playwright-browsers' \
             --exclude='storage/framework/sessions' \
-            --exclude='storage/framework/cache' \
+            --exclude='storage/framework/cache/data' \
+            --exclude='storage/framework/views' \
             --exclude='storage/logs' \
             -e "ssh -p ${{ secrets.SSH_PORT }} -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
             ./ \
@@ -66,14 +72,23 @@ jobs:
               -o StrictHostKeyChecking=no \
               "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
               "set -e && cd '${{ secrets.DEPLOY_PATH }}' && \
-               NODE_BIN='${{ secrets.NODE_BINARY }}'; \
-               if [ -n \"\$NODE_BIN\" ] && [ -x \"\$NODE_BIN\" ]; then export PATH=\"\$(dirname \"\$NODE_BIN\"):\$PATH\"; fi; \
-               if command -v node >/dev/null 2>&1; then \
-                 export PLAYWRIGHT_BROWSERS_PATH=\"\$(pwd)/storage/app/playwright-browsers\"; \
-                 npm ci --omit=dev; \
-                 npx playwright install chromium; \
-               fi; \
+               mkdir -p \
+                 storage/framework/cache/data \
+                 storage/framework/sessions \
+                 storage/framework/views \
+                 storage/framework/testing \
+                 storage/logs \
+                 storage/app/public \
+                 storage/app/temp \
+                 storage/app/mpdf-temp \
+                 storage/app/quotations/images \
+                 storage/app/public/pricing-cards \
+                 bootstrap/cache && \
+               chmod -R ug+rwx storage bootstrap/cache || true && \
                php artisan migrate --force && \
+               php artisan config:clear && \
+               php artisan cache:clear && \
+               php artisan view:clear && \
                php artisan config:cache && \
                php artisan route:cache && \
                php artisan view:cache && \
