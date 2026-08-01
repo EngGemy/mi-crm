@@ -75,7 +75,9 @@ class LeadResource extends Resource
                         Forms\Components\Section::make('الموقع')->schema([
                             Forms\Components\TextInput::make('country')
                                 ->label('الدولة')
-                                ->default('Egypt'),
+                                ->default('Egypt')
+                                ->placeholder('Egypt')
+                                ->dehydrateStateUsing(fn (?string $state): string => filled($state) ? $state : 'Egypt'),
                             Forms\Components\TextInput::make('city')
                                 ->label('المدينة'),
                             Forms\Components\Textarea::make('address')

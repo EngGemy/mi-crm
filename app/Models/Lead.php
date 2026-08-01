@@ -184,6 +184,12 @@ class Lead extends Model
                 $lead->created_by = auth()->id();
             }
         });
+
+        static::saving(function (Lead $lead) {
+            if ($lead->country === null || $lead->country === '') {
+                $lead->country = 'Egypt';
+            }
+        });
     }
 
     public static function generateLeadNumber(): string
