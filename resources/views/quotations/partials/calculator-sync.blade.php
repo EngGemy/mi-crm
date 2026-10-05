@@ -28,8 +28,10 @@
 
     $projectTypeRaw = $snapshot['project_type'] ?? $snapInputs['project_type'] ?? null;
     $projectTypeAr  = match ($projectTypeRaw) {
-        'broiler'       => 'تسمين',
-        'layer'         => 'بياض',
+        'broiler' => 'تسمين',
+        'broiler_auto_exit' => 'تسمين تخريج آلي',
+        'layer' => 'إنتاج بياض',
+        'layer_auto_collect' => 'إنتاج بياض جمع آلي',
         'layer_rearing' => 'تربية بياض',
         default         => $projectTypeRaw,
     };
@@ -106,7 +108,7 @@
         @endif
     </table>
 
-    @if(($projectTypeRaw === 'broiler' || $projectTypeRaw === null || $projectTypeAr === 'تسمين') && $birdWeight)
+    @if((in_array($projectTypeRaw, ['broiler', 'broiler_auto_exit', null], true) || $projectTypeAr === 'تسمين') && $birdWeight)
     <h3>جدول أوزان الفراخ وعدد الطيور</h3>
     <div style="background:#eff6ff;border:1pt solid #93c5fd;padding:2.5mm 3mm;margin-bottom:2mm;font-size:9pt;color:#1e3a8a;">
         <strong>ملاحظة السعة:</strong>

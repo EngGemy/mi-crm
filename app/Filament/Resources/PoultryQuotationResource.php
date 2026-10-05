@@ -6,9 +6,9 @@ use App\Enums\PoultryPricingScope;
 use App\Enums\PoultryProjectType;
 use App\Filament\Concerns\HasLivePoultryPricing;
 use App\Filament\Resources\PoultryQuotationResource\Pages;
-use App\Models\Customer;
 use App\Models\Lookup;
 use App\Models\PoultryQuotation;
+use App\Services\Poultry\SavedClientCatalog;
 use App\Services\Pricing\PricingCardImageGenerator;
 use App\Services\Poultry\PoultryConfigLoader;
 use App\Services\Poultry\PoultryQuoteAccess;
@@ -114,30 +114,38 @@ class PoultryQuotationResource extends Resource
                         ->tel()
                         ->placeholder('+2010xxxxxxx'),
 
-                    Forms\Components\Select::make('customer_id')
+                    Forms\Components\Hidden::make('customer_id'),
+
+                    Forms\Components\Select::make('saved_client')
                         ->label('عميل محفوظ (اختياري)')
-                        ->relationship('customer', 'name')
+                        ->options(fn () => SavedClientCatalog::options())
                         ->searchable()
                         ->preload()
                         ->native(false)
-                        ->getOptionLabelFromRecordUsing(fn (Customer $r) => "{$r->name} — {$r->phone}")
+                        ->dehydrated(false)
+                        ->placeholder('من العملاء أو العملاء المحتملين')
+                        ->helperText('نفس الشخص لو متسجل في الجهتين يظهر مرة واحدة.')
                         ->live()
-                        ->afterStateUpdated(function (?int $state, Set $set) {
-                            if (! $state) {
+                        ->afterStateHydrated(function (Forms\Components\Select $component, ?PoultryQuotation $record): void {
+                            if ($record?->customer_id) {
+                                $component->state('customer:'.$record->customer_id);
+                            }
+                        })
+                        ->afterStateUpdated(function (?string $state, Set $set): void {
+                            if ($state === null || $state === '') {
+                                $set('customer_id', null);
+
                                 return;
                             }
-                            $c = Customer::find($state);
-                            if (! $c) {
+
+                            $fields = SavedClientCatalog::fieldsFor($state);
+                            if ($fields === null) {
                                 return;
                             }
-                            $set('client_name', $c->name);
-                            $set('client_phone', $c->phone ?? $c->whatsapp);
-                            $set('client_email', $c->email);
-                            $set('client_address', $c->address);
-                            $set('client_company', $c->name_en);
-                            $set('client_country', $c->country);
-                            $set('client_location', $c->city);
-                            $set('client_notes', $c->notes);
+
+                            foreach ($fields as $field => $value) {
+                                $set($field, $value);
+                            }
                         })
                         ->columnSpanFull(),
 
@@ -184,15 +192,14 @@ class PoultryQuotationResource extends Resource
                 ->icon('heroicon-o-document-text')
                 ->schema([
                     Forms\Components\Select::make('project_type')
-                        ->label('تسمين / بياض')
+                        ->label('النوع')
                         ->options(PoultryProjectType::options())
                         ->default(PoultryProjectType::Broiler->value)
                         ->required()
                         ->native(false)
                         ->live()
                         ->afterStateUpdated(function (Set $set, Get $get) use ($live) {
-                            $opts = static::heightOptionsForType($get('project_type') ?? 'broiler');
-                            $set('height', (string) (array_key_first($opts) ?? ($get('project_type') === 'layer' ? '3.5' : '3.7')));
+                            $set('height', '4');
                             $live($set, $get);
                         }),
 
@@ -204,16 +211,6 @@ class PoultryQuotationResource extends Resource
                         ->native(false)
                         ->live()
                         ->afterStateUpdated($live),
-
-                    Forms\Components\Select::make('quote_type_id')
-                        ->label('تصنيف العرض')
-                        ->options(fn () => Lookup::options(Lookup::TYPE_QUOTE_TYPE))
-                        ->default(fn () => Lookup::defaultId(Lookup::TYPE_QUOTE_TYPE))
-                        ->required()
-                        ->native(false)
-                        ->searchable()
-                        ->live()
-                        ->columnSpanFull(),
                 ])
                 ->columns(['default' => 1, 'md' => 2]),
         ];
@@ -240,7 +237,7 @@ class PoultryQuotationResource extends Resource
                     Forms\Components\TextInput::make('height')
                         ->label('الارتفاع')
                         ->required()->numeric()->step(0.1)
-                        ->default(fn () => (string) (array_key_first(static::heightOptionsForType('broiler')) ?? '3.7'))
+                        ->default('4')
                         ->minValue(0.1)->suffix('م')
                         ->live(onBlur: true)->afterStateUpdated($live),
 
@@ -254,6 +251,20 @@ class PoultryQuotationResource extends Resource
                         ->required()->numeric()->integer()->default(4)->minValue(1)->maxValue(8)
                         ->live(onBlur: true)->afterStateUpdated($live),
 
+                    Forms\Components\Select::make('internal_columns')
+                        ->label('الأعمدة الداخلية')
+                        ->options([
+                            0 => '0',
+                            1 => '1',
+                            2 => '2',
+                            3 => '3',
+                            4 => '4',
+                        ])
+                        ->default(0)
+                        ->native(false)
+                        ->required()
+                        ->live(),
+
                     Forms\Components\TextInput::make('barns_count')
                         ->label('عدد العنابر')
                         ->required()->numeric()->integer()->default(1)->minValue(1)
@@ -263,18 +274,30 @@ class PoultryQuotationResource extends Resource
                         ->label('وزن الطائر')
                         ->options(BroilerWeightReference::selectOptions())
                         ->default('2.100')
-                        ->visible(fn (Get $get) => ($get('project_type') ?? 'broiler') === 'broiler')
+                        ->visible(fn (Get $get) => PoultryProjectType::tryFrom((string) ($get('project_type') ?: 'broiler'))?->isBroiler() ?? false)
                         ->native(false)
                         ->live()
                         ->afterStateUpdated($live),
 
-                    Forms\Components\TextInput::make('bird_price')
+                    Forms\Components\TextInput::make('bird_price_usd')
                         ->label('سعر الطائر')
                         ->numeric()
-                        ->suffix('ج.م')
-                        ->default(fn () => settings('poultry_pricing.price_per_bird', 95))
+                        ->suffix('$')
+                        ->readOnly(fn (Get $get): bool => PoultryProjectType::tryFrom((string) $get('project_type'))?->birdPriceUsd((int) ($get('tiers') ?: 4)) !== null)
+                        ->default(2.8)
+                        ->helperText(fn (Get $get): string => PoultryProjectType::tryFrom((string) $get('project_type')) === PoultryProjectType::LayerRearing
+                            ? 'سعر طائر تربية البياض لم يُحدد. اكتبه بالدولار ويتحول للجنيه بسعر الصرف.'
+                            : 'يتحدد من نوع العرض وعدد الأدوار، ويتحول للجنيه بسعر الصرف.')
                         ->live(onBlur: true)
                         ->afterStateUpdated($live),
+
+                    Forms\Components\TextInput::make('bird_price')
+                        ->label('سعر الطائر بالجنيه')
+                        ->numeric()
+                        ->suffix('ج.م')
+                        ->readOnly()
+                        ->default(fn () => round(2.8 * (float) settings('poultry_pricing.egp_to_usd_rate', 48), 2))
+                        ->live(),
 
                     Forms\Components\TextInput::make('exchange_rate')
                         ->label('سعر الصرف')
@@ -337,7 +360,7 @@ class PoultryQuotationResource extends Resource
                 ->collapsed()
                 ->schema([
                     Forms\Components\Select::make('manure_motor_count_id')
-                        ->label('ماتورات الروث')
+                        ->label('عدد مواتير دولاب السبلة')
                         ->options(fn () => Lookup::options(Lookup::TYPE_MANURE_MOTOR_COUNT))
                         ->default(fn () => Lookup::defaultId(Lookup::TYPE_MANURE_MOTOR_COUNT))
                         ->native(false)->searchable()->live(),
@@ -349,25 +372,25 @@ class PoultryQuotationResource extends Resource
                         ->native(false)->searchable()->live(),
 
                     Forms\Components\Select::make('belts_per_line_id')
-                        ->label('سيور / خط')
+                        ->label('عدد السيور في الخط')
                         ->options(fn () => Lookup::options(Lookup::TYPE_BELTS_PER_LINE))
                         ->default(fn () => Lookup::defaultId(Lookup::TYPE_BELTS_PER_LINE))
                         ->native(false)->searchable()->live(),
 
                     Forms\Components\Select::make('inner_belt_length_id')
-                        ->label('سير داخلي')
+                        ->label('طول السير الداخلي')
                         ->options(fn () => Lookup::options(Lookup::TYPE_INNER_BELT_LENGTH))
                         ->default(fn () => Lookup::defaultId(Lookup::TYPE_INNER_BELT_LENGTH))
                         ->native(false)->searchable()->live(),
 
                     Forms\Components\Select::make('outer_belt_length_id')
-                        ->label('سير خارجي')
+                        ->label('طول السير الخارجي')
                         ->options(fn () => Lookup::options(Lookup::TYPE_OUTER_BELT_LENGTH))
                         ->default(fn () => Lookup::defaultId(Lookup::TYPE_OUTER_BELT_LENGTH))
                         ->native(false)->searchable()->live(),
 
                     Forms\Components\Select::make('silo_capacity_id')
-                        ->label('الصومعة')
+                        ->label('سعة السايلو')
                         ->options(fn () => Lookup::options(Lookup::TYPE_SILO_CAPACITY))
                         ->default(fn () => Lookup::defaultId(Lookup::TYPE_SILO_CAPACITY))
                         ->native(false)->searchable()->live(),
@@ -376,7 +399,7 @@ class PoultryQuotationResource extends Resource
                         ->label('الدفايات')
                         ->options(HeaterOptions::selectOptions())
                         ->default(0)
-                        ->visible(fn (Get $get) => ($get('project_type') ?? 'broiler') === 'broiler'
+                        ->visible(fn (Get $get) => (PoultryProjectType::tryFrom((string) ($get('project_type') ?: 'broiler'))?->isBroiler() ?? false)
                             && static::showsAccessoriesPreview($get))
                         ->native(false)
                         ->live()

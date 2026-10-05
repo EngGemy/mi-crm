@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\PoultryQuotationResource\Pages;
 
+use App\Enums\PoultryProjectType;
 use App\Filament\Resources\PoultryQuotationResource;
 use App\Models\PoultryQuotation;
 use App\Services\Pricing\PricingCardImageGenerator;
@@ -81,7 +82,7 @@ class ViewPoultryQuotation extends ViewRecord
                 Components\Section::make('جدول السعة وعدد الطيور')
                     ->icon('heroicon-o-table-cells')
                     ->description('الوزن المختار يتحكم في عدد الطيور لكل عش وإجمالي السعة — الملاحظة موضحة أدناه')
-                    ->visible(fn (PoultryQuotation $record): bool => ($record->project_type ?? 'broiler') === 'broiler')
+                    ->visible(fn (PoultryQuotation $record): bool => PoultryProjectType::tryFrom((string) ($record->project_type ?: 'broiler'))?->isBroiler() ?? false)
                     ->schema([
                         Components\TextEntry::make('bird_weight_kg')
                             ->label('وزن الطائر المستهدف')
@@ -163,7 +164,7 @@ class ViewPoultryQuotation extends ViewRecord
                 ->label('تغيير وزن الطائر')
                 ->icon('heroicon-o-scale')
                 ->color('danger')
-                ->visible(fn (): bool => ($this->record->project_type ?? 'broiler') === 'broiler')
+                ->visible(fn (): bool => PoultryProjectType::tryFrom((string) ($this->record->project_type ?: 'broiler'))?->isBroiler() ?? false)
                 ->modalHeading('التحكم في عدد الطيور عبر الوزن')
                 ->modalDescription('اختيار وزن مختلف يغيّر عدد الطيور لكل عش، إجمالي السعة، وسعر البطاريات تلقائياً.')
                 ->form([

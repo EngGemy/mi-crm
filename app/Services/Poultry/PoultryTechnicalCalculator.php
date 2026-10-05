@@ -31,7 +31,8 @@ class PoultryTechnicalCalculator
      */
     public function compute(array $input, array $config): array
     {
-        $projectType = PoultryProjectType::from($input['project_type'] ?? PoultryProjectType::Broiler->value);
+        $requested = PoultryProjectType::from($input['project_type'] ?? PoultryProjectType::Broiler->value);
+        $projectType = $requested->pricesAs();
 
         $barnLength = (float) $input['barn_length'];
         $lines = (int) ($input['lines'] ?? $this->resolveLinesFromWidth((float) ($input['barn_width'] ?? 0), $config));
@@ -55,11 +56,14 @@ class PoultryTechnicalCalculator
 
         $input['service_length'] = $serviceLength;
 
-        return match ($projectType) {
+        $result = match ($projectType) {
             PoultryProjectType::Broiler => $this->computeBroiler($input, $config, $barnLength, $effectiveLength, $lines, $tiers),
             PoultryProjectType::Layer => $this->computeLayer($input, $config, $barnLength, $effectiveLength, $lines, $tiers),
             PoultryProjectType::LayerRearing => throw new InvalidArgumentException('حاسبة تربية البياض غير مفعّلة بعد'),
         };
+        $result['project_type'] = $requested->value;
+
+        return $result;
     }
 
     /**

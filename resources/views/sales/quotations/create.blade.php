@@ -209,7 +209,7 @@ function updateWeightTable(data) {
 }
 
 function toggleBroilerOptions() {
-    const isBroiler = document.getElementById('project_type').value === 'broiler';
+    const isBroiler = ['broiler', 'broiler_auto_exit'].includes(document.getElementById('project_type').value);
     document.getElementById('broiler-options').style.display = isBroiler ? 'block' : 'none';
     if (!isBroiler) {
         document.getElementById('service_length').value = '9';

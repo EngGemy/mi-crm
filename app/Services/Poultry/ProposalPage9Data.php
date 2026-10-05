@@ -103,7 +103,7 @@ CSS;
         $snapshotBirds = (int) ($technical['birds_per_nest'] ?? $quotation->birds_per_nest ?? 0);
         $snapshotTotal = (int) ($computed['bird_count'] ?? $quotation->bird_count ?? 0);
 
-        if ($projectType !== PoultryProjectType::Broiler->value) {
+        if (! PoultryProjectType::tryFrom($projectType)?->isBroiler()) {
             $weight = (float) ($technical['layer_max_bird_weight_kg'] ?? $technical['bird_weight_kg'] ?? 0);
 
             return $this->singleCare($weight, $snapshotBirds, $snapshotTotal, $cagesTotal, $cageArea, $cageLength);

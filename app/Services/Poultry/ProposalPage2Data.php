@@ -51,6 +51,7 @@ class ProposalPage2Data
                         ['label' => 'عرض العنبر', 'value' => $this->meters($width)],
                         ['label' => 'ارتفاع العنبر', 'value' => $this->meters($height)],
                         ['label' => 'مكان المشروع', 'value' => $location !== '' ? $location : '—'],
+                        ['label' => 'الأعمدة الداخلية', 'value' => (string) (int) ($quotation->internal_columns ?? 0)],
                     ],
                 ],
             ],
@@ -75,12 +76,8 @@ CSS;
 
     private function projectLabel(string $projectType): string
     {
-        return match ($projectType) {
-            PoultryProjectType::Broiler->value => 'تسمين',
-            PoultryProjectType::Layer->value => 'بياض',
-            PoultryProjectType::LayerRearing->value => 'تربية بياض',
-            default => $projectType !== '' ? $projectType : '—',
-        };
+        return PoultryProjectType::tryFrom($projectType)?->labelAr()
+            ?? ($projectType !== '' ? $projectType : '—');
     }
 
     /** @param  array<string, mixed>  $inputs */

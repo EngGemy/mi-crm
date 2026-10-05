@@ -3,6 +3,7 @@
 namespace App\Filament\Concerns;
 
 use App\Enums\PoultryPricingScope;
+use App\Enums\PoultryProjectType;
 use App\Models\QuotationSection;
 use App\Services\Poultry\PoultryConfigLoader;
 use App\Services\Poultry\PoultryTechnicalCalculator;
@@ -71,6 +72,8 @@ trait HasLivePoultryPricing
                 'birds_per_nest' => $get('birds_per_nest'),
                 'side_fans_count' => $get('side_fans_count') ?: null,
                 'heaters_count' => $get('heaters_count') ?: null,
+                'internal_columns' => (int) ($get('internal_columns') ?? 0),
+                'price_per_bird' => static::syncQuotedBirdPrice($set, $get, $projectType, $tiers),
                 'wall_type' => $get('wall_type'),
                 'include_monitor' => (bool) ($get('include_monitor') ?? false),
                 'monitor_cost' => $get('monitor_cost'),
@@ -115,7 +118,7 @@ trait HasLivePoultryPricing
             $set('dead_zone_meters', $serviceLength);
             $set('bird_price', $get('bird_price') ?: $birdPrice);
 
-            if ($projectType === 'broiler') {
+            if (PoultryProjectType::tryFrom($projectType)?->isBroiler()) {
                 $set('heaters_count', $computed['heaters_count']);
             }
 
@@ -146,6 +149,36 @@ trait HasLivePoultryPricing
         } catch (\Throwable $e) {
             $set('pricing_preview', ['error' => $e->getMessage()]);
         }
+    }
+
+    protected static function syncQuotedBirdPrice(Set $set, Get $get, string $projectType, int $tiers): ?float
+    {
+        $usd = PoultryProjectType::tryFrom($projectType)?->birdPriceUsd($tiers);
+        $rate = (float) ($get('exchange_rate') ?: 0);
+
+        if ($usd === null) {
+            $typed = $get('bird_price_usd');
+            if ($typed !== null && $typed !== '' && $rate > 0) {
+                $egp = round((float) $typed * $rate, 2);
+                $set('bird_price', $egp);
+
+                return $egp;
+            }
+
+            return $get('bird_price') !== null && $get('bird_price') !== ''
+                ? (float) $get('bird_price')
+                : null;
+        }
+
+        $set('bird_price_usd', $usd);
+        if ($rate <= 0) {
+            return null;
+        }
+
+        $egp = round($usd * $rate, 2);
+        $set('bird_price', $egp);
+
+        return $egp;
     }
 
     protected static function resolveProjectTypeFromForm(Get $get): string
@@ -220,7 +253,7 @@ trait HasLivePoultryPricing
                     static::showsBatteryPreview($get)
                     || filled($get('bird_weight_kg'))
                     || filled($get('hall_type'))
-                ) && static::resolveProjectTypeFromForm($get) === 'broiler'),
+                ) && (PoultryProjectType::tryFrom(static::resolveProjectTypeFromForm($get))?->isBroiler() ?? false)),
         ];
     }
 

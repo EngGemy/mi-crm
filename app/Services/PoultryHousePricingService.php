@@ -40,6 +40,9 @@ class PoultryHousePricingService
         $projectType = PoultryProjectType::from($input['project_type'] ?? PoultryProjectType::Broiler->value);
         $scope = PoultryPricingScope::from($input['pricing_scope'] ?? PoultryPricingScope::FullProject->value);
         $pricingParams = $params ?? $this->loadParams($input['wall_type'] ?? null);
+        if (isset($input['price_per_bird']) && $input['price_per_bird'] !== '' && $input['price_per_bird'] !== null) {
+            $pricingParams['price_per_bird'] = (float) $input['price_per_bird'];
+        }
         $technicalConfig = $this->configLoader->resolveTechnicalConfig($pricingParams);
 
         $length = (float) $input['hall_length'];
@@ -76,8 +79,9 @@ class PoultryHousePricingService
         $tanksFixedCost = (float) ($pricingParams['tanks_fixed_cost'] ?? 0);
         $includeTanks = ($pricingParams['include_tanks'] ?? true) && $tanksFixedCost > 0;
 
-        $fanLabelAr = $projectType === PoultryProjectType::Layer ? 'الشفاطات الخلفية (بياض)' : 'الشفاطات الرئيسية';
-        $fanLabelEn = $projectType === PoultryProjectType::Layer ? 'Rear exhaust fans' : 'Main exhaust fans';
+        $isLayer = $projectType->pricesAs() === PoultryProjectType::Layer;
+        $fanLabelAr = $isLayer ? 'الشفاطات الخلفية (بياض)' : 'الشفاطات الرئيسية';
+        $fanLabelEn = $isLayer ? 'Rear exhaust fans' : 'Main exhaust fans';
 
         $heaterLine = $this->buildHeaterLineItem($heatersQty, $pricingParams);
         $monitorLine = $this->buildOptionalElectricalItem(

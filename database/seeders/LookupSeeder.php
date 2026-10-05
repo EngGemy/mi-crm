@@ -54,7 +54,9 @@ class LookupSeeder extends Seeder
         ];
 
         foreach ($groups as $type => $rows) {
+            $codes = [];
             foreach ($rows as $i => $row) {
+                $codes[] = $row['code'];
                 Lookup::updateOrCreate(
                     ['type' => $type, 'code' => $row['code']],
                     [
@@ -66,6 +68,11 @@ class LookupSeeder extends Seeder
                     ]
                 );
             }
+
+            Lookup::query()
+                ->where('type', $type)
+                ->whereNotIn('code', $codes)
+                ->update(['is_active' => false]);
         }
     }
 }

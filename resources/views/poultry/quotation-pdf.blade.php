@@ -211,8 +211,10 @@ td, th { vertical-align: middle; }
 
 @php
     $projectType = match($q->project_type) {
-        'broiler'       => 'تسمين',
-        'layer'         => 'بياض',
+        'broiler' => 'تسمين',
+        'broiler_auto_exit' => 'تسمين تخريج آلي',
+        'layer' => 'إنتاج بياض',
+        'layer_auto_collect' => 'إنتاج بياض جمع آلي',
         'layer_rearing' => 'تربية بياض',
         default         => (string) $q->project_type,
     };
@@ -243,7 +245,7 @@ td, th { vertical-align: middle; }
     $birdWeightKg = (float)($tech['bird_weight_kg'] ?? $q->bird_weight_kg ?? 0);
     $heaters      = (int)($computed['heaters_count'] ?? $tech['heaters_count'] ?? 0);
 
-    $weightRows = ($q->project_type === 'broiler')
+    $weightRows = in_array($q->project_type, ['broiler', 'broiler_auto_exit'], true)
         ? \App\Support\BroilerWeightReference::rows()
         : [];
 

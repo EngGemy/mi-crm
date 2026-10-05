@@ -152,6 +152,24 @@ class PoultryTechnicalCalculatorTest extends TestCase
     }
 
     /** @test */
+    public function auto_exit_broiler_uses_the_same_calculator_and_keeps_its_type(): void
+    {
+        $input = [
+            'barn_length' => 108,
+            'service_length' => 10,
+            'tiers' => 4,
+            'lines' => 5,
+            'bird_weight_kg' => 2.100,
+        ];
+
+        $broiler = $this->calc->compute($input + ['project_type' => PoultryProjectType::Broiler->value], $this->baseConfig());
+        $auto = $this->calc->compute($input + ['project_type' => PoultryProjectType::BroilerAutoExit->value], $this->baseConfig());
+
+        $this->assertSame($broiler['total_birds'], $auto['total_birds']);
+        $this->assertSame(PoultryProjectType::BroilerAutoExit->value, $auto['project_type']);
+    }
+
+    /** @test */
     public function broiler_resolves_birds_per_nest_from_weight_mapping(): void
     {
         $this->assertEquals(16, $this->calc->birdsPerNestFromWeight(2.1, $this->baseConfig()));

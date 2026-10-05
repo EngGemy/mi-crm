@@ -46,7 +46,9 @@ class PoultryQuotation extends Model
         'service_length',
         'bird_weight_kg',
         'bird_price',
+        'bird_price_usd',
         'exchange_rate',
+        'internal_columns',
         'birds_per_nest',
         'manure_motor_count_id',
         'motor_power_id',
@@ -97,6 +99,8 @@ class PoultryQuotation extends Model
         'service_length' => 'decimal:2',
         'bird_weight_kg' => 'decimal:3',
         'bird_price' => 'decimal:2',
+        'bird_price_usd' => 'decimal:2',
+        'internal_columns' => 'integer',
         'exchange_rate' => 'decimal:4',
         'barns_count' => 'integer',
         'cooling_units' => 'decimal:2',
@@ -201,6 +205,8 @@ class PoultryQuotation extends Model
             'birds_per_nest' => $this->birds_per_nest,
             'side_fans_count' => $this->side_fans_count,
             'heaters_count' => $this->heaters_count,
+            'internal_columns' => (int) ($this->internal_columns ?? 0),
+            'price_per_bird' => $this->resolvedBirdPriceEgp(),
             'wall_type' => $this->wall_type,
             'include_monitor' => (bool) $this->include_monitor,
             'monitor_cost' => $this->monitor_cost,
@@ -250,6 +256,22 @@ class PoultryQuotation extends Model
         $this->vat_amount = FinancialEngine::toFloat($financial['vat_amount']);
         $this->total = FinancialEngine::toFloat($financial['total']);
         app(ProposalSnapshotFreezer::class)->apply($this);
+    }
+
+    public function resolvedBirdPriceEgp(): ?float
+    {
+        $usd = PoultryProjectType::tryFrom((string) $this->project_type)
+            ?->birdPriceUsd((int) $this->tiers);
+        $rate = (float) $this->exchange_rate;
+
+        if ($usd === null || $rate <= 0) {
+            return $this->bird_price !== null ? (float) $this->bird_price : null;
+        }
+
+        $this->bird_price_usd = $usd;
+        $this->bird_price = round($usd * $rate, 2);
+
+        return (float) $this->bird_price;
     }
 
     public function guardBarnsCount(): void

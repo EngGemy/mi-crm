@@ -41,7 +41,7 @@ class ProposalPage10Data
         $validityDays = max(0, (int) ($terms['validity_days'] ?? 0));
         $validityDate = $issued->copy()->addDays($validityDays)->format('d/m/Y');
         $projectType = (string) ($snapshot['project_type'] ?? $quotation->project_type ?? PoultryProjectType::Broiler->value);
-        $batteryLabel = $projectType === PoultryProjectType::Broiler->value ? 'تسمين' : 'بياض';
+        $batteryLabel = PoultryProjectType::tryFrom($projectType)?->labelAr() ?? 'تسمين';
         $unit = (string) ($terms['unit'] ?? 'داجن');
         $taxed = $vatEgp > 0 ? '14% شامل' : 'غير خاضع';
 

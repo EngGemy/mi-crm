@@ -41,12 +41,12 @@ class Lookup extends Model
     {
         return [
             self::TYPE_QUOTE_TYPE => 'نوع عرض السعر',
-            self::TYPE_MANURE_MOTOR_COUNT => 'عدد ماتورات الروث',
+            self::TYPE_MANURE_MOTOR_COUNT => 'عدد مواتير دولاب السبلة',
             self::TYPE_MOTOR_POWER => 'قدرة الماتور',
-            self::TYPE_BELTS_PER_LINE => 'سيور لكل خط',
+            self::TYPE_BELTS_PER_LINE => 'عدد السيور في الخط',
             self::TYPE_INNER_BELT_LENGTH => 'طول السير الداخلي',
             self::TYPE_OUTER_BELT_LENGTH => 'طول السير الخارجي',
-            self::TYPE_SILO_CAPACITY => 'سعة الصومعة',
+            self::TYPE_SILO_CAPACITY => 'سعة السايلو',
             self::TYPE_COUNTRY => 'الدولة',
             self::TYPE_LOCATION => 'المحافظة / المنطقة',
         ];
