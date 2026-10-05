@@ -348,6 +348,36 @@ class PoultryQuotation extends Model
         return $this->belongsTo(Lookup::class, 'quote_type_id');
     }
 
+    public function manureMotorCount(): BelongsTo
+    {
+        return $this->belongsTo(Lookup::class, 'manure_motor_count_id');
+    }
+
+    public function motorPower(): BelongsTo
+    {
+        return $this->belongsTo(Lookup::class, 'motor_power_id');
+    }
+
+    public function beltsPerLine(): BelongsTo
+    {
+        return $this->belongsTo(Lookup::class, 'belts_per_line_id');
+    }
+
+    public function innerBeltLength(): BelongsTo
+    {
+        return $this->belongsTo(Lookup::class, 'inner_belt_length_id');
+    }
+
+    public function outerBeltLength(): BelongsTo
+    {
+        return $this->belongsTo(Lookup::class, 'outer_belt_length_id');
+    }
+
+    public function siloCapacity(): BelongsTo
+    {
+        return $this->belongsTo(Lookup::class, 'silo_capacity_id');
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

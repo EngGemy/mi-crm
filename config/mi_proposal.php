@@ -13,7 +13,7 @@ return [
     'page_count' => 13,
 
     // Pages rebuilt with dynamic data (everything else is imported verbatim).
-    'dynamic_pages' => [2, 9, 10],
+    'dynamic_pages' => [2, 6, 9, 10],
 
     /*
     |--------------------------------------------------------------------------

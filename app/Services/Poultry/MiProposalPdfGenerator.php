@@ -12,7 +12,7 @@ use Throwable;
  * Builds the 13-page branded "Technical Proposal" PDF.
  *
  * Static brochure pages are imported verbatim from the template; data pages
- * (2 = barn card, 9 = technical specs, 10 = financial offer) are re-rendered
+ * (2 = barn card, 6 = belts, 9 = technical specs, 10 = financial offer) are re-rendered
  * from the quotation snapshot on top of the branded header and footer.
  */
 class MiProposalPdfGenerator
@@ -111,6 +111,7 @@ class MiProposalPdfGenerator
     {
         match ($page) {
             2 => $this->renderPage2($mpdf, $q),
+            6 => $this->renderPage6($mpdf, $q),
             9 => $this->renderPage9($mpdf, $q),
             10 => $this->renderPage10($mpdf, $q),
             default => null,
@@ -134,6 +135,34 @@ class MiProposalPdfGenerator
             $region['y'],
             $region['w'],
             $region['h'],
+            'auto'
+        );
+    }
+
+    protected function renderPage6(Mpdf $mpdf, PoultryQuotation $q): void
+    {
+        $data = (new ProposalPage6Data)->from($q);
+        $mpdf->WriteHTML((new ProposalPage6Data)->stylesheet(), HTMLParserMode::HEADER_CSS);
+        $mpdf->SetFillColor(247, 237, 236);
+
+        // Cover the blank motor line and the fixed "2 سير" line. Card fill is warm pink, not white.
+        $this->paintPt($mpdf, 324, 380, 220, 40);
+        $this->paintPt($mpdf, 32, 574, 236, 44);
+
+        $mpdf->WriteFixedPosHTML(
+            view('poultry.proposal.page6-motors', $data)->render(),
+            $this->mm(328),
+            $this->mm(382),
+            $this->mm(210),
+            $this->mm(36),
+            'auto'
+        );
+        $mpdf->WriteFixedPosHTML(
+            view('poultry.proposal.page6-belts', $data)->render(),
+            $this->mm(36),
+            $this->mm(576),
+            $this->mm(226),
+            $this->mm(40),
             'auto'
         );
     }
@@ -178,6 +207,16 @@ class MiProposalPdfGenerator
             $region['h'],
             'auto'
         );
+    }
+
+    protected function mm(float $pt): float
+    {
+        return $pt * 25.4 / 72;
+    }
+
+    protected function paintPt(Mpdf $mpdf, float $x, float $y, float $w, float $h): void
+    {
+        $mpdf->Rect($this->mm($x), $this->mm($y), $this->mm($w), $this->mm($h), 'F');
     }
 
     /** @param  array{x:float|int,y:float|int,w:float|int,h:float|int}  $region */

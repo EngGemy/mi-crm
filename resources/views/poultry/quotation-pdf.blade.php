@@ -338,6 +338,18 @@ td, th { vertical-align: middle; }
         <td class="k">تاريخ العرض</td>
         <td class="v num">{{ $q->created_at?->format('Y-m-d') }}</td>
     </tr>
+    <tr>
+        <td class="k">سيور الخط</td>
+        <td class="v">{{ $q->beltsPerLine?->label_ar ?: '—' }}</td>
+        <td class="k">السير الداخلي</td>
+        <td class="v">{{ $q->innerBeltLength?->label_ar ?: '—' }}</td>
+    </tr>
+    <tr>
+        <td class="k">السير الخارجي</td>
+        <td class="v">{{ $q->outerBeltLength?->label_ar ?: '—' }}</td>
+        <td class="k">مواتير السبلة</td>
+        <td class="v">{{ trim(($q->manureMotorCount?->label_ar ?: '—').' / '.($q->motorPower?->label_ar ?: '—')) }}</td>
+    </tr>
 </table>
 
 {{-- Technical --}}
