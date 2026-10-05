@@ -22,6 +22,8 @@ class StaffFollowUp extends Page
 
     protected static string $view = 'filament.pages.staff-follow-up';
 
+    protected ?string $maxContentWidth = 'full';
+
     public string $mode = 'daily';
 
     public string $dateFrom = '';
@@ -65,20 +67,9 @@ class StaffFollowUp extends Page
         $this->loadReport();
     }
 
-    public function updatedDateFrom(): void
+    public function refresh(): void
     {
         $this->mode = 'custom';
-        $this->loadReport();
-    }
-
-    public function updatedDateTo(): void
-    {
-        $this->mode = 'custom';
-        $this->loadReport();
-    }
-
-    public function updatedUserId(): void
-    {
         $this->loadReport();
     }
 

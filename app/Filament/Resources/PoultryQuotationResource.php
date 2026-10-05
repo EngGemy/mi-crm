@@ -246,10 +246,20 @@ class PoultryQuotationResource extends Resource
                         ->required()->numeric()->integer()->default(4)->minValue(1)->maxValue(12)
                         ->live(onBlur: true)->afterStateUpdated($live),
 
-                    Forms\Components\TextInput::make('tiers')
+                    Forms\Components\Select::make('tiers')
                         ->label('الأدوار')
-                        ->required()->numeric()->integer()->default(4)->minValue(1)->maxValue(8)
-                        ->live(onBlur: true)->afterStateUpdated($live),
+                        ->options([
+                            3 => '3 أدوار',
+                            4 => '4 أدوار',
+                        ])
+                        ->default(4)
+                        ->required()
+                        ->native(false)
+                        ->live()
+                        ->afterStateUpdated(function (Set $set, Get $get, $state) {
+                            $set('tiers', (int) $state);
+                            static::refreshLivePoultryPricing($set, $get, false, (int) $state);
+                        }),
 
                     Forms\Components\Select::make('internal_columns')
                         ->label('الأعمدة الداخلية')

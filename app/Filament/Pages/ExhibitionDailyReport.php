@@ -2,10 +2,12 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\User;
 use App\Services\Poultry\ExhibitionDailyReport as ExhibitionDailyReportService;
 use App\Services\Poultry\PoultryQuoteAccess;
 use Filament\Pages\Page;
 use Illuminate\Support\Carbon;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ExhibitionDailyReport extends Page
 {
@@ -21,9 +23,18 @@ class ExhibitionDailyReport extends Page
 
     protected static string $view = 'filament.pages.exhibition-daily-report';
 
-    public string $date = '';
+    protected ?string $maxContentWidth = 'full';
+
+    public string $dateFrom = '';
+
+    public string $dateTo = '';
 
     public string $period = 'daily';
+
+    public string $userId = '';
+
+    /** @var array<int|string, string> */
+    public array $userOptions = [];
 
     public array $report = [];
 
@@ -47,27 +58,42 @@ class ExhibitionDailyReport extends Page
 
     public function mount(): void
     {
-        $this->date = now()->toDateString();
-        $this->period = $this->canUseDaily() ? 'daily' : 'weekly';
-        $this->loadReport();
+        $this->loadUserOptions();
+        $this->applyPreset($this->canUseDaily() ? 'daily' : 'weekly');
     }
 
-    public function updatedDate(): void
+    public function applyPreset(string $preset): void
     {
-        $this->loadReport();
-    }
-
-    public function setPeriod(string $period): void
-    {
-        if ($period === 'daily' && ! $this->canUseDaily()) {
+        if (in_array($preset, ['daily', 'yesterday'], true) && ! $this->canUseDaily()) {
             return;
         }
 
-        if ($period === 'weekly' && ! $this->canUseWeekly()) {
+        if ($preset === 'weekly' && ! $this->canUseWeekly()) {
             return;
         }
 
-        $this->period = $period;
+        $from = match ($preset) {
+            'yesterday' => now()->subDay(),
+            'weekly' => now()->startOfWeek(Carbon::SATURDAY),
+            'monthly' => now()->startOfMonth(),
+            default => now(),
+        };
+        $to = match ($preset) {
+            'yesterday' => now()->subDay(),
+            'weekly' => now()->startOfWeek(Carbon::SATURDAY)->addDays(6),
+            'monthly' => now()->endOfMonth(),
+            default => now(),
+        };
+
+        $this->period = $preset;
+        $this->dateFrom = $from->toDateString();
+        $this->dateTo = $to->toDateString();
+        $this->loadReport();
+    }
+
+    public function refresh(): void
+    {
+        $this->period = 'custom';
         $this->loadReport();
     }
 
@@ -81,18 +107,82 @@ class ExhibitionDailyReport extends Page
         return PoultryQuoteAccess::allows(auth()->user(), 'report_weekly');
     }
 
-    public function loadReport(): void
+    public function loadUserOptions(): void
     {
-        $day = $this->date !== '' ? Carbon::parse($this->date) : now();
+        $user = auth()->user();
 
-        if ($this->period === 'weekly') {
-            $from = $day->copy()->startOfWeek(Carbon::SATURDAY);
-            $to = $from->copy()->addDays(6);
-        } else {
-            $from = $day;
-            $to = $day;
+        if (PoultryQuoteAccess::seesOwnQuotesOnly($user)) {
+            $this->userOptions = [$user->id => $user->name];
+            $this->userId = (string) $user->id;
+
+            return;
         }
 
-        $this->report = app(ExhibitionDailyReportService::class)->forRange($from, $to, auth()->user());
+        $this->userOptions = ['' => 'كل المناديب'] + User::query()
+            ->where('is_active', true)
+            ->whereHas('roles', fn ($query) => $query->whereIn('name', ['sales_rep', 'sales_manager']))
+            ->orderBy('name')
+            ->pluck('name', 'id')
+            ->all();
+    }
+
+    public function loadReport(): void
+    {
+        [$from, $to] = $this->range();
+        $repId = $this->userId !== '' ? (int) $this->userId : null;
+
+        $this->report = app(ExhibitionDailyReportService::class)->forRange($from, $to, auth()->user(), $repId);
+    }
+
+    public function exportExcel(): StreamedResponse
+    {
+        $this->loadReport();
+        $filename = 'exhibition-report-'.$this->dateFrom.'_'.$this->dateTo.'.csv';
+
+        return response()->streamDownload(function () {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, ['المندوب', 'التاريخ', 'الوقت', 'العميل', 'الهاتف', 'العرض', 'النوع', 'الحالة', 'الإجمالي']);
+
+            foreach ($this->report['reps'] ?? [] as $rep) {
+                if ($rep['clients'] === []) {
+                    fputcsv($out, [$rep['name'], '', '', '', '', '', '', '', 0]);
+
+                    continue;
+                }
+
+                foreach ($rep['clients'] as $client) {
+                    fputcsv($out, [
+                        $rep['name'],
+                        $client['on'],
+                        $client['at'],
+                        $client['name'],
+                        $client['phone'],
+                        $client['quote_number'],
+                        $client['project'],
+                        $client['status'],
+                        $client['total'],
+                    ]);
+                }
+            }
+
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /** @return array{0: Carbon, 1: Carbon} */
+    private function range(): array
+    {
+        $from = $this->dateFrom !== '' ? Carbon::parse($this->dateFrom)->startOfDay() : now()->startOfDay();
+        $to = $this->dateTo !== '' ? Carbon::parse($this->dateTo)->endOfDay() : $from->copy()->endOfDay();
+
+        if ($from->greaterThan($to)) {
+            [$from, $to] = [$to->copy()->startOfDay(), $from->copy()->endOfDay()];
+        }
+
+        $this->dateFrom = $from->toDateString();
+        $this->dateTo = $to->toDateString();
+
+        return [$from, $to];
     }
 }

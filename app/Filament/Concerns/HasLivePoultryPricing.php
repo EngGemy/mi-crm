@@ -28,12 +28,12 @@ trait HasLivePoultryPricing
     /**
      * Recompute technical + pricing preview and optionally sync quotation line items.
      */
-    public static function refreshLivePoultryPricing(Set $set, Get $get, bool $applyItems = false): void
+    public static function refreshLivePoultryPricing(Set $set, Get $get, bool $applyItems = false, ?int $tiersOverride = null): void
     {
         $length = (float) ($get('hall_length') ?? $get('length') ?? 0);
         $width = (float) ($get('hall_width') ?? $get('width') ?? 0);
         $height = (float) ($get('hall_height') ?? $get('height') ?? 0);
-        $tiers = (int) ($get('tiers') ?? 0);
+        $tiers = $tiersOverride ?? (int) ($get('tiers') ?? 0);
         $lines = (int) ($get('lines') ?? 0);
 
         if ($length <= 0 || $width <= 0 || $height <= 0 || $tiers <= 0 || $lines <= 0) {

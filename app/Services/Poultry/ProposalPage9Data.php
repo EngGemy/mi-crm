@@ -29,8 +29,8 @@ class ProposalPage9Data
     }
     .p9 .bar-sel td { background: #8B0000; border-color: #8B0000; }
     .p9 .r td { border: 0.5pt solid #e0b4b4; padding: 1.55mm 3.5mm; font-size: 9.2pt; }
-    .p9 .lbl { width: 62%; text-align: right; font-weight: bold; color: #1a1a1a; }
-    .p9 .val { width: 38%; text-align: center; direction: ltr; color: #222; font-weight: bold; }
+    .p9 .lbl { width: 58%; text-align: right; font-weight: bold; color: #1a1a1a; }
+    .p9 .val { width: 42%; text-align: right; direction: rtl; color: #222; font-weight: bold; }
     .p9 .odd td { background: #faf1f1; }
     .p9 .even td { background: #fdf8f8; }
     .p9 .sel-row td { background: #fff0f0; border-color: {$primary}; }

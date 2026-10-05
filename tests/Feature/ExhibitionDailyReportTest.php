@@ -118,6 +118,25 @@ class ExhibitionDailyReportTest extends TestCase
         );
     }
 
+    public function test_report_can_be_limited_to_one_rep(): void
+    {
+        $repA = $this->rep('أ');
+        $repB = $this->rep('ب');
+        $manager = $this->rep('مدير', 'sales_manager');
+
+        $this->quote($repA, 'عميل أ', 1000);
+        $this->quote($repB, 'عميل ب', 2000);
+
+        $report = app(ExhibitionDailyReport::class)->forRange(now(), now(), $manager, $repA->id);
+
+        $this->assertSame(1, $report['quotes_count']);
+        $this->assertSame(1000.0, $report['total']);
+        $this->assertSame(['مندوب أ'], array_column($report['reps'], 'name'));
+
+        $forced = app(ExhibitionDailyReport::class)->forRange(now(), now(), $repA, $repB->id);
+        $this->assertSame(['مندوب أ'], array_column($forced['reps'], 'name'));
+    }
+
     public function test_manager_can_turn_daily_and_weekly_reports_off_per_rep(): void
     {
         $rep = $this->rep('أ');

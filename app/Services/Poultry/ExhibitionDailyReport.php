@@ -19,23 +19,27 @@ class ExhibitionDailyReport
     }
 
     /** @return array<string, mixed> */
-    public function forRange(Carbon $from, Carbon $to, User $viewer): array
+    public function forRange(Carbon $from, Carbon $to, User $viewer, ?int $repId = null): array
     {
         $start = $from->copy()->startOfDay();
         $end = $to->copy()->endOfDay();
         $ownOnly = PoultryQuoteAccess::seesOwnQuotesOnly($viewer);
 
+        if ($ownOnly) {
+            $repId = $viewer->id;
+        }
+
         $quotes = PoultryQuotation::query()
             ->with('creator:id,name')
             ->whereBetween('created_at', [$start, $end])
-            ->when($ownOnly, fn ($query) => $query->where('created_by', $viewer->id))
+            ->when($repId, fn ($query) => $query->where('created_by', $repId))
             ->orderBy('created_at')
             ->get();
 
         $repIds = User::query()
             ->where('is_active', true)
             ->whereHas('roles', fn ($query) => $query->where('name', 'sales_rep'))
-            ->when($ownOnly, fn ($query) => $query->whereKey($viewer->id))
+            ->when($repId, fn ($query) => $query->whereKey($repId))
             ->pluck('id');
 
         $userIds = $repIds
@@ -56,7 +60,14 @@ class ExhibitionDailyReport
             $reps[] = $this->repRow($user->id, $user->name, $grouped->get((string) $user->id, collect()));
         }
 
-        if (! $ownOnly && $grouped->has('0')) {
+        if ($repId && $reps === []) {
+            $selected = $users->get($repId) ?? User::query()->find($repId);
+            if ($selected) {
+                $reps[] = $this->repRow($selected->id, $selected->name, $grouped->get((string) $selected->id, collect()));
+            }
+        }
+
+        if (! $repId && ! $ownOnly && $grouped->has('0')) {
             $reps[] = $this->repRow(0, 'غير منسوب', $grouped->get('0'));
         }
 
@@ -84,6 +95,7 @@ class ExhibitionDailyReport
                 'project' => PoultryProjectType::tryFrom((string) $quote->project_type)?->labelAr() ?? ($quote->project_type ?: '—'),
                 'status' => PoultryQuotation::STATUSES[$quote->status] ?? $quote->status,
                 'total' => (float) $quote->total,
+                'on' => optional($quote->created_at)->format('Y-m-d') ?: '—',
                 'at' => optional($quote->created_at)->format('H:i') ?: '—',
             ];
         })->values()->all();

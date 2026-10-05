@@ -23,9 +23,16 @@ class SalesReport extends Page
 
     protected static string $view = 'filament.pages.sales-report';
 
+    protected ?string $maxContentWidth = 'full';
+
     public string $dateFrom = '';
 
     public string $dateTo = '';
+
+    public string $userId = '';
+
+    /** @var array<int|string, string> */
+    public array $userOptions = [];
 
     public array $reps = [];
 
@@ -42,6 +49,7 @@ class SalesReport extends Page
     {
         $this->dateFrom = now()->startOfMonth()->format('Y-m-d');
         $this->dateTo = now()->endOfMonth()->format('Y-m-d');
+        $this->loadUserOptions();
         $this->loadReport();
     }
 
@@ -53,14 +61,17 @@ class SalesReport extends Page
         $this->loadReport();
     }
 
-    public function updatedDateFrom(): void
+    public function refresh(): void
     {
         $this->loadReport();
     }
 
-    public function updatedDateTo(): void
+    public function loadUserOptions(): void
     {
-        $this->loadReport();
+        $this->userOptions = ['' => 'كل المناديب'] + app(SalesRepReportService::class)
+            ->salesUsers()
+            ->mapWithKeys(fn (User $user) => [$user->id => $user->name])
+            ->all();
     }
 
     public function loadReport(): void
@@ -68,10 +79,17 @@ class SalesReport extends Page
         $from = $this->dateFrom ?: now()->startOfMonth()->format('Y-m-d');
         $to = $this->dateTo ?: now()->endOfMonth()->format('Y-m-d');
 
-        $followUp = app(SalesRepReportService::class)->build('custom', $from, $to);
+        if ($from > $to) {
+            [$from, $to] = [$to, $from];
+            $this->dateFrom = $from;
+            $this->dateTo = $to;
+        }
+
+        $onlyUserId = $this->userId !== '' ? (int) $this->userId : null;
+        $followUp = app(SalesRepReportService::class)->build('custom', $from, $to, $onlyUserId);
         $followById = collect($followUp['reps'])->keyBy('id');
 
-        $salesUsers = User::whereHas('roles', fn ($q) => $q->whereIn('name', ['sales_rep', 'sales_manager']))->get();
+        $salesUsers = app(SalesRepReportService::class)->salesUsers($onlyUserId);
 
         $this->reps = $salesUsers->map(function (User $user) use ($from, $to, $followById) {
             $leadsBase = Lead::where('assigned_to', $user->id);

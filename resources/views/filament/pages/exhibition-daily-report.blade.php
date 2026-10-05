@@ -1,71 +1,116 @@
 <x-filament-panels::page>
-    <div dir="rtl" class="space-y-6">
-        <div class="flex flex-wrap items-end gap-3 rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-            <div class="flex gap-2">
+    @include('filament.pages.partials.report-styles')
+
+    @php
+        $from = \Illuminate\Support\Carbon::parse($report['from'] ?? now());
+        $to = \Illuminate\Support\Carbon::parse($report['to'] ?? now());
+        $range = $from->equalTo($to)
+            ? $from->translatedFormat('l j F Y')
+            : $from->translatedFormat('j F').' — '.$to->translatedFormat('j F Y');
+        $tone = fn (string $status) => match ($status) {
+            'مقبول', 'معتمد' => 'ok',
+            'مرفوض' => 'bad',
+            'مرسل' => 'info',
+            default => 'mute',
+        };
+    @endphp
+
+    <div dir="rtl" class="mi-rpt">
+        <div class="mi-rpt-toolbar">
+            <div class="mi-rpt-seg">
                 @if ($this->canUseDaily())
-                    <button type="button" wire:click="setPeriod('daily')"
-                        class="rounded-lg px-3 py-2 text-sm font-semibold {{ $period === 'daily' ? 'bg-primary-600 text-white' : 'border border-gray-200 text-gray-600' }}">
-                        يومي
-                    </button>
+                    <button type="button" wire:click="applyPreset('daily')" @class(['is-on' => $period === 'daily'])>اليوم</button>
+                    <button type="button" wire:click="applyPreset('yesterday')" @class(['is-on' => $period === 'yesterday'])>أمس</button>
                 @endif
                 @if ($this->canUseWeekly())
-                    <button type="button" wire:click="setPeriod('weekly')"
-                        class="rounded-lg px-3 py-2 text-sm font-semibold {{ $period === 'weekly' ? 'bg-primary-600 text-white' : 'border border-gray-200 text-gray-600' }}">
-                        أسبوعي
-                    </button>
+                    <button type="button" wire:click="applyPreset('weekly')" @class(['is-on' => $period === 'weekly'])>هذا الأسبوع</button>
                 @endif
+                <button type="button" wire:click="applyPreset('monthly')" @class(['is-on' => $period === 'monthly'])>هذا الشهر</button>
             </div>
-            <div>
-                <label class="mb-1 block text-xs font-semibold text-gray-500">{{ $period === 'weekly' ? 'تاريخ داخل الأسبوع' : 'اليوم' }}</label>
-                <input wire:model.live="date" type="date"
-                    class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800">
+            <label class="mi-rpt-field">
+                <span>من</span>
+                <input wire:model="dateFrom" type="date">
+            </label>
+            <label class="mi-rpt-field">
+                <span>إلى</span>
+                <input wire:model="dateTo" type="date">
+            </label>
+            @if (count($userOptions) > 1)
+                <label class="mi-rpt-field" style="min-width:200px">
+                    <span>المندوب</span>
+                    <select wire:model="userId">
+                        @foreach ($userOptions as $id => $name)
+                            <option value="{{ $id }}">{{ $name }}</option>
+                        @endforeach
+                    </select>
+                </label>
+            @endif
+            <div class="mi-rpt-actions">
+                <button type="button" wire:click="refresh" class="mi-rpt-btn mi-rpt-btn-ghost">تحديث</button>
+                <button type="button" wire:click="exportExcel" class="mi-rpt-btn mi-rpt-btn-solid">تصدير Excel</button>
             </div>
-            <div class="text-sm text-gray-600 dark:text-gray-300">
-                @if (($report['from'] ?? '') !== ($report['to'] ?? ''))
-                    من {{ $report['from'] }} إلى {{ $report['to'] }} ·
-                @endif
-                {{ number_format($report['quotes_count'] ?? 0) }} حساب
-                · {{ number_format($report['clients_count'] ?? 0) }} عميل
-                · {{ number_format($report['total'] ?? 0, 0) }} ج.م
+            <div class="mi-rpt-period">
+                <strong>{{ $range }}</strong>
+                <span class="mi-rpt-note">اختر المندوب والفترة ثم اضغط تحديث</span>
+            </div>
+        </div>
+
+        <div class="mi-rpt-kpis cols-3">
+            <div class="mi-rpt-kpi">
+                <b>{{ number_format($report['quotes_count'] ?? 0) }}</b>
+                <span>حساب</span>
+            </div>
+            <div class="mi-rpt-kpi">
+                <b>{{ number_format($report['clients_count'] ?? 0) }}</b>
+                <span>عميل</span>
+            </div>
+            <div class="mi-rpt-kpi">
+                <b>{{ number_format($report['total'] ?? 0, 0) }}</b>
+                <span>الإجمالي بالجنيه</span>
             </div>
         </div>
 
         @forelse ($report['reps'] ?? [] as $rep)
-            <section class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-                <header class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-4 dark:border-gray-800">
-                    <div>
-                        <h2 class="text-base font-bold text-gray-900 dark:text-white">{{ $rep['name'] }}</h2>
-                        <p class="text-xs text-gray-500">{{ $rep['quotes_count'] }} حساب · {{ $rep['clients_count'] }} عميل</p>
+            <section class="mi-rpt-card">
+                <header>
+                    <div class="mi-rpt-who">
+                        <div class="mi-rpt-avatar">{{ mb_substr($rep['name'], 0, 1) }}</div>
+                        <div>
+                            <strong>{{ $rep['name'] }}</strong>
+                            <em>{{ $rep['quotes_count'] }} حساب · {{ $rep['clients_count'] }} عميل</em>
+                        </div>
                     </div>
-                    <div class="text-sm font-bold text-primary-700">{{ number_format($rep['total'], 0) }} ج.م</div>
+                    <div class="mi-rpt-money">{{ number_format($rep['total'], 0) }} <span>ج.م</span></div>
                 </header>
 
                 @if ($rep['clients'] === [])
-                    <p class="px-5 py-6 text-sm text-gray-400">لا توجد حسابات في هذا اليوم.</p>
+                    <p class="mi-rpt-empty">لا توجد حسابات في هذه الفترة.</p>
                 @else
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm">
-                            <thead class="bg-gray-50 text-xs text-gray-500 dark:bg-gray-800">
+                    <div class="mi-rpt-scroll">
+                        <table class="mi-rpt-table">
+                            <thead>
                                 <tr>
-                                    <th class="px-4 py-2 text-right font-semibold">الوقت</th>
-                                    <th class="px-4 py-2 text-right font-semibold">العميل</th>
-                                    <th class="px-4 py-2 text-right font-semibold">الهاتف</th>
-                                    <th class="px-4 py-2 text-right font-semibold">العرض</th>
-                                    <th class="px-4 py-2 text-right font-semibold">النوع</th>
-                                    <th class="px-4 py-2 text-right font-semibold">الحالة</th>
-                                    <th class="px-4 py-2 text-left font-semibold">الإجمالي</th>
+                                    <th>التاريخ</th>
+                                    <th>الوقت</th>
+                                    <th>العميل</th>
+                                    <th>الهاتف</th>
+                                    <th>العرض</th>
+                                    <th>النوع</th>
+                                    <th>الحالة</th>
+                                    <th>الإجمالي</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach ($rep['clients'] as $client)
-                                    <tr class="border-t border-gray-100 dark:border-gray-800">
-                                        <td class="px-4 py-2">{{ $client['at'] }}</td>
-                                        <td class="px-4 py-2 font-semibold">{{ $client['name'] }}</td>
-                                        <td class="px-4 py-2" dir="ltr">{{ $client['phone'] }}</td>
-                                        <td class="px-4 py-2">{{ $client['quote_number'] }}</td>
-                                        <td class="px-4 py-2">{{ $client['project'] }}</td>
-                                        <td class="px-4 py-2">{{ $client['status'] }}</td>
-                                        <td class="px-4 py-2 text-left">{{ number_format($client['total'], 0) }}</td>
+                                    <tr>
+                                        <td class="num">{{ $client['on'] }}</td>
+                                        <td class="num">{{ $client['at'] }}</td>
+                                        <td><strong>{{ $client['name'] }}</strong></td>
+                                        <td dir="ltr" style="text-align:right">{{ $client['phone'] }}</td>
+                                        <td>{{ $client['quote_number'] }}</td>
+                                        <td>{{ $client['project'] }}</td>
+                                        <td><span class="mi-rpt-pill {{ $tone($client['status']) }}">{{ $client['status'] }}</span></td>
+                                        <td class="end">{{ number_format($client['total'], 0) }}</td>
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -74,7 +119,7 @@
                 @endif
             </section>
         @empty
-            <p class="py-16 text-center text-gray-400">لا يوجد مندوبو مبيعات نشطون.</p>
+            <p class="mi-rpt-empty">لا يوجد مندوبو مبيعات نشطون.</p>
         @endforelse
     </div>
 </x-filament-panels::page>
