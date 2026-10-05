@@ -6,13 +6,19 @@ use App\Enums\PoultryPricingScope;
 use App\Enums\PoultryProjectType;
 use App\Filament\Concerns\HasLivePoultryPricing;
 use App\Filament\Resources\PoultryQuotationResource\Pages;
+use App\Models\Customer;
+use App\Models\Lookup;
 use App\Models\PoultryQuotation;
 use App\Services\Pricing\PricingCardImageGenerator;
 use App\Services\Poultry\PoultryConfigLoader;
+use App\Services\Poultry\PoultryQuoteAccess;
+use Illuminate\Database\Eloquent\Builder;
 use App\Support\BroilerWeightReference;
 use App\Support\HeaterOptions;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -44,27 +50,147 @@ class PoultryQuotationResource extends Resource
         ]) ?? false;
     }
 
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user = auth()->user();
+
+        if ($user && PoultryQuoteAccess::seesOwnQuotesOnly($user)) {
+            $query->where('created_by', $user->id);
+        }
+
+        return $query;
+    }
+
     public static function form(Form $form): Form
     {
         $live = static::poultryPricingLiveCallback(false);
 
-        return $form->schema([
-            Forms\Components\Hidden::make('_init_live_calc')
-                ->dehydrated(false)
-                ->afterStateHydrated(fn (Forms\Set $set, Forms\Get $get) => static::refreshLivePoultryPricing($set, $get, false)),
+        return $form
+            ->schema([
+                Forms\Components\Hidden::make('_init_live_calc')
+                    ->dehydrated(false)
+                    ->afterStateHydrated(fn (Set $set, Get $get) => static::refreshLivePoultryPricing($set, $get, false)),
+                Forms\Components\Hidden::make('pricing_preview')->dehydrated(false),
+                Forms\Components\Hidden::make('vat_percentage')->default(0),
 
-            Forms\Components\Hidden::make('pricing_preview')->dehydrated(false),
+                Forms\Components\Group::make([
+                    Forms\Components\Group::make([
+                        ...static::customerStepSchema($live),
+                        ...static::quoteSetupStepSchema($live),
+                        ...static::barnStepSchema($live),
+                        ...static::equipmentStepSchema($live),
+                    ])
+                        ->columnSpan(['default' => 1, 'lg' => 7])
+                        ->extraAttributes(['class' => 'pq-form-main']),
 
-            Forms\Components\Section::make('نوع المشروع والنطاق')
+                    Forms\Components\Group::make(static::summaryStepSchema())
+                        ->columnSpan(['default' => 1, 'lg' => 5])
+                        ->extraAttributes(['class' => 'pq-form-summary']),
+                ])
+                    ->columns(['default' => 1, 'lg' => 12])
+                    ->columnSpanFull()
+                    ->extraAttributes(['class' => 'pq-exhibition-layout']),
+            ]);
+    }
+
+    /** @param  \Closure  $live */
+    protected static function customerStepSchema(\Closure $live): array
+    {
+        return [
+            Forms\Components\Section::make('① العميل')
+                ->description('الاسم والموبايل كافيان للمعرض — باقي البيانات اختيارية')
+                ->icon('heroicon-o-user')
+                ->schema([
+                    Forms\Components\TextInput::make('client_name')
+                        ->label('الاسم')
+                        ->required()
+                        ->maxLength(255)
+                        ->placeholder('اسم العميل'),
+
+                    Forms\Components\TextInput::make('client_phone')
+                        ->label('الموبايل')
+                        ->required()
+                        ->tel()
+                        ->placeholder('+2010xxxxxxx'),
+
+                    Forms\Components\Select::make('customer_id')
+                        ->label('عميل محفوظ (اختياري)')
+                        ->relationship('customer', 'name')
+                        ->searchable()
+                        ->preload()
+                        ->native(false)
+                        ->getOptionLabelFromRecordUsing(fn (Customer $r) => "{$r->name} — {$r->phone}")
+                        ->live()
+                        ->afterStateUpdated(function (?int $state, Set $set) {
+                            if (! $state) {
+                                return;
+                            }
+                            $c = Customer::find($state);
+                            if (! $c) {
+                                return;
+                            }
+                            $set('client_name', $c->name);
+                            $set('client_phone', $c->phone ?? $c->whatsapp);
+                            $set('client_email', $c->email);
+                            $set('client_address', $c->address);
+                            $set('client_company', $c->name_en);
+                            $set('client_country', $c->country);
+                            $set('client_location', $c->city);
+                            $set('client_notes', $c->notes);
+                        })
+                        ->columnSpanFull(),
+
+                    Forms\Components\Section::make('بيانات إضافية (اختياري)')
+                        ->schema([
+                            Forms\Components\TextInput::make('client_company')
+                                ->label('الشركة / المزرعة')
+                                ->maxLength(255),
+                            Forms\Components\Select::make('client_country')
+                                ->label('الدولة')
+                                ->options(fn () => Lookup::ofType(Lookup::TYPE_COUNTRY)->pluck('label_ar', 'label_ar')->all())
+                                ->searchable()
+                                ->native(false),
+                            Forms\Components\Select::make('client_location')
+                                ->label('المحافظة')
+                                ->options(fn () => Lookup::ofType(Lookup::TYPE_LOCATION)->pluck('label_ar', 'label_ar')->all())
+                                ->searchable()
+                                ->native(false),
+                            Forms\Components\TextInput::make('client_email')
+                                ->label('البريد')
+                                ->email(),
+                            Forms\Components\TextInput::make('client_address')
+                                ->label('العنوان')
+                                ->columnSpanFull(),
+                            Forms\Components\Textarea::make('client_notes')
+                                ->label('ملاحظات')
+                                ->rows(2)
+                                ->columnSpanFull(),
+                        ])
+                        ->columns(2)
+                        ->columnSpanFull()
+                        ->collapsed()
+                        ->compact(),
+                ])
+                ->columns(['default' => 1, 'md' => 2]),
+        ];
+    }
+
+    /** @param  \Closure  $live */
+    protected static function quoteSetupStepSchema(\Closure $live): array
+    {
+        return [
+            Forms\Components\Section::make('② نوع العرض')
+                ->icon('heroicon-o-document-text')
                 ->schema([
                     Forms\Components\Select::make('project_type')
-                        ->label('نوع العنبر')
+                        ->label('تسمين / بياض')
                         ->options(PoultryProjectType::options())
                         ->default(PoultryProjectType::Broiler->value)
                         ->required()
                         ->native(false)
                         ->live()
-                        ->afterStateUpdated(function (Forms\Set $set, Forms\Get $get) use ($live) {
+                        ->afterStateUpdated(function (Set $set, Get $get) use ($live) {
                             $opts = static::heightOptionsForType($get('project_type') ?? 'broiler');
                             $set('height', (string) (array_key_first($opts) ?? ($get('project_type') === 'layer' ? '3.5' : '3.7')));
                             $live($set, $get);
@@ -73,245 +199,212 @@ class PoultryQuotationResource extends Resource
                     Forms\Components\Select::make('pricing_scope')
                         ->label('نطاق التسعير')
                         ->options(PoultryPricingScope::options())
-                        ->default(PoultryPricingScope::FullProject->value)
+                        ->default(PoultryPricingScope::BatteriesOnly->value)
                         ->required()
                         ->native(false)
                         ->live()
                         ->afterStateUpdated($live),
-                ])
-                ->columns(2),
 
-            Forms\Components\Section::make('بيانات العميل')
-                ->icon('heroicon-o-user')
-                ->schema([
-                    Forms\Components\TextInput::make('client_name')
-                        ->label('اسم العميل')
+                    Forms\Components\Select::make('quote_type_id')
+                        ->label('تصنيف العرض')
+                        ->options(fn () => Lookup::options(Lookup::TYPE_QUOTE_TYPE))
+                        ->default(fn () => Lookup::defaultId(Lookup::TYPE_QUOTE_TYPE))
                         ->required()
-                        ->placeholder('مثال: أحمد نزار'),
-
-                    Forms\Components\TextInput::make('client_phone')
-                        ->label('رقم الهاتف')
-                        ->placeholder('+2010xxxxxxx'),
-
-                    Forms\Components\TextInput::make('client_address')
-                        ->label('العنوان')
-                        ->placeholder('المدينة / المحافظة'),
-                ])
-                ->columns(3),
-
-            Forms\Components\Section::make('أبعاد العنبر')
-                ->icon('heroicon-o-home')
-                ->description('الحساب يتحدث بعد الانتهاء من كتابة القيمة (عند الخروج من الحقل)')
-                ->schema([
-                    Forms\Components\Toggle::make('auto_lines_from_width')
-                        ->label('اقتراح الخطوط من العرض (12م→4، 15م→5)')
-                        ->default(true)
-                        ->dehydrated(false)
+                        ->native(false)
+                        ->searchable()
                         ->live()
-                        ->afterStateUpdated($live),
+                        ->columnSpanFull(),
+                ])
+                ->columns(['default' => 1, 'md' => 2]),
+        ];
+    }
 
+    /** @param  \Closure  $live */
+    protected static function barnStepSchema(\Closure $live): array
+    {
+        return [
+            Forms\Components\Section::make('③ أبعاد العنبر')
+                ->description('أدخل الأبعاد → الحساب يتحدث فوراً على اليمين')
+                ->icon('heroicon-o-home-modern')
+                ->schema([
                     Forms\Components\TextInput::make('length')
-                        ->label('الطول (م)')
-                        ->required()
-                        ->numeric()
-                        ->step(0.01)
-                        ->default(81)
-                        ->minValue(1)
-                        ->helperText('أي قيمة مخصصة — مثال: 72، 81، 90')
-                        ->suffix('م')
-                        ->live(onBlur: true)
-                        ->afterStateUpdated($live),
+                        ->label('الطول')
+                        ->required()->numeric()->step(0.01)->default(81)->minValue(1)->suffix('م')
+                        ->live(onBlur: true)->afterStateUpdated($live),
 
                     Forms\Components\TextInput::make('width')
-                        ->label('العرض (م)')
-                        ->required()
-                        ->numeric()
-                        ->step(0.01)
-                        ->default(12)
-                        ->minValue(1)
-                        ->suffix('م')
-                        ->live(onBlur: true)
-                        ->afterStateUpdated($live),
+                        ->label('العرض')
+                        ->required()->numeric()->step(0.01)->default(12)->minValue(1)->suffix('م')
+                        ->live(onBlur: true)->afterStateUpdated($live),
 
                     Forms\Components\TextInput::make('height')
-                        ->label('الارتفاع (م)')
-                        ->required()
-                        ->numeric()
-                        ->step(0.1)
+                        ->label('الارتفاع')
+                        ->required()->numeric()->step(0.1)
                         ->default(fn () => (string) (array_key_first(static::heightOptionsForType('broiler')) ?? '3.7'))
-                        ->minValue(0.1)
-                        ->suffix('م')
-                        ->helperText(fn (Forms\Get $get) => 'قيم شائعة: '.implode('، ', array_keys(static::heightOptionsForType($get('project_type') ?? 'broiler'))).' — أو أدخل قيمة مخصصة')
-                        ->live(onBlur: true)
-                        ->afterStateUpdated($live),
-                ])
-                ->columns(3),
-
-            Forms\Components\Section::make('منطقة الخدمات والوزن')
-                ->schema([
-                    Forms\Components\TextInput::make('service_length')
-                        ->label('طول منطقة الخدمات (م)')
-                        ->numeric()
-                        ->step(0.01)
-                        ->default(10)
-                        ->suffix('م')
-                        ->helperText('تسمين: 9–10م | بياض: 7–9م')
-                        ->live(onBlur: true)
-                        ->afterStateUpdated($live),
-
-                    Forms\Components\Select::make('bird_weight_kg')
-                        ->label('وزن الطائر المستهدف (تسمين)')
-                        ->options(BroilerWeightReference::selectOptions())
-                        ->default('2.100')
-                        ->visible(fn (Forms\Get $get) => ($get('project_type') ?? 'broiler') === 'broiler'
-                            && static::showsBatteryPreview($get))
-                        ->live()
-                        ->afterStateUpdated($live),
-
-                    Forms\Components\Select::make('wall_type')
-                        ->label('نوع الحوائط (ساندوتش بانل)')
-                        ->options(['sandwich' => 'ساندوتش (1200)', 'cement' => 'خرسانة (2000)'])
-                        ->default('sandwich')
-                        ->visible(fn (Forms\Get $get) => static::showsWallTypeField($get))
-                        ->live()
-                        ->afterStateUpdated($live),
-                ])
-                ->columns(3),
-
-            Forms\Components\Section::make('مواصفات البطاريات')
-                ->icon('heroicon-o-cube')
-                ->schema([
-                    Forms\Components\TextInput::make('tiers')
-                        ->label('عدد الأدوار')
-                        ->required()
-                        ->numeric()
-                        ->integer()
-                        ->default(4)
-                        ->minValue(1)
-                        ->maxValue(8)
-                        ->live(onBlur: true)
-                        ->afterStateUpdated($live),
+                        ->minValue(0.1)->suffix('م')
+                        ->live(onBlur: true)->afterStateUpdated($live),
 
                     Forms\Components\TextInput::make('lines')
-                        ->label('عدد الخطوط')
-                        ->required()
+                        ->label('الخطوط')
+                        ->required()->numeric()->integer()->default(4)->minValue(1)->maxValue(12)
+                        ->live(onBlur: true)->afterStateUpdated($live),
+
+                    Forms\Components\TextInput::make('tiers')
+                        ->label('الأدوار')
+                        ->required()->numeric()->integer()->default(4)->minValue(1)->maxValue(8)
+                        ->live(onBlur: true)->afterStateUpdated($live),
+
+                    Forms\Components\TextInput::make('barns_count')
+                        ->label('عدد العنابر')
+                        ->required()->numeric()->integer()->default(1)->minValue(1)
+                        ->live(onBlur: true)->afterStateUpdated($live),
+
+                    Forms\Components\Select::make('bird_weight_kg')
+                        ->label('وزن الطائر')
+                        ->options(BroilerWeightReference::selectOptions())
+                        ->default('2.100')
+                        ->visible(fn (Get $get) => ($get('project_type') ?? 'broiler') === 'broiler')
+                        ->native(false)
+                        ->live()
+                        ->afterStateUpdated($live),
+
+                    Forms\Components\TextInput::make('bird_price')
+                        ->label('سعر الطائر')
                         ->numeric()
-                        ->integer()
-                        ->default(4)
-                        ->minValue(1)
-                        ->maxValue(12)
+                        ->suffix('ج.م')
+                        ->default(fn () => settings('poultry_pricing.price_per_bird', 95))
                         ->live(onBlur: true)
                         ->afterStateUpdated($live),
-                ])
-                ->columns(2),
 
-            Forms\Components\Section::make('المعدات الإضافية')
-                ->icon('heroicon-o-cog')
+                    Forms\Components\TextInput::make('exchange_rate')
+                        ->label('سعر الصرف')
+                        ->numeric()
+                        ->step(0.01)
+                        ->suffix('ج/$')
+                        ->default(fn () => settings('poultry_pricing.egp_to_usd_rate', 48))
+                        ->live(onBlur: true)
+                        ->afterStateUpdated($live),
+
+                    Forms\Components\Section::make('خيارات متقدمة')
+                        ->schema([
+                            Forms\Components\Toggle::make('auto_service_deduction')
+                                ->label('خصم الخدمات تلقائياً')
+                                ->default(true)
+                                ->dehydrated(false)
+                                ->live()
+                                ->afterStateUpdated($live),
+
+                            Forms\Components\Toggle::make('auto_lines_from_width')
+                                ->label('اقتراح الخطوط من العرض')
+                                ->default(true)
+                                ->dehydrated(false)
+                                ->live()
+                                ->afterStateUpdated($live),
+
+                            Forms\Components\TextInput::make('service_length')
+                                ->label('منطقة الخدمات')
+                                ->numeric()->step(0.01)->suffix('م')
+                                ->disabled(fn (Get $get) => $get('auto_service_deduction') !== false)
+                                ->dehydrated()
+                                ->live(onBlur: true)
+                                ->afterStateUpdated($live),
+
+                            Forms\Components\Select::make('wall_type')
+                                ->label('نوع الحوائط')
+                                ->options(['sandwich' => 'ساندوتش بانل', 'cement' => 'خرسانة'])
+                                ->default('sandwich')
+                                ->visible(fn (Get $get) => static::showsWallTypeField($get))
+                                ->native(false)
+                                ->live()
+                                ->afterStateUpdated($live),
+                        ])
+                        ->columns(2)
+                        ->columnSpanFull()
+                        ->collapsed()
+                        ->compact(),
+                ])
+                ->columns(['default' => 2, 'sm' => 3]),
+        ];
+    }
+
+    /** @param  \Closure  $live */
+    protected static function equipmentStepSchema(\Closure $live): array
+    {
+        return [
+            Forms\Components\Section::make('④ المعدات (اختياري)')
+                ->description('قيم افتراضية جاهزة — غيّرها فقط عند الحاجة')
+                ->icon('heroicon-o-cog-6-tooth')
+                ->collapsed()
                 ->schema([
+                    Forms\Components\Select::make('manure_motor_count_id')
+                        ->label('ماتورات الروث')
+                        ->options(fn () => Lookup::options(Lookup::TYPE_MANURE_MOTOR_COUNT))
+                        ->default(fn () => Lookup::defaultId(Lookup::TYPE_MANURE_MOTOR_COUNT))
+                        ->native(false)->searchable()->live(),
+
+                    Forms\Components\Select::make('motor_power_id')
+                        ->label('قدرة الماتور')
+                        ->options(fn () => Lookup::options(Lookup::TYPE_MOTOR_POWER))
+                        ->default(fn () => Lookup::defaultId(Lookup::TYPE_MOTOR_POWER))
+                        ->native(false)->searchable()->live(),
+
+                    Forms\Components\Select::make('belts_per_line_id')
+                        ->label('سيور / خط')
+                        ->options(fn () => Lookup::options(Lookup::TYPE_BELTS_PER_LINE))
+                        ->default(fn () => Lookup::defaultId(Lookup::TYPE_BELTS_PER_LINE))
+                        ->native(false)->searchable()->live(),
+
+                    Forms\Components\Select::make('inner_belt_length_id')
+                        ->label('سير داخلي')
+                        ->options(fn () => Lookup::options(Lookup::TYPE_INNER_BELT_LENGTH))
+                        ->default(fn () => Lookup::defaultId(Lookup::TYPE_INNER_BELT_LENGTH))
+                        ->native(false)->searchable()->live(),
+
+                    Forms\Components\Select::make('outer_belt_length_id')
+                        ->label('سير خارجي')
+                        ->options(fn () => Lookup::options(Lookup::TYPE_OUTER_BELT_LENGTH))
+                        ->default(fn () => Lookup::defaultId(Lookup::TYPE_OUTER_BELT_LENGTH))
+                        ->native(false)->searchable()->live(),
+
+                    Forms\Components\Select::make('silo_capacity_id')
+                        ->label('الصومعة')
+                        ->options(fn () => Lookup::options(Lookup::TYPE_SILO_CAPACITY))
+                        ->default(fn () => Lookup::defaultId(Lookup::TYPE_SILO_CAPACITY))
+                        ->native(false)->searchable()->live(),
+
                     Forms\Components\Select::make('heaters_count')
-                        ->label('الدفايات (اختياري)')
+                        ->label('الدفايات')
                         ->options(HeaterOptions::selectOptions())
                         ->default(0)
-                        ->visible(fn (Forms\Get $get) => ($get('project_type') ?? 'broiler') === 'broiler'
+                        ->visible(fn (Get $get) => ($get('project_type') ?? 'broiler') === 'broiler'
                             && static::showsAccessoriesPreview($get))
-                        ->live()
-                        ->afterStateUpdated($live),
-                ])
-                ->columns(1)
-                ->visible(fn (Forms\Get $get) => ($get('project_type') ?? 'broiler') === 'broiler'
-                    && static::showsAccessoriesPreview($get)),
-
-            Forms\Components\Section::make('ملخص البطاريات')
-                ->icon('heroicon-o-cube')
-                ->description('يتحدث فوراً عند تغيير الأبعاد أو الوزن')
-                ->schema([
-                    Forms\Components\TextInput::make('bird_count')
-                        ->label('عدد الطيور')
-                        ->readOnly(),
-
-                    Forms\Components\TextInput::make('birds_per_nest')
-                        ->label('طيور / عش (حسب الوزن)')
-                        ->readOnly(),
-
-                    Forms\Components\TextInput::make('total_nests')
-                        ->label('إجمالي الأعشاش')
-                        ->readOnly(),
-
-                    Forms\Components\TextInput::make('nests_per_line')
-                        ->label('أعشاش / خط')
-                        ->readOnly(),
-
-                    ...static::broilerWeightTableSchema(),
-                ])
-                ->columns(3)
-                ->visible(fn (Forms\Get $get) => static::showsBatteryPreview($get)),
-
-            Forms\Components\Section::make('المشتملات الاختيارية')
-                ->icon('heroicon-o-bolt')
-                ->description('جهاز المونيتر والكهرباء — اختيارية')
-                ->schema([
-                    Forms\Components\Toggle::make('include_monitor')
-                        ->label('جهاز المونيتر (اختياري)')
-                        ->default(false)
-                        ->live()
-                        ->afterStateUpdated($live),
-
-                    Forms\Components\TextInput::make('monitor_cost')
-                        ->label('مبلغ المونيتر (ج.م)')
-                        ->numeric()
-                        ->minValue(0)
-                        ->placeholder('أدخل المبلغ')
-                        ->visible(fn (Forms\Get $get) => (bool) $get('include_monitor'))
-                        ->live(onBlur: true)
-                        ->afterStateUpdated($live),
-
-                    Forms\Components\Toggle::make('include_electricity')
-                        ->label('الكهرباء ولوحات التحكم والإنارة (اختياري)')
-                        ->default(false)
-                        ->live()
-                        ->afterStateUpdated($live),
-
-                    Forms\Components\TextInput::make('electricity_cost')
-                        ->label('مبلغ الكهرباء والإنارة (ج.م)')
-                        ->numeric()
-                        ->minValue(0)
-                        ->placeholder('أدخل المبلغ')
-                        ->visible(fn (Forms\Get $get) => (bool) $get('include_electricity'))
-                        ->live(onBlur: true)
-                        ->afterStateUpdated($live),
-
-                    ...static::accessoriesPreviewTableSchema(),
-                ])
-                ->columns(2)
-                ->visible(fn (Forms\Get $get) => static::showsAccessoriesPreview($get)),
-
-            Forms\Components\Section::make('ملخص التسعير')
-                ->icon('heroicon-o-chart-bar')
-                ->schema([
-                    Forms\Components\TextInput::make('subtotal')
-                        ->label('المجموع الفرعي (ج.م)')
-                        ->readOnly(),
-
-                    ...static::livePricingPreviewSchema(),
-                ])
-                ->columns(1),
-
-            Forms\Components\Section::make('الضريبة')
-                ->icon('heroicon-o-receipt-percent')
-                ->schema([
-                    Forms\Components\Select::make('vat_percentage')
-                        ->label('نسبة ضريبة القيمة المضافة')
-                        ->options([
-                            0 => 'بدون ضريبة',
-                            14 => '14% (مصر)',
-                            15 => '15% (السعودية)',
-                        ])
-                        ->default(0)
                         ->native(false)
-                        ->live(),
+                        ->live()
+                        ->afterStateUpdated($live),
                 ])
-                ->columns(1),
-        ]);
+                ->columns(['default' => 1, 'sm' => 2]),
+        ];
+    }
+
+    protected static function summaryStepSchema(): array
+    {
+        return [
+            Forms\Components\Section::make('الملخص المباشر')
+                ->description('يتحدّث مع كل تعديل — احفظ عند الانتهاء')
+                ->icon('heroicon-o-calculator')
+                ->extraAttributes(['class' => 'pq-summary-sticky'])
+                ->schema([
+                    Forms\Components\Grid::make(2)->schema([
+                        Forms\Components\TextInput::make('bird_count')->label('الطيور')->readOnly(),
+                        Forms\Components\TextInput::make('birds_per_nest')->label('طيور / عش')->readOnly(),
+                        Forms\Components\TextInput::make('total_nests')->label('الأقفاص')->readOnly(),
+                        Forms\Components\TextInput::make('subtotal')->label('الإجمالي ج.م')->readOnly(),
+                    ]),
+                    ...static::livePricingPreviewSchema(),
+                    ...static::broilerWeightTableSchema(),
+                    ...static::accessoriesPreviewTableSchema(),
+                ]),
+        ];
     }
 
     public static function table(Table $table): Table
@@ -323,6 +416,11 @@ class PoultryQuotationResource extends Resource
                     ->badge()
                     ->searchable()
                     ->sortable(),
+
+                Tables\Columns\TextColumn::make('creator.name')
+                    ->label('المندوب')
+                    ->visible(fn (): bool => ! PoultryQuoteAccess::seesOwnQuotesOnly(auth()->user()))
+                    ->toggleable(),
 
                 Tables\Columns\TextColumn::make('client_name')
                     ->label('العميل')

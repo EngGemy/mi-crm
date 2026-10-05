@@ -22,4 +22,9 @@ class EditRole extends EditRecord
     {
         return $this->getResource()::getUrl('index');
     }
+
+    protected function afterSave(): void
+    {
+        RoleResource::syncPermissionGroups($this->record, $this->data);
+    }
 }

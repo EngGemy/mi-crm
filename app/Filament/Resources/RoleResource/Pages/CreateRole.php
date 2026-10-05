@@ -13,4 +13,9 @@ class CreateRole extends CreateRecord
     {
         return $this->getResource()::getUrl('index');
     }
+
+    protected function afterCreate(): void
+    {
+        RoleResource::syncPermissionGroups($this->record, $this->data);
+    }
 }

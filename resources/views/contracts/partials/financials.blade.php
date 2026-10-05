@@ -40,7 +40,7 @@
         @endif
         @if($contract->subtotal)
             <tr>
-                <td style="border: 1px solid #1a1a1a; padding: 6px 10px;">المجموع قبل الضريبة</td>
+                <td style="border: 1px solid #1a1a1a; padding: 6px 10px;">{{ (float) $contract->vat_amount > 0 ? 'المجموع قبل الضريبة' : 'المجموع' }}</td>
                 <td style="border: 1px solid #1a1a1a; padding: 6px 10px; text-align: left; direction: ltr;">{{ number_format((float) $contract->subtotal, 2) }}</td>
             </tr>
         @endif
@@ -52,7 +52,7 @@
         @endif
         @if($contract->vat_amount > 0)
             <tr>
-                <td style="border: 1px solid #1a1a1a; padding: 6px 10px;">ضريبة القيمة المضافة ({{ $contract->vat_percentage }}%)</td>
+                <td style="border: 1px solid #1a1a1a; padding: 6px 10px;">ضريبة القيمة المضافة ({{ rtrim(rtrim(number_format((float) $contract->vat_percentage, 2, '.', ''), '0'), '.') }}%)</td>
                 <td style="border: 1px solid #1a1a1a; padding: 6px 10px; text-align: left; direction: ltr;">{{ number_format((float) $contract->vat_amount, 2) }}</td>
             </tr>
         @endif

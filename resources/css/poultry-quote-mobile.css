@@ -1,0 +1,53 @@
+/* Exhibition-friendly poultry quote form */
+
+.pq-exhibition-layout {
+    align-items: start;
+}
+
+.pq-form-summary .pq-summary-sticky {
+    position: sticky;
+    top: 1rem;
+}
+
+.pq-form-main .fi-section {
+    margin-bottom: 0.75rem;
+}
+
+.pq-form-summary .fi-section-content-ctn {
+    background: linear-gradient(180deg, #fff8f8 0%, #ffffff 40%);
+}
+
+.pq-form-summary .fi-ta-text-item,
+.pq-form-summary input[readonly] {
+    font-weight: 700;
+}
+
+@media (max-width: 1023px) {
+    .pq-form-summary .pq-summary-sticky {
+        position: static;
+    }
+}
+
+@media (max-width: 768px) {
+    .fi-main {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+    }
+
+    .fi-section-content-ctn {
+        padding: 0.75rem !important;
+    }
+
+    .fi-input-wrp,
+    .fi-select-input {
+        font-size: 16px; /* prevent iOS zoom */
+    }
+
+    .fi-btn {
+        min-height: 2.75rem;
+    }
+
+    .fi-form-actions .fi-btn {
+        width: 100%;
+    }
+}

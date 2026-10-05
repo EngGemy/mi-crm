@@ -77,11 +77,7 @@
     @endforeach
 
     <table>
-        <tr class="totals"><td colspan="3">المجموع الفرعي</td><td class="num">{{ number_format($subtotal, 2) }}</td></tr>
-        @if($vatAmount > 0)
-        <tr class="totals"><td colspan="3">الضريبة</td><td class="num">{{ number_format($vatAmount, 2) }}</td></tr>
-        @endif
-        <tr class="totals grand"><td colspan="3">الإجمالي النهائي (جنيه)</td><td class="num">{{ number_format($total, 2) }}</td></tr>
+        <tr class="totals grand"><td colspan="3">الإجمالي (جنيه)</td><td class="num">{{ number_format($subtotal, 2) }}</td></tr>
         <tr class="totals"><td colspan="3">تقريبي بالدولار (سعر {{ number_format($usdRate, 2) }})</td><td class="num">{{ number_format($totalUsd, 2) }} $</td></tr>
     </table>
 

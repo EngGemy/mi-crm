@@ -145,16 +145,7 @@
                 <div id="weight-table-wrap"></div>
             </div>
 
-            <div class="card">
-                <div class="form-group">
-                    <label>الضريبة</label>
-                    <select name="vat_region" id="vat_region" class="calc-input">
-                        <option value="none">بدون</option>
-                        <option value="egypt">مصر 14%</option>
-                        <option value="ksa">السعودية 15%</option>
-                    </select>
-                </div>
-            </div>
+            <input type="hidden" name="vat_region" id="vat_region" value="none">
 
             <div style="display:flex;gap:10px;flex-wrap:wrap">
                 <button type="button" class="btn btn-primary" id="btn-preview-pdf" style="flex:1;background:#0f172a">تحميل PDF (معاينة)</button>
@@ -177,10 +168,8 @@
             <div class="summary-item"><span>التبريد (م)</span><span class="value" id="sum-cooling">—</span><small id="sum-cooling-formula" style="display:block;font-size:11px;color:#64748b;font-weight:400"></small></div>
             <div class="summary-item"><span>بالدولار (تقريبي)</span><span class="value" id="sum-usd" style="direction:ltr">—</span></div>
             <div class="summary-item"><span>الشبابيك</span><span class="value" id="sum-windows">—</span></div>
-            <div class="summary-item"><span>المجموع الفرعي</span><span class="value" id="sum-subtotal">—</span></div>
-            <div class="summary-item"><span>الضريبة</span><span class="value" id="sum-vat">—</span></div>
             <div class="summary-total">
-                <div style="font-size:12px;opacity:.9">الإجمالي النهائي</div>
+                <div style="font-size:12px;opacity:.9">الإجمالي</div>
                 <div class="amount" id="sum-total">—</div>
             </div>
         </div>
@@ -296,11 +285,11 @@ function calculate() {
         document.getElementById('sum-cooling').textContent = data.cooling_units;
         document.getElementById('sum-cooling-formula').textContent = data.cooling_formula || '';
         document.getElementById('sum-windows').textContent = data.windows_count;
-        document.getElementById('sum-subtotal').textContent = Number(data.subtotal).toLocaleString('en', {minimumFractionDigits: 2}) + ' ج.م';
-        document.getElementById('sum-vat').textContent = Number(data.vat_amount).toLocaleString('en', {minimumFractionDigits: 2}) + ' ج.م';
-        document.getElementById('sum-total').textContent = Number(data.total).toLocaleString('en', {minimumFractionDigits: 2}) + ' ج.م';
+        const totalEgp = Number(data.subtotal ?? data.total ?? 0);
+        document.getElementById('sum-total').textContent = totalEgp.toLocaleString('en', {minimumFractionDigits: 2}) + ' ج.م';
         if (data.currency) {
-            document.getElementById('sum-usd').textContent = Number(data.currency.total_usd).toLocaleString('en', {minimumFractionDigits: 2}) + ' $';
+            const usd = data.currency.subtotal_usd ?? data.currency.total_usd;
+            document.getElementById('sum-usd').textContent = Number(usd).toLocaleString('en', {minimumFractionDigits: 2}) + ' $';
         }
         renderBreakdown(data);
     })

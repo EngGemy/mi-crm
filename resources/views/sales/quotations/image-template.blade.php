@@ -305,19 +305,9 @@
                     <td class="num">{{ number_format((float) $item['total'], 2) }}</td>
                 </tr>
                 @endforeach
-                <tr class="total-row">
-                    <td colspan="4">المجموع الفرعي</td>
-                    <td class="num">{{ number_format((float) $result->subtotal, 2) }}</td>
-                </tr>
-                @if((float) $result->vatAmount > 0)
-                <tr class="total-row">
-                    <td colspan="4">ضريبة القيمة المضافة ({{ $quotation->vat_percentage }}%)</td>
-                    <td class="num">{{ number_format((float) $result->vatAmount, 2) }}</td>
-                </tr>
-                @endif
                 <tr class="grand-total">
-                    <td colspan="4">الإجمالي النهائي</td>
-                    <td class="num">{{ number_format((float) $result->total, 2) }} EGP</td>
+                    <td colspan="4">الإجمالي</td>
+                    <td class="num">{{ number_format((float) $result->subtotal, 2) }} EGP</td>
                 </tr>
             </tbody>
         </table>

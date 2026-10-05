@@ -136,7 +136,7 @@ class PoultryHousePricingServiceTest extends TestCase
 
         $this->assertContains('civil', $sections);
         $this->assertContains('cages', $sections);
-        $this->assertContains('ventilation', $sections);
+        $this->assertContains('electrical', $sections);
     }
 
     /** @test */

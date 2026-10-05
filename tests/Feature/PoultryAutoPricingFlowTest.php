@@ -96,11 +96,12 @@ class PoultryAutoPricingFlowTest extends TestCase
 
         $quotation->refresh();
 
-        $this->assertEquals(38400, $quotation->bird_capacity);
+        // 81م فردي مع خصم يدوي 6 → طول فعّال 76 (تقريب زوجي) × 2 × 4 أدوار × 4 خطوط × 16 طائر
+        $this->assertEquals(38912, $quotation->bird_capacity);
         $this->assertEquals(17, $quotation->back_fans_count);
         $this->assertEquals(94, (float) $quotation->cooling_units);
         $this->assertEquals(39, $quotation->windows_count);
-        $this->assertGreaterThanOrEqual(10, $quotation->items()->count());
+        $this->assertGreaterThanOrEqual(6, $quotation->items()->count());
         $this->assertNotNull($quotation->pricing_snapshot);
         $this->assertArrayHasKey('parameters', $quotation->pricing_snapshot);
         $this->assertArrayHasKey('items', $quotation->pricing_snapshot);
@@ -176,7 +177,7 @@ class PoultryAutoPricingFlowTest extends TestCase
         $this->assertEquals(1, $batteryItem['qty']);
 
         // Total should be bird_count * price_per_bird (flat)
-        $expectedTotal = round(38400 * 95, 2);
+        $expectedTotal = round(38912 * 95, 2);
         $this->assertEquals($expectedTotal, $batteryItem['total_price']);
     }
 

@@ -10,11 +10,26 @@ Route::get('/', function () {
     return redirect('/admin');
 });
 
+// رابط عرض السعر داخل رسالة الواتساب. التوقيع يغني عن تسجيل الدخول.
+Route::get('/poultry-quotations/{record}/welcome.pdf', function (App\Models\PoultryQuotation $record) {
+    try {
+        return app(App\Services\Poultry\MiProposalPdfGenerator::class)->download($record);
+    } catch (\Throwable $e) {
+        report($e);
+        abort(500, 'تعذر إنشاء ملف PDF.');
+    }
+})->middleware('signed')->name('poultry-quotations.welcome-pdf');
+
 // PDF حاسبة أسعار الدواجن
 Route::middleware(['auth'])->group(function () {
     Route::get('/poultry-quotations/{record}/pdf', function (App\Models\PoultryQuotation $record) {
+        $user = auth()->user();
+        if (\App\Services\Poultry\PoultryQuoteAccess::seesOwnQuotesOnly($user) && $record->created_by !== $user->id) {
+            abort(403);
+        }
+
         try {
-            return app(App\Services\PoultryQuotationPdfGenerator::class)->download($record);
+            return app(App\Services\Poultry\MiProposalPdfGenerator::class)->download($record);
         } catch (\Throwable $e) {
             report($e);
             abort(500, 'تعذر إنشاء ملف PDF. راجع سجل الأخطاء.');

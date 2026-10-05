@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
         $this->seedSampleContract();
         $this->call(QuotationSeeder::class);
         $this->call(PoultryPricingSettingsSeeder::class);
+        $this->call(LookupSeeder::class);
         $this->call(TaxAndFinanceSettingsSeeder::class);
     }
 

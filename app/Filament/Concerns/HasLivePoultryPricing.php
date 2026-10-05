@@ -41,8 +41,13 @@ trait HasLivePoultryPricing
 
         try {
             $projectType = static::resolveProjectTypeFromForm($get);
-            $serviceLength = (float) ($get('service_length') ?? $get('dead_zone_meters') ?? settings('poultry_pricing.default_service_length', 10));
+            $autoService = $get('auto_service_deduction') !== false;
             $birdWeight = (float) ($get('bird_weight_kg') ?? $get('average_weight_kg') ?? 2.1);
+            $barnsCount = max(1, (int) ($get('barns_count') ?? 1));
+
+            if (! $get('exchange_rate')) {
+                $set('exchange_rate', (string) settings('poultry_pricing.egp_to_usd_rate', settings('defaults.exchange_rate', 48)));
+            }
 
             if ($get('auto_lines_from_width') && $width > 0) {
                 $calc = new PoultryTechnicalCalculator;
@@ -60,7 +65,6 @@ trait HasLivePoultryPricing
                 'hall_length' => $length,
                 'hall_width' => $width,
                 'hall_height' => $height,
-                'service_length' => $serviceLength,
                 'tiers' => $tiers,
                 'lines' => $lines,
                 'bird_weight_kg' => $birdWeight,
@@ -74,17 +78,42 @@ trait HasLivePoultryPricing
                 'electricity_cost' => $get('electricity_cost'),
             ];
 
+            if (! $autoService) {
+                $input['service_length'] = (float) ($get('service_length') ?? $get('dead_zone_meters') ?? 10);
+            }
+
             $result = app(PoultryHousePricingService::class)->compute($input);
             $computed = $result['computed'];
+            $tech = $result['technical'] ?? [];
+
+            $birdsPerBarn = (int) ($computed['bird_count'] ?? 0);
+            $totalBirds = $birdsPerBarn * $barnsCount;
+            $effective = (float) ($computed['effective_length'] ?? 0);
+            $serviceLength = round($length - $effective, 3);
+            $housingArea = round($length * $width * $barnsCount, 2);
+            $density = $housingArea > 0 ? round($totalBirds / $housingArea, 2) : 0;
+            $birdPrice = (float) ($get('bird_price') ?: settings('poultry_pricing.price_per_bird', 95));
+            $estimated = round($totalBirds * $birdPrice, 2);
+            $subtotal = (float) ($result['subtotal'] ?? 0) * $barnsCount;
+
+            $result['computed']['barns_count'] = $barnsCount;
+            $result['computed']['bird_count_total'] = $totalBirds;
+            $result['computed']['housing_area'] = $housingArea;
+            $result['computed']['floor_density'] = $density;
+            $result['computed']['estimated_price'] = $estimated;
+            $result['computed']['service_length'] = $serviceLength;
+            $result['subtotal'] = $subtotal;
 
             $set('pricing_preview', $result);
-            $set('bird_capacity', $computed['bird_count']);
-            $set('bird_count', $computed['bird_count']);
-            $set('total_nests', $computed['total_nests'] ?? 0);
+            $set('service_length', $serviceLength);
+            $set('bird_capacity', $totalBirds);
+            $set('bird_count', $totalBirds);
+            $set('total_nests', ((int) ($computed['total_nests'] ?? 0)) * $barnsCount);
             $set('nests_per_line', $computed['nests_per_line'] ?? 0);
-            $set('birds_per_nest', $result['technical']['birds_per_nest'] ?? null);
-            $set('subtotal', $result['subtotal']);
+            $set('birds_per_nest', $tech['birds_per_nest'] ?? null);
+            $set('subtotal', $subtotal);
             $set('dead_zone_meters', $serviceLength);
+            $set('bird_price', $get('bird_price') ?: $birdPrice);
 
             if ($projectType === 'broiler') {
                 $set('heaters_count', $computed['heaters_count']);
@@ -273,22 +302,31 @@ trait HasLivePoultryPricing
                     $subtotal = number_format((float) ($preview['subtotal'] ?? 0), 0);
                     $tech = $preview['technical'] ?? [];
                     $scope = static::pricingScopeFromForm($get);
+                    $lines = (int) ($get('lines') ?? 0);
+                    $tiers = (int) ($get('tiers') ?? 0);
+                    $rate = (float) ($get('exchange_rate') ?: ($preview['currency']['rate'] ?? 48));
+                    $estimated = (float) ($c['estimated_price'] ?? 0);
+                    $estimatedUsd = $rate > 0 ? round($estimated / $rate, 2) : 0;
 
                     $rows = [];
 
                     if (static::showsBatteryPreview($get)) {
+                        $rows[] = ['منطقة الخدمات', e(($c['service_length'] ?? '-').' م'), false];
                         $rows[] = ['الطول الفعال', e(($c['effective_length'] ?? '-').' م'), false];
-                        $rows[] = ['أعشاش / خط', e(number_format($c['nests_per_line'] ?? 0)), false];
-                        $rows[] = ['إجمالي الأعشاش', e(number_format($c['total_nests'] ?? 0)), false];
-                        $rows[] = ['طيور / عش', e(number_format($tech['birds_per_nest'] ?? 0)), false];
-                        $rows[] = ['عدد الطيور', e(number_format($c['bird_count'] ?? 0)), false];
+                        $rows[] = ['الخطوط × الأدوار', e($lines.' × '.$tiers.' = '.($lines * $tiers)), false];
+                        $rows[] = ['إجمالي الأعشاش / الأقفاص', e(number_format($c['total_nests'] ?? ($get('total_nests') ?? 0))), false];
+                        $rows[] = ['طيور / عش (قفص)', e(number_format($tech['birds_per_nest'] ?? ($get('birds_per_nest') ?? 0))), false];
+                        $rows[] = ['سعة الطيور', e(number_format($c['bird_count_total'] ?? $c['bird_count'] ?? ($get('bird_count') ?? 0))), false];
+                        $rows[] = ['مساحة الإيواء', e(number_format($c['housing_area'] ?? 0, 1).' م²'), false];
+                        $rows[] = ['كثافة الأرضية', e(number_format($c['floor_density'] ?? 0, 2).' طائر/م²'), false];
                     }
 
-                    $rows[] = ['المجموع الفرعي', e($subtotal.' ج.م'), false];
-
-                    if (! empty($preview['currency']['total_usd'])) {
-                        $rows[] = ['بالدولار (تقريبي)', e(number_format($preview['currency']['total_usd'], 2).' $'), false];
+                    $rows[] = ['الإجمالي المبدئي', '<strong style="color:#C00000;font-size:16px">'.e(number_format($estimated > 0 ? $estimated : (float) ($preview['subtotal'] ?? 0), 0).' ج.م').'</strong>', true];
+                    if ($estimatedUsd > 0 || $subtotal !== '0') {
+                        $usdVal = $estimated > 0 ? $estimatedUsd : round(((float) ($preview['subtotal'] ?? 0)) / max($rate, 0.01), 2);
+                        $rows[] = ['بالدولار (≈ '.$rate.')', e(number_format($usdVal, 2).' $'), false];
                     }
+                    $rows[] = ['إجمالي البنود', e($subtotal.' ج.م'), false];
 
                     if ($rows === []) {
                         return new HtmlString('<p style="color:#64748b;font-size:13px;">اختر نطاق التسعير لعرض الملخص…</p>');

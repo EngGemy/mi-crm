@@ -9,7 +9,6 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Spatie\Permission\Models\Permission;
 
 class UserResource extends Resource
 {
@@ -28,60 +27,66 @@ class UserResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Section::make('بيانات المستخدم')
+            Forms\Components\Section::make('بيانات الحساب')
+                ->description('الاسم ووسيلة الدخول. اترك كلمة المرور فارغة إذا لم ترد تغييرها.')
+                ->icon('heroicon-o-user')
                 ->schema([
                     Forms\Components\TextInput::make('name')
                         ->label('الاسم')
-                        ->required(),
+                        ->prefixIcon('heroicon-o-user')
+                        ->required()
+                        ->maxLength(255),
                     Forms\Components\TextInput::make('email')
                         ->label('البريد الإلكتروني')
+                        ->prefixIcon('heroicon-o-envelope')
                         ->email()
                         ->unique(ignoreRecord: true)
-                        ->required(),
+                        ->required()
+                        ->maxLength(255),
                     Forms\Components\TextInput::make('phone')
-                        ->label('رقم الهاتف'),
+                        ->label('رقم الهاتف')
+                        ->prefixIcon('heroicon-o-phone')
+                        ->tel()
+                        ->maxLength(30),
                     Forms\Components\TextInput::make('password')
                         ->label('كلمة المرور')
                         ->password()
+                        ->revealable()
+                        ->prefixIcon('heroicon-o-lock-closed')
+                        ->helperText(fn (string $context) => $context === 'edit'
+                            ? 'اتركها فارغة للإبقاء على كلمة المرور الحالية.'
+                            : 'سيستخدمها الموظف عند تسجيل الدخول.')
                         ->dehydrateStateUsing(fn ($state) => filled($state) ? bcrypt($state) : null)
                         ->dehydrated(fn ($state) => filled($state))
                         ->required(fn (string $context) => $context === 'create'),
                     Forms\Components\Toggle::make('is_active')
-                        ->label('نشط')
-                        ->default(true),
+                        ->label('الحساب نشط')
+                        ->helperText('الحساب الموقوف لا يستطيع تسجيل الدخول.')
+                        ->default(true)
+                        ->inline(false)
+                        ->columnSpanFull(),
                 ])->columns(2),
 
-            Forms\Components\Section::make('الصلاحيات')
+            Forms\Components\Section::make('الدور')
+                ->description('الدور يحدد الشاشات التي يراها الموظف. اختر دوراً واحداً لكل شخص.')
+                ->icon('heroicon-o-shield-check')
                 ->schema([
-                    Forms\Components\Select::make('roles')
-                        ->label('الأدوار')
+                    Forms\Components\CheckboxList::make('roles')
+                        ->hiddenLabel()
                         ->relationship('roles', 'name')
-                        ->options([
-                            'super_admin' => 'Super Admin',
-                            'admin' => 'Admin',
-                            'sales_manager' => 'مدير المبيعات',
-                            'sales_rep' => 'مندوب مبيعات',
-                            'accountant' => 'محاسب',
-                        ])
-                        ->multiple()
-                        ->preload()
+                        ->options(fn () => RoleResource::roleOptions())
+                        ->descriptions(fn () => RoleResource::roleDescriptionOptions())
+                        ->columns(1)
                         ->required(),
+                ]),
 
-                    Forms\Components\Select::make('permissions')
-                        ->label('صلاحيات إضافية (مباشرة)')
-                        ->relationship('permissions', 'name')
-                        ->options(function () {
-                            return Permission::orderBy('name')
-                                ->pluck('name', 'id')
-                                ->mapWithKeys(fn ($name, $id) => [
-                                    $id => RoleResource::translatePermissionName($name),
-                                ]);
-                        })
-                        ->multiple()
-                        ->preload()
-                        ->searchable()
-                        ->helperText('صلاحيات مباشرة على المستخدم بدون ربطها بدور')
-                        ->visible(fn () => auth()->user()?->hasRole('super_admin')),
+            Forms\Components\Section::make('صلاحيات إضافية')
+                ->description('استثناء فوق الدور فقط. صلاحيات الدور نفسه تُدار من صفحة الأدوار والصلاحيات.')
+                ->icon('heroicon-o-key')
+                ->collapsed()
+                ->visible(fn () => auth()->user()?->hasRole('super_admin'))
+                ->schema([
+                    ...RoleResource::permissionGroupFields(),
                 ]),
         ]);
     }
@@ -99,14 +104,7 @@ class UserResource extends Resource
                 Tables\Columns\TextColumn::make('roles.name')
                     ->label('الأدوار')
                     ->badge()
-                    ->formatStateUsing(fn ($state) => match ($state) {
-                        'super_admin' => 'Super Admin',
-                        'admin' => 'Admin',
-                        'sales_manager' => 'مدير المبيعات',
-                        'sales_rep' => 'مندوب',
-                        'accountant' => 'محاسب',
-                        default => $state,
-                    }),
+                    ->formatStateUsing(fn ($state) => RoleResource::roleLabel((string) $state)),
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('نشط')
                     ->boolean(),

@@ -15,6 +15,8 @@ class CreateContract extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
+        $data = ContractResource::applyVatChoice($data, (bool) ($this->data['include_vat'] ?? false));
+
         return array_merge($data, ContractCalculator::calculateContract($data));
     }
 

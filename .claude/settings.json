@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./vendor/**)",
+      "Read(./node_modules/**)",
+      "Read(./storage/**)",
+      "Read(./bootstrap/cache/**)",
+      "Read(./public/build/**)",
+      "Read(./public/vendor/**)",
+      "Read(./.git/**)"
+    ]
+  }
+}

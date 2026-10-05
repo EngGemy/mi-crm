@@ -478,6 +478,18 @@ class CompanySettingsSeeder extends Seeder
                 array_merge($setting, ['is_public' => true])
             );
         }
+
+        Setting::firstOrCreate(
+            ['key' => 'poultry.whatsapp_welcome'],
+            [
+                'value' => \App\Services\Poultry\PoultryWelcomeWhatsApp::DEFAULT_TEMPLATE,
+                'type' => 'text',
+                'category' => 'poultry',
+                'label_ar' => 'نص رسالة الواتساب',
+                'is_public' => false,
+                'sort_order' => 1,
+            ]
+        );
     }
 
     protected function seedBankAccounts(): void

@@ -76,6 +76,40 @@ class PoultryTechnicalCalculatorTest extends TestCase
     }
 
     /** @test */
+    public function broiler_effective_length_even_subtracts_10(): void
+    {
+        [$effective, $service] = $this->calc->resolveBroilerEffectiveLength(108);
+        $this->assertEquals(10, $service);
+        $this->assertEquals(98, $effective);
+    }
+
+    /** @test */
+    public function broiler_effective_length_odd_under_110_subtracts_9(): void
+    {
+        [$effective, $service] = $this->calc->resolveBroilerEffectiveLength(81);
+        $this->assertEquals(9, $service);
+        $this->assertEquals(72, $effective);
+    }
+
+    /** @test */
+    public function broiler_effective_length_odd_over_110_subtracts_11(): void
+    {
+        [$effective, $service] = $this->calc->resolveBroilerEffectiveLength(121);
+        $this->assertEquals(11, $service);
+        $this->assertEquals(110, $effective);
+    }
+
+    /** @test */
+    public function layer_effective_length_near_8m_divisible_by_0_6_even_modules(): void
+    {
+        [$effective, $service] = $this->calc->resolveLayerEffectiveLength(81);
+        $this->assertEquals(72.0, $effective);
+        $this->assertEqualsWithDelta(9.0, $service, 0.001);
+        $this->assertEqualsWithDelta(0.0, fmod(round($effective, 3), 0.60), 0.001);
+        $this->assertEquals(0, ((int) round($effective / 0.60)) % 2);
+    }
+
+    /** @test */
     public function broiler_air_window_test_odd_length_81(): void
     {
         $this->assertEquals(39, $this->calc->broilerAirWindows(81));

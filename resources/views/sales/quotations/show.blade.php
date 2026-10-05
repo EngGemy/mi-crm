@@ -200,19 +200,9 @@
                     <tr><td>الشفاطات الجانبية</td><td class="num">{{ $quotation->side_fans_count }}</td><td class="num">مروحة</td><td class="num">{{ number_format($quotation->side_fans_cost, 2) }}</td></tr>
                     <tr><td>الدفايات</td><td class="num">{{ $quotation->heaters_count }}</td><td class="num">دفاية</td><td class="num">{{ number_format($quotation->heaters_cost, 2) }}</td></tr>
                     <tr><td>نظام التحكم</td><td class="num">1</td><td class="num">ثابت</td><td class="num">{{ number_format($quotation->control_cost, 2) }}</td></tr>
-                    <tr class="total-row">
-                        <td colspan="3">المجموع الفرعي</td>
-                        <td class="num">{{ number_format($quotation->subtotal, 2) }}</td>
-                    </tr>
-                    @if($quotation->vat_amount > 0)
-                    <tr class="total-row">
-                        <td colspan="3">ضريبة القيمة المضافة ({{ $quotation->vat_percentage }}%)</td>
-                        <td class="num">{{ number_format($quotation->vat_amount, 2) }}</td>
-                    </tr>
-                    @endif
                     <tr class="total-row" style="background:#C00000;color:white;">
-                        <td colspan="3">الإجمالي النهائي</td>
-                        <td class="num">{{ number_format($quotation->total, 2) }} EGP</td>
+                        <td colspan="3">الإجمالي</td>
+                        <td class="num">{{ number_format($quotation->subtotal, 2) }} EGP</td>
                     </tr>
                 </tbody>
             </table>

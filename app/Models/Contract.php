@@ -100,8 +100,14 @@ class Contract extends Model
                 $financial = $quotation->pricing_snapshot['financial'];
                 $contract->subtotal = FinancialEngine::toFloat($financial['subtotal']);
                 $contract->discount_amount = FinancialEngine::toFloat($financial['discount_amount']);
-                $contract->vat_amount = FinancialEngine::toFloat($financial['vat_amount']);
-                $contract->total_value = FinancialEngine::toFloat($financial['total']);
+                $priced = FinancialEngine::calculateTotals(
+                    (float) $contract->subtotal,
+                    0,
+                    (float) $contract->discount_amount,
+                    (float) $contract->vat_percentage
+                );
+                $contract->vat_amount = FinancialEngine::toFloat($priced['vat_amount']);
+                $contract->total_value = FinancialEngine::toFloat($priced['total']);
             } else {
                 // حساب الإجمالي تلقائياً (عقد يدوي)
                 $subtotal = (float) $contract->cages_cost

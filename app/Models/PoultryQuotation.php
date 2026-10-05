@@ -6,9 +6,11 @@ use App\Enums\PoultryPricingScope;
 use App\Enums\PoultryProjectType;
 use App\Models\Concerns\NormalizesMoneyAttributes;
 use App\Services\PoultryHousePricingService;
+use App\Services\Poultry\ProposalSnapshotFreezer;
 use App\Support\FinancialEngine;
 use App\Support\TaxResolver;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -21,21 +23,37 @@ class PoultryQuotation extends Model
 
     protected $fillable = [
         'quote_number',
+        'customer_id',
         'client_name',
         'client_phone',
         'client_address',
+        'client_company',
+        'client_email',
+        'client_country',
+        'client_location',
+        'client_notes',
         'project_type',
         'pricing_scope',
+        'quote_type_id',
         'length',
         'width',
         'height',
         'wall_type',
         'tiers',
         'lines',
+        'barns_count',
         'dead_zone',
         'service_length',
         'bird_weight_kg',
+        'bird_price',
+        'exchange_rate',
         'birds_per_nest',
+        'manure_motor_count_id',
+        'motor_power_id',
+        'belts_per_line_id',
+        'inner_belt_length_id',
+        'outer_belt_length_id',
+        'silo_capacity_id',
         'side_fans_count',
         'heaters_count',
         'bird_count',
@@ -64,6 +82,7 @@ class PoultryQuotation extends Model
         'total',
         'vat_percentage',
         'status',
+        'issued_at',
         'contract_id',
         'image_path',
         'pricing_snapshot',
@@ -77,6 +96,9 @@ class PoultryQuotation extends Model
         'dead_zone' => 'decimal:2',
         'service_length' => 'decimal:2',
         'bird_weight_kg' => 'decimal:3',
+        'bird_price' => 'decimal:2',
+        'exchange_rate' => 'decimal:4',
+        'barns_count' => 'integer',
         'cooling_units' => 'decimal:2',
         'concrete_cost' => 'decimal:2',
         'steel_cost' => 'decimal:2',
@@ -97,6 +119,7 @@ class PoultryQuotation extends Model
         'total' => 'decimal:2',
         'vat_percentage' => 'decimal:2',
         'pricing_snapshot' => 'array',
+        'issued_at' => 'datetime',
     ];
 
     public const STATUSES = [
@@ -113,15 +136,20 @@ class PoultryQuotation extends Model
             if (empty($quotation->quote_number)) {
                 $year = now()->year;
                 $count = static::whereYear('created_at', $year)->count() + 1;
-                $quotation->quote_number = "Q-{$year}-".str_pad($count, 5, '0', STR_PAD_LEFT);
+                $quotation->quote_number = "Q-{$year}-".str_pad($count, 4, '0', STR_PAD_LEFT);
             }
 
             $quotation->created_by = auth()->id() ?? $quotation->created_by;
             $quotation->project_type ??= PoultryProjectType::Broiler->value;
             $quotation->pricing_scope ??= PoultryPricingScope::FullProject->value;
+            if (empty($quotation->issued_at)) {
+                $quotation->issued_at = now();
+            }
         });
 
         static::saving(function (PoultryQuotation $quotation) {
+            $quotation->guardBarnsCount();
+
             // إذا وجد snapshot مالي محفوظ، لا نعيد الحساب — العرض المحفوظ ثابت محاسبيًا
             $snapshot = $quotation->pricing_snapshot ?? [];
             if (! empty($snapshot['financial'])) {
@@ -141,6 +169,7 @@ class PoultryQuotation extends Model
                 $quotation->side_fans_count = $computed['side_fans_count'] ?? $quotation->side_fans_count;
                 $quotation->heaters_count = $computed['heaters_count'] ?? $quotation->heaters_count;
                 $quotation->syncCostsFromSnapshot();
+                app(ProposalSnapshotFreezer::class)->apply($quotation);
 
                 return;
             }
@@ -179,7 +208,16 @@ class PoultryQuotation extends Model
             'electricity_cost' => $this->electricity_cost,
         ];
 
+        $previous = $this->pricing_snapshot ?? [];
         $result = $service->compute($input);
+        if (isset($previous['terms']) && is_array($previous['terms'])) {
+            $result['terms'] = $previous['terms'];
+        }
+        if (isset($previous['currency']['rate_override'])) {
+            $result['currency'] = is_array($result['currency'] ?? null) ? $result['currency'] : [];
+            $result['currency']['rate'] = $previous['currency']['rate'];
+            $result['currency']['rate_override'] = $previous['currency']['rate_override'];
+        }
         $computed = $result['computed'];
         $items = collect($result['items']);
 
@@ -211,6 +249,21 @@ class PoultryQuotation extends Model
 
         $this->vat_amount = FinancialEngine::toFloat($financial['vat_amount']);
         $this->total = FinancialEngine::toFloat($financial['total']);
+        app(ProposalSnapshotFreezer::class)->apply($this);
+    }
+
+    public function guardBarnsCount(): void
+    {
+        if ($this->barns_count === null || $this->barns_count === '') {
+            return;
+        }
+
+        $numeric = is_numeric($this->barns_count) ? (float) $this->barns_count : -1;
+        if ($numeric < 1 || (int) $numeric != $numeric) {
+            throw ValidationException::withMessages([
+                'barns_count' => 'عدد العنابر يجب أن يكون عدداً صحيحاً لا يقل عن 1.',
+            ]);
+        }
     }
 
     public function syncCostsFromSnapshot(): void
@@ -263,6 +316,16 @@ class PoultryQuotation extends Model
         return (float) ($item['total_price'] ?? 0);
     }
 
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
+    public function quoteType(): BelongsTo
+    {
+        return $this->belongsTo(Lookup::class, 'quote_type_id');
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
@@ -299,44 +362,9 @@ class PoultryQuotation extends Model
 
     public function getWhatsAppShareUrlAttribute(): string
     {
-        $total = number_format((float) $this->total, 0);
-        $subtotal = number_format((float) $this->subtotal, 0);
-        $vat = number_format((float) $this->vat_amount, 0);
-        $companyName = settings('company.name_ar', 'إم آي للصناعات المعدنية');
+        $welcome = app(\App\Services\Poultry\PoultryWelcomeWhatsApp::class);
 
-        $lines = [
-            'السلام عليكم،',
-            '',
-            '*عرض سعر تقديري* 🏭',
-            '',
-            "👤 *العميل:* {$this->client_name}",
-            '📋 *النوع:* '.$this->project_type_label,
-            "📐 *الأبعاد:* {$this->length} × {$this->width} × {$this->height} م",
-            '🐔 *السعة:* '.number_format($this->bird_count).' طائر',
-            '',
-            "💰 *المجموع:* {$subtotal} ج.م",
-        ];
-
-        if ((float) $this->vat_amount > 0) {
-            $lines[] = "📊 *الضريبة ({$this->vat_percentage}%):* {$vat} ج.م";
-        }
-
-        $lines[] = '';
-        $lines[] = "✅ *الإجمالي النهائي:* {$total} ج.م*";
-        $lines[] = '';
-        $lines[] = "📎 رقم العرض: {$this->quote_number}";
-
-        if ($this->image_url) {
-            $lines[] = '';
-            $lines[] = '🖼️ صورة العرض: '.$this->image_url;
-        }
-
-        $lines[] = '';
-        $lines[] = "{$companyName}";
-        $lines[] = '📞 للاستفسار: '.settings('company.phone', '+201026253004');
-
-        $text = urlencode(implode("\n", $lines));
-
-        return "https://wa.me/?text={$text}";
+        return $welcome->link($this)
+            ?? 'https://wa.me/?text='.urlencode($welcome->message($this));
     }
 }

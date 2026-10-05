@@ -34,17 +34,6 @@ class PoultryTechnicalCalculator
         $projectType = PoultryProjectType::from($input['project_type'] ?? PoultryProjectType::Broiler->value);
 
         $barnLength = (float) $input['barn_length'];
-        $serviceLength = (float) ($input['service_length'] ?? $config['default_service_length'] ?? 0);
-
-        if ($barnLength <= $serviceLength) {
-            throw new InvalidArgumentException(
-                "طول العنبر ({$barnLength}م) يجب أن يكون أكبر من منطقة الخدمات ({$serviceLength}م)"
-            );
-        }
-
-        // result must be even — round up by 1 if odd (e.g. 81-10=71 → 72)
-        $raw = $barnLength - $serviceLength;
-        $effectiveLength = fmod($raw, 2) == 0 ? $raw : $raw + 1;
         $lines = (int) ($input['lines'] ?? $this->resolveLinesFromWidth((float) ($input['barn_width'] ?? 0), $config));
         $tiers = (int) $input['tiers'];
 
@@ -52,11 +41,81 @@ class PoultryTechnicalCalculator
             throw new InvalidArgumentException('عدد الخطوط والأدوار يجب أن يكون أكبر من صفر');
         }
 
+        [$effectiveLength, $serviceLength] = match ($projectType) {
+            PoultryProjectType::Broiler => $this->resolveBroilerEffectiveLength($barnLength, $input, $config),
+            PoultryProjectType::Layer => $this->resolveLayerEffectiveLength($barnLength, $input, $config),
+            PoultryProjectType::LayerRearing => throw new InvalidArgumentException('حاسبة تربية البياض غير مفعّلة بعد'),
+        };
+
+        if ($barnLength <= $serviceLength || $effectiveLength <= 0) {
+            throw new InvalidArgumentException(
+                "طول العنبر ({$barnLength}م) يجب أن يكون أكبر من منطقة الخدمات ({$serviceLength}م)"
+            );
+        }
+
+        $input['service_length'] = $serviceLength;
+
         return match ($projectType) {
             PoultryProjectType::Broiler => $this->computeBroiler($input, $config, $barnLength, $effectiveLength, $lines, $tiers),
             PoultryProjectType::Layer => $this->computeLayer($input, $config, $barnLength, $effectiveLength, $lines, $tiers),
             PoultryProjectType::LayerRearing => throw new InvalidArgumentException('حاسبة تربية البياض غير مفعّلة بعد'),
         };
+    }
+
+    /**
+     * تسمين: زوجي → −10 | فردي < 110 → −9 | فردي ≥ 110 → −11
+     *
+     * @return array{0: float, 1: float} [effective, service]
+     */
+    public function resolveBroilerEffectiveLength(float $barnLength, array $input = [], array $config = []): array
+    {
+        if (array_key_exists('service_length', $input) && $input['service_length'] !== null && $input['service_length'] !== '') {
+            $service = (float) $input['service_length'];
+            $raw = $barnLength - $service;
+            $effective = fmod($raw, 2) == 0 ? $raw : $raw + 1;
+
+            return [(float) $effective, $service];
+        }
+
+        $len = (int) round($barnLength);
+        $deduction = ($len % 2 === 0)
+            ? 10
+            : ($len < 110 ? 9 : 11);
+
+        $effective = $barnLength - $deduction;
+
+        return [(float) $effective, (float) $deduction];
+    }
+
+    /**
+     * بياض: خصم ≈ 8م بحيث الطول الفعال يقبل القسمة على 0.60 والناتج زوجي.
+     *
+     * @return array{0: float, 1: float} [effective, service]
+     */
+    public function resolveLayerEffectiveLength(float $barnLength, array $input = [], array $config = []): array
+    {
+        if (array_key_exists('service_length', $input) && $input['service_length'] !== null && $input['service_length'] !== '') {
+            $service = (float) $input['service_length'];
+            $raw = $barnLength - $service;
+            $modules = (int) floor($raw / 0.60);
+            if ($modules % 2 !== 0) {
+                $modules--;
+            }
+            $effective = max(0, $modules) * 0.60;
+
+            return [(float) $effective, round($barnLength - $effective, 3)];
+        }
+
+        $approxService = (float) ($config['layer_approx_service_length'] ?? 8);
+        $target = $barnLength - $approxService;
+        $modules = (int) floor($target / 0.60);
+        if ($modules % 2 !== 0) {
+            $modules--;
+        }
+        $effective = max(0, $modules) * 0.60;
+        $service = round($barnLength - $effective, 3);
+
+        return [(float) $effective, $service];
     }
 
     /**

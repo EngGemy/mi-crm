@@ -226,14 +226,39 @@ class ContractResource extends Resource
                                     ->live(onBlur: true)
                                     ->afterStateUpdated(fn () => self::recalculate()),
 
+                                Forms\Components\Toggle::make('include_vat')
+                                    ->label('إضافة الضريبة للعقد')
+                                    ->helperText('لو مش متعلم، الضريبة مش بتتحسب ومش بتظهر في العقد.')
+                                    ->default(false)
+                                    ->dehydrated(false)
+                                    ->live()
+                                    ->columnSpanFull()
+                                    ->afterStateHydrated(function (Forms\Components\Toggle $component, ?Contract $record): void {
+                                        if ($record) {
+                                            $component->state((float) $record->vat_percentage > 0);
+                                        }
+                                    })
+                                    ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get): void {
+                                        if (! $state) {
+                                            $set('vat_percentage', 0);
+
+                                            return;
+                                        }
+
+                                        if ((float) $get('vat_percentage') <= 0) {
+                                            $set('vat_percentage', 14);
+                                        }
+                                    }),
+
                                 Forms\Components\TextInput::make('vat_percentage')
                                     ->label('نسبة الضريبة %')
                                     ->numeric()
                                     ->type('text')
                                     ->suffix('%')
-                                    ->default(15)
-                                    ->helperText('15% في السعودية، 14% في مصر')
+                                    ->default(0)
+                                    ->helperText('14% في مصر، 15% في السعودية')
                                     ->live(onBlur: true)
+                                    ->visible(fn (Forms\Get $get): bool => (bool) $get('include_vat'))
                                     ->afterStateUpdated(fn () => self::recalculate()),
 
                                 Forms\Components\Select::make('currency')
@@ -263,6 +288,7 @@ class ContractResource extends Resource
 
                                 Forms\Components\Placeholder::make('vat_live_display')
                                     ->label('الضريبة')
+                                    ->visible(fn (Forms\Get $get): bool => (bool) $get('include_vat'))
                                     ->content(fn (Forms\Get $get) => self::formatContractMoney($get, 'vat_amount')),
 
                                 Forms\Components\Placeholder::make('total_display')
@@ -622,6 +648,21 @@ class ContractResource extends Resource
     public static function estimateTotalValueFromData(array $data): float
     {
         return ContractCalculator::calculateContract($data)['total_value'];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    public static function applyVatChoice(array $data, bool $includeVat): array
+    {
+        if (! $includeVat) {
+            $data['vat_percentage'] = 0;
+        } elseif ((float) ($data['vat_percentage'] ?? 0) <= 0) {
+            $data['vat_percentage'] = 14;
+        }
+
+        return $data;
     }
 
     public static function getPages(): array
