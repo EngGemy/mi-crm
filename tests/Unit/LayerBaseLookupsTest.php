@@ -39,6 +39,19 @@ class LayerBaseLookupsTest extends TestCase
         ]);
     }
 
+    public function test_equipment_dropdowns_are_filled_by_migration_without_a_seeder(): void
+    {
+        $this->assertSame(
+            ['1 ماتور', '2 ماتور', '3 ماتور'],
+            array_values(Lookup::options(Lookup::TYPE_MANURE_MOTOR_COUNT))
+        );
+        $this->assertSame(['1.5 حصان'], array_values(Lookup::options(Lookup::TYPE_MOTOR_POWER)));
+        $this->assertSame(['3 سيور', '4 سيور', '5 سيور'], array_values(Lookup::options(Lookup::TYPE_BELTS_PER_LINE)));
+        $this->assertSame(['12 متر'], array_values(Lookup::options(Lookup::TYPE_INNER_BELT_LENGTH)));
+        $this->assertSame(['8 متر'], array_values(Lookup::options(Lookup::TYPE_OUTER_BELT_LENGTH)));
+        $this->assertSame(['11 طن', '14 طن', '17 طن'], array_values(Lookup::options(Lookup::TYPE_SILO_CAPACITY)));
+    }
+
     public function test_seeder_keeps_layer_rows_and_does_not_replace_broiler_belts(): void
     {
         $this->seed(LookupSeeder::class);
