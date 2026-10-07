@@ -343,7 +343,6 @@ class LayersDocument
     private function images(): array
     {
         $map = config('quotations.layers.images', []);
-        $directory = resource_path('quotations/layers');
         $images = [];
 
         foreach ($map as $section => $files) {
@@ -352,8 +351,8 @@ class LayersDocument
             }
             $images[$section] = [];
             foreach ($files as $file) {
-                $path = $directory.DIRECTORY_SEPARATOR.$file;
-                if (! is_file($path)) {
+                $path = $this->imageFile((string) $file);
+                if ($path === null) {
                     continue;
                 }
                 $size = @getimagesize($path);
@@ -373,6 +372,27 @@ class LayersDocument
         }
 
         return $images;
+    }
+
+    private function imageFile(string $file): ?string
+    {
+        $base = pathinfo($file, PATHINFO_FILENAME);
+        $names = array_values(array_unique([$file, $base.'.jpg', $base.'.png']));
+        $directories = [
+            resource_path('quotations/layers'),
+            base_path('docs/quotations/layers/media'),
+        ];
+
+        foreach ($directories as $directory) {
+            foreach ($names as $name) {
+                $path = $directory.DIRECTORY_SEPARATOR.$name;
+                if (is_file($path)) {
+                    return $path;
+                }
+            }
+        }
+
+        return null;
     }
 
     /** @return array{name: string, accent: string, address: string, phone: string, email: string} */
