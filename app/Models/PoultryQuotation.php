@@ -5,6 +5,8 @@ namespace App\Models;
 use App\Enums\PoultryPricingScope;
 use App\Enums\PoultryProjectType;
 use App\Models\Concerns\NormalizesMoneyAttributes;
+use App\Quotations\Exceptions\LayerRearingDisabledException;
+use App\Quotations\QuotationTemplateResolver;
 use App\Services\PoultryHousePricingService;
 use App\Services\Poultry\ProposalSnapshotFreezer;
 use App\Support\FinancialEngine;
@@ -56,6 +58,7 @@ class PoultryQuotation extends Model
         'inner_belt_length_id',
         'outer_belt_length_id',
         'silo_capacity_id',
+        'layer_specs',
         'side_fans_count',
         'heaters_count',
         'bird_count',
@@ -103,6 +106,7 @@ class PoultryQuotation extends Model
         'internal_columns' => 'integer',
         'exchange_rate' => 'decimal:4',
         'barns_count' => 'integer',
+        'layer_specs' => 'array',
         'cooling_units' => 'decimal:2',
         'concrete_cost' => 'decimal:2',
         'steel_cost' => 'decimal:2',
@@ -149,6 +153,8 @@ class PoultryQuotation extends Model
             if (empty($quotation->issued_at)) {
                 $quotation->issued_at = now();
             }
+
+            $quotation->freezeQuoteTypeId();
         });
 
         static::saving(function (PoultryQuotation $quotation) {
@@ -186,6 +192,27 @@ class PoultryQuotation extends Model
                 }
             }
         });
+    }
+
+    /**
+     * يثبّت قالب العرض عند الإنشاء. تربية البياض المعطّلة تبقى بلا quote_type_id
+     * حتى يُفعَّل العلم، والرسم عندها يرمي استثناء الـ Resolver.
+     */
+    protected function freezeQuoteTypeId(): void
+    {
+        if (! empty($this->quote_type_id)) {
+            return;
+        }
+
+        try {
+            $quoteTypeId = app(QuotationTemplateResolver::class)->quoteTypeIdFor($this);
+        } catch (LayerRearingDisabledException) {
+            return;
+        }
+
+        if ($quoteTypeId !== null) {
+            $this->quote_type_id = $quoteTypeId;
+        }
     }
 
     public function autoCompute(): void

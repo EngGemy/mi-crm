@@ -160,6 +160,25 @@ class ViewPoultryQuotation extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('previewQuote')
+                ->label('معاينة عرض السعر')
+                ->icon('heroicon-o-eye')
+                ->color('gray')
+                ->modalHeading('معاينة عرض السعر')
+                ->modalSubmitAction(false)
+                ->modalCancelActionLabel('إغلاق')
+                ->modalWidth('7xl')
+                ->modalContent(fn () => view('filament.poultry.quotation-preview', [
+                    'previewUrl' => route('poultry-quotations.pdf', ['record' => $this->record, 'inline' => 1]),
+                ]))
+                ->extraModalFooterActions([
+                    Actions\Action::make('downloadQuotePdf')
+                        ->label('تحميل PDF')
+                        ->icon('heroicon-o-arrow-down-tray')
+                        ->url(fn () => route('poultry-quotations.pdf', $this->record))
+                        ->openUrlInNewTab(),
+                ]),
+
             Actions\Action::make('changeBirdWeight')
                 ->label('تغيير وزن الطائر')
                 ->icon('heroicon-o-scale')

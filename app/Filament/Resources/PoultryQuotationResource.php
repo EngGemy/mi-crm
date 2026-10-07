@@ -15,6 +15,7 @@ use App\Services\Poultry\PoultryQuoteAccess;
 use Illuminate\Database\Eloquent\Builder;
 use App\Support\BroilerWeightReference;
 use App\Support\HeaterOptions;
+use App\Support\LayerBaseLookups;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -79,6 +80,7 @@ class PoultryQuotationResource extends Resource
                         ...static::customerStepSchema($live),
                         ...static::quoteSetupStepSchema($live),
                         ...static::barnStepSchema($live),
+                        ...static::layerSpecSchema($live),
                         ...static::equipmentStepSchema($live),
                     ])
                         ->columnSpan(['default' => 1, 'lg' => 7])
@@ -200,6 +202,11 @@ class PoultryQuotationResource extends Resource
                         ->live()
                         ->afterStateUpdated(function (Set $set, Get $get) use ($live) {
                             $set('height', '4');
+                            if (PoultryProjectType::tryFrom((string) $get('project_type'))?->isLayer()) {
+                                static::applyLayerSpecDefaults($set, $get);
+                            } else {
+                                $set('birds_per_nest', null);
+                            }
                             $live($set, $get);
                         }),
 
@@ -346,7 +353,7 @@ class PoultryQuotationResource extends Resource
                                 ->label('نوع الحوائط')
                                 ->options(['sandwich' => 'ساندوتش بانل', 'cement' => 'خرسانة'])
                                 ->default('sandwich')
-                                ->visible(fn (Get $get) => static::showsWallTypeField($get))
+                                ->visible(fn (Get $get) => static::isLayerProject($get) || static::showsWallTypeField($get))
                                 ->native(false)
                                 ->live()
                                 ->afterStateUpdated($live),
@@ -358,6 +365,66 @@ class PoultryQuotationResource extends Resource
                 ])
                 ->columns(['default' => 2, 'sm' => 3]),
         ];
+    }
+
+    /** @param  \Closure  $live */
+    protected static function layerSpecSchema(\Closure $live): array
+    {
+        $fields = [];
+        foreach (LayerBaseLookups::fields() as $key => $field) {
+            $type = $field['type'];
+            $select = Forms\Components\Select::make('layer_specs.'.$key)
+                ->label($field['label'])
+                ->options(fn () => Lookup::options($type))
+                ->default(fn () => Lookup::defaultId($type))
+                ->native(false)
+                ->searchable()
+                ->live();
+
+            if ($field['rate']) {
+                $select->helperText(function (Get $get) use ($key, $type): string {
+                    $specs = $get('layer_specs');
+                    $base = LayerBaseLookups::numericOf(is_array($specs) ? ($specs[$key] ?? null) : null)
+                        ?? LayerBaseLookups::defaultNumeric($type);
+                    $rate = LayerBaseLookups::rateFromBase($base);
+
+                    return 'القيمة الأساسية '.LayerBaseLookups::formatNumber($base).' — المعدل (النصف) '.LayerBaseLookups::formatNumber($rate);
+                });
+            } else {
+                $select
+                    ->helperText($field['calc'] === 'birds'
+                        ? 'يدخل في سعة العنبر. الافتراضي 10، والبديل 9.'
+                        : 'خصم منطقة الخدمات. الافتراضي 8 م².')
+                    ->afterStateUpdated($live);
+            }
+
+            $fields[] = $select;
+        }
+
+        return [
+            Forms\Components\Section::make('مواصفات البياض')
+                ->description('تظهر مع إنتاج البياض. الأحمر في الورقة هو الافتراضي، والمعدل = نصف القيمة الأساسية. القوائم تتعدل من الإعدادات ← قوائم الخيارات.')
+                ->icon('heroicon-o-adjustments-horizontal')
+                ->visible(fn (Get $get) => static::isLayerProject($get))
+                ->schema($fields)
+                ->columns(['default' => 1, 'sm' => 2]),
+        ];
+    }
+
+    protected static function applyLayerSpecDefaults(Set $set, Get $get): void
+    {
+        $specs = $get('layer_specs');
+        if (! is_array($specs)) {
+            $specs = [];
+        }
+
+        foreach (LayerBaseLookups::defaultState() as $key => $id) {
+            if (blank($specs[$key] ?? null) && $id !== null) {
+                $specs[$key] = $id;
+            }
+        }
+
+        $set('layer_specs', $specs);
     }
 
     /** @param  \Closure  $live */
@@ -496,6 +563,25 @@ class PoultryQuotationResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make()->label('عرض'),
                 Tables\Actions\EditAction::make()->label('تعديل'),
+
+                Tables\Actions\Action::make('previewQuote')
+                    ->label('معاينة عرض السعر')
+                    ->icon('heroicon-o-eye')
+                    ->color('gray')
+                    ->modalHeading('معاينة عرض السعر')
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('إغلاق')
+                    ->modalWidth('7xl')
+                    ->modalContent(fn (PoultryQuotation $record) => view('filament.poultry.quotation-preview', [
+                        'previewUrl' => route('poultry-quotations.pdf', ['record' => $record, 'inline' => 1]),
+                    ]))
+                    ->extraModalFooterActions([
+                        Tables\Actions\Action::make('downloadQuotePdf')
+                            ->label('تحميل PDF')
+                            ->icon('heroicon-o-arrow-down-tray')
+                            ->url(fn (PoultryQuotation $record) => route('poultry-quotations.pdf', $record))
+                            ->openUrlInNewTab(),
+                    ]),
 
                 Tables\Actions\Action::make('downloadPdf')
                     ->label('PDF')

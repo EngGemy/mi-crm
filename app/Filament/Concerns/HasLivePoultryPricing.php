@@ -8,7 +8,9 @@ use App\Models\QuotationSection;
 use App\Services\Poultry\PoultryConfigLoader;
 use App\Services\Poultry\PoultryTechnicalCalculator;
 use App\Services\PoultryHousePricingService;
+use App\Models\Lookup;
 use App\Support\BroilerWeightReference;
+use App\Support\LayerBaseLookups;
 use Filament\Forms;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
@@ -60,6 +62,10 @@ trait HasLivePoultryPricing
                 }
             }
 
+            $isLayer = PoultryProjectType::tryFrom($projectType)?->isLayer() ?? false;
+            $layerSpecs = $get('layer_specs');
+            $layerSpecs = is_array($layerSpecs) ? $layerSpecs : [];
+
             $input = [
                 'project_type' => $projectType,
                 'pricing_scope' => $get('pricing_scope') ?? PoultryPricingScope::FullProject->value,
@@ -69,7 +75,11 @@ trait HasLivePoultryPricing
                 'tiers' => $tiers,
                 'lines' => $lines,
                 'bird_weight_kg' => $birdWeight,
-                'birds_per_nest' => $get('birds_per_nest'),
+                'birds_per_nest' => $isLayer
+                    ? (LayerBaseLookups::numericOf($layerSpecs['birds_id'] ?? null)
+                        ?? LayerBaseLookups::defaultNumeric(Lookup::TYPE_LAYER_BIRDS)
+                        ?? 10)
+                    : $get('birds_per_nest'),
                 'side_fans_count' => $get('side_fans_count') ?: null,
                 'heaters_count' => $get('heaters_count') ?: null,
                 'internal_columns' => (int) ($get('internal_columns') ?? 0),
@@ -83,6 +93,10 @@ trait HasLivePoultryPricing
 
             if (! $autoService) {
                 $input['service_length'] = (float) ($get('service_length') ?? $get('dead_zone_meters') ?? 10);
+            } elseif ($isLayer) {
+                $input['service_length'] = LayerBaseLookups::numericOf($layerSpecs['service_id'] ?? null)
+                    ?? LayerBaseLookups::defaultNumeric(Lookup::TYPE_LAYER_SERVICE)
+                    ?? 8;
             }
 
             $result = app(PoultryHousePricingService::class)->compute($input);
@@ -216,6 +230,11 @@ trait HasLivePoultryPricing
             PoultryPricingScope::BatteriesAndAccessories->value,
             PoultryPricingScope::Custom->value,
         ], true);
+    }
+
+    protected static function isLayerProject(Get $get): bool
+    {
+        return PoultryProjectType::tryFrom(static::resolveProjectTypeFromForm($get))?->isLayer() ?? false;
     }
 
     protected static function showsWallTypeField(Get $get): bool
@@ -352,6 +371,17 @@ trait HasLivePoultryPricing
                         $rows[] = ['سعة الطيور', e(number_format($c['bird_count_total'] ?? $c['bird_count'] ?? ($get('bird_count') ?? 0))), false];
                         $rows[] = ['مساحة الإيواء', e(number_format($c['housing_area'] ?? 0, 1).' م²'), false];
                         $rows[] = ['كثافة الأرضية', e(number_format($c['floor_density'] ?? 0, 2).' طائر/م²'), false];
+                    }
+
+                    if (PoultryProjectType::tryFrom(static::resolveProjectTypeFromForm($get))?->isLayer()) {
+                        $specs = $get('layer_specs');
+                        foreach (LayerBaseLookups::rateRows(is_array($specs) ? $specs : null) as $rateRow) {
+                            $rows[] = [
+                                $rateRow['label'],
+                                'أساسي '.$rateRow['base'].' — معدل '.$rateRow['rate'],
+                                false,
+                            ];
+                        }
                     }
 
                     $rows[] = ['الإجمالي المبدئي', '<strong style="color:#C00000;font-size:16px">'.e(number_format($estimated > 0 ? $estimated : (float) ($preview['subtotal'] ?? 0), 0).' ج.م').'</strong>', true];

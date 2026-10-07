@@ -7,6 +7,7 @@ use App\Listeners\AuthEventListener;
 use App\Models\QuotationItem;
 use App\Observers\AuditObserver;
 use App\Observers\QuotationItemObserver;
+use App\Quotations\QuotationTemplateResolver;
 use App\Services\WhatsApp\LogDriver;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
@@ -26,6 +27,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(WhatsAppGateway::class, function () {
             return new LogDriver;
         });
+
+        $this->app->singleton(QuotationTemplateResolver::class);
     }
 
     public function boot(): void

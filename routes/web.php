@@ -4,6 +4,8 @@ use App\Http\Controllers\Api\PoultryPricingController;
 use App\Http\Controllers\ContractController;
 use App\Http\Controllers\PublicQuotationController;
 use App\Http\Controllers\QuotationController;
+use App\Quotations\Exceptions\LayerRearingDisabledException;
+use App\Quotations\QuotationTemplateResolver;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -13,7 +15,9 @@ Route::get('/', function () {
 // رابط عرض السعر داخل رسالة الواتساب. التوقيع يغني عن تسجيل الدخول.
 Route::get('/poultry-quotations/{record}/welcome.pdf', function (App\Models\PoultryQuotation $record) {
     try {
-        return app(App\Services\Poultry\MiProposalPdfGenerator::class)->download($record);
+        return app(QuotationTemplateResolver::class)->resolve($record)->render($record);
+    } catch (LayerRearingDisabledException $e) {
+        abort(422, $e->getMessage());
     } catch (\Throwable $e) {
         report($e);
         abort(500, 'تعذر إنشاء ملف PDF.');
@@ -29,7 +33,15 @@ Route::middleware(['auth'])->group(function () {
         }
 
         try {
-            return app(App\Services\Poultry\MiProposalPdfGenerator::class)->download($record);
+            $response = app(QuotationTemplateResolver::class)->resolve($record)->render($record);
+            if (request()->boolean('inline')) {
+                $disposition = (string) $response->headers->get('Content-Disposition');
+                $response->headers->set('Content-Disposition', preg_replace('/^attachment/i', 'inline', $disposition) ?: 'inline');
+            }
+
+            return $response;
+        } catch (LayerRearingDisabledException $e) {
+            abort(422, $e->getMessage());
         } catch (\Throwable $e) {
             report($e);
             abort(500, 'تعذر إنشاء ملف PDF. راجع سجل الأخطاء.');

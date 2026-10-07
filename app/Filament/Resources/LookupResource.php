@@ -58,6 +58,9 @@ class LookupResource extends Resource
             Forms\Components\Toggle::make('is_active')
                 ->label('مفعّل')
                 ->default(true),
+            Forms\Components\Toggle::make('meta.is_default')
+                ->label('القيمة الافتراضية')
+                ->helperText('تظهر مختارة في حاسبة البياض. تفعيلها يلغي الافتراضي السابق لنفس القائمة.'),
         ])->columns(2);
     }
 
@@ -74,6 +77,10 @@ class LookupResource extends Resource
                 Tables\Columns\TextColumn::make('value')->label('القيمة'),
                 Tables\Columns\TextColumn::make('sort_order')->label('الترتيب')->sortable(),
                 Tables\Columns\IconColumn::make('is_active')->label('مفعّل')->boolean(),
+                Tables\Columns\IconColumn::make('meta.is_default')
+                    ->label('افتراضي')
+                    ->boolean()
+                    ->getStateUsing(fn (Lookup $record): bool => (bool) data_get($record->meta, 'is_default')),
             ])
             ->defaultSort('type')
             ->filters([

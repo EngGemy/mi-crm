@@ -26,6 +26,11 @@ enum PoultryProjectType: string
         return $this === self::Broiler || $this === self::BroilerAutoExit;
     }
 
+    public function isLayer(): bool
+    {
+        return $this->pricesAs() === self::Layer;
+    }
+
     /**
      * سعر الطائر بالدولار. 4 أدوار فأكثر بسعر الأربع أدوار، وأقل من ذلك بسعر الثلاث.
      */

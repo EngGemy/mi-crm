@@ -14,5 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
         //
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        $exceptions->render(function (\App\Quotations\Exceptions\LayerRearingDisabledException $e) {
+            return response($e->getMessage(), 422);
+        });
     })->create();

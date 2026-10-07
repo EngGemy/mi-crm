@@ -99,3 +99,5 @@ yarn-error.log
 /extract_pdf*.php
 /old_contract.blade.php
 /backups/
+
+docs/quotations/**/*.docx

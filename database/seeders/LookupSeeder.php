@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Lookup;
+use App\Support\LayerBaseLookups;
 use Illuminate\Database\Seeder;
 
 class LookupSeeder extends Seeder
@@ -12,6 +13,7 @@ class LookupSeeder extends Seeder
         $groups = [
             Lookup::TYPE_QUOTE_TYPE => [
                 ['code' => 'batteries_broiler_eg', 'label_ar' => 'بطاريات فقط تسمين مصري', 'value' => 'batteries_only_broiler_eg'],
+                ['code' => 'batteries_layers_eg', 'label_ar' => 'بطاريات فقط بياض مصري', 'value' => 'batteries_only_layers_eg'],
             ],
             Lookup::TYPE_MANURE_MOTOR_COUNT => [
                 ['code' => '1', 'label_ar' => '1 ماتور', 'value' => '1'],
@@ -53,19 +55,25 @@ class LookupSeeder extends Seeder
             ],
         ];
 
+        $groups = array_merge($groups, LayerBaseLookups::groups());
+
         foreach ($groups as $type => $rows) {
             $codes = [];
             foreach ($rows as $i => $row) {
                 $codes[] = $row['code'];
+                $attributes = [
+                    'label_ar' => $row['label_ar'],
+                    'label_en' => $row['label_en'] ?? null,
+                    'value' => $row['value'],
+                    'sort_order' => $i + 1,
+                    'is_active' => true,
+                ];
+                if (array_key_exists('meta', $row)) {
+                    $attributes['meta'] = $row['meta'];
+                }
                 Lookup::updateOrCreate(
                     ['type' => $type, 'code' => $row['code']],
-                    [
-                        'label_ar' => $row['label_ar'],
-                        'label_en' => $row['label_en'] ?? null,
-                        'value' => $row['value'],
-                        'sort_order' => $i + 1,
-                        'is_active' => true,
-                    ]
+                    $attributes
                 );
             }
 
