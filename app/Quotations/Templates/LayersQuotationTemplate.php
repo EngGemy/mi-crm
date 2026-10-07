@@ -136,7 +136,13 @@ class LayersQuotationTemplate implements QuotationTemplate
             $docx = $pages->fill($q);
 
             return $pages->exportPdf($docx);
-        } catch (Throwable) {
+        } catch (Throwable $e) {
+            if (PHP_OS_FAMILY === 'Windows') {
+                throw $e;
+            }
+
+            report($e);
+
             return $this->htmlPdf($q);
         } finally {
             if (is_string($docx)) {

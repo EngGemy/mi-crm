@@ -30,18 +30,17 @@ class ShareCardPainter
         $image = imagecreatetruecolor($width, $height);
         imagealphablending($image, true);
 
-        $this->gradient($image, $width, $height);
-        $red = $this->color($image, 'C00000');
-        $gold = $this->color($image, 'E4C98A');
-        $cream = $this->color($image, 'F6F1E8');
-        $muted = $this->color($image, 'B7A89A');
-        $ink = $this->color($image, '1A120F');
-        $chip = $this->color($image, '2A211C');
+        $red = $this->color($image, 'C4161C');
+        $paper = $this->color($image, 'F6F1E8');
+        $ink = $this->color($image, '1A1614');
+        $muted = $this->color($image, '8C8178');
+        $line = $this->color($image, 'E4D8C8');
+        $card = $this->color($image, 'FFFCF8');
         $white = $this->color($image, 'FFFFFF');
+        $soft = $this->color($image, 'C9B8A4');
 
-        imagefilledrectangle($image, 0, 0, 390, $height, $this->color($image, '100E0C'));
-        imagefilledrectangle($image, 390, 0, 394, $height, $red);
-        imagefilledrectangle($image, 0, 0, $width, 8, $red);
+        imagefilledrectangle($image, 0, 0, $width, $height, $paper);
+        imagefilledrectangle($image, 0, 0, $width, 12, $red);
 
         $company = 'إم آي للصناعات المعدنية';
         try {
@@ -52,22 +51,35 @@ class ShareCardPainter
         } catch (\Throwable) {
         }
 
-        $this->center($image, 'MI', 64, 168, 195, $gold, $bold);
-        $this->center($image, 'METAL INDUSTRIES', 14, 214, 195, $cream, $regular);
-        imagefilledrectangle($image, 145, 236, 245, 238, $gold);
-        $this->centerFit($image, $company, 16, 278, 195, 330, $muted, $regular);
+        $pad = 52;
+        $right = $width - $pad;
+        $logoW = 198;
+        $logoH = $this->pasteLogo($image, $right - $logoW, 32, $logoW);
+        $lockupRight = $right - $logoW - 22;
+        $this->rightFit($image, $company, 22, 86, $lockupRight, 460, $ink, $bold);
+        $this->right($image, 'أقفاص الدواجن الأوتوماتيك', 15, 122, $lockupRight, $muted, $regular);
+        imagefilledrectangle($image, $lockupRight - 118, 142, $lockupRight, 145, $red);
 
-        $type = (string) ($quotation->project_type_label ?: 'عرض سعر');
-        $this->center($image, $type, 22, 360, 195, $cream, $bold);
-        $this->center($image, (string) ($quotation->quote_number ?: ''), 16, 500, 195, $gold, $bold);
-        $this->center($image, (string) ($quotation->created_at?->format('Y / m / d') ?: ''), 14, 536, 195, $muted, $regular);
+        $this->left($image, 'عرض سعر خاص', 16, 78, $pad, $red, $bold);
+        $quote = (string) ($quotation->quote_number ?: '');
+        if ($quote !== '') {
+            $this->left($image, $quote, 18, 114, $pad, $ink, $bold, false);
+        }
+        $date = (string) ($quotation->created_at?->format('Y / m / d') ?: '');
+        if ($date !== '') {
+            $this->left($image, $date, 14, 146, $pad, $muted, $regular, false);
+        }
 
-        $this->right($image, 'عرض سعر خاص', 16, 86, 1144, $gold, $bold);
+        imagefilledrectangle($image, $pad, 186, $right, 188, $line);
 
-        $this->right($image, 'مقدّم إلى', 16, 148, 1144, $muted, $regular);
-        $this->rightFit($image, (string) ($quotation->client_name ?: 'عميلنا الكريم'), 42, 210, 1144, 700, $cream, $bold);
-
-        imagefilledrectangle($image, 1064, 232, 1144, 235, $red);
+        $this->right($image, 'مقدّم إلى', 16, 232, $right, $muted, $regular);
+        $type = (string) ($quotation->project_type_label ?: '');
+        if ($type !== '') {
+            $labelWidth = $this->width($this->arabic->visual('مقدّم إلى'), 16, $regular);
+            $this->right($image, $type, 16, 232, $right - $labelWidth - 18, $red, $bold);
+        }
+        $this->rightFit($image, (string) ($quotation->client_name ?: 'عميلنا الكريم'), 46, 296, $right, 1096, $ink, $bold);
+        imagefilledrectangle($image, $right - 132, 314, $right, 318, $red);
 
         $metrics = [
             ['الطول', $this->meters((float) $quotation->length), 'متر'],
@@ -75,24 +87,28 @@ class ShareCardPainter
             ['الارتفاع', $this->meters((float) $quotation->height), 'متر'],
             ['السعة', number_format((int) $quotation->bird_count), 'طائر'],
         ];
-        $boxW = 166;
+        $boxW = 260;
         $gap = 18;
-        $boxY = 268;
-        $rightEdge = 1128;
+        $boxY = 348;
         foreach ($metrics as $index => [$label, $value, $unit]) {
-            $x = $rightEdge - (($index + 1) * $boxW) - ($index * $gap);
-            imagefilledrectangle($image, $x, $boxY, $x + $boxW, $boxY + 118, $chip);
-            $this->centerAt($image, $label, 14, $boxY + 32, $x, $boxW, $muted, $regular);
-            $this->centerAt($image, $value, 28, $boxY + 74, $x, $boxW, $white, $bold, false);
-            $this->centerAt($image, $unit, 13, $boxY + 102, $x, $boxW, $gold, $regular);
+            $x = $right - (($index + 1) * $boxW) - ($index * $gap);
+            $this->roundRect($image, $x, $boxY, $boxW, 112, 14, $line);
+            $this->roundRect($image, $x + 1, $boxY + 1, $boxW - 2, 110, 13, $card);
+            imagefilledrectangle($image, $x + 18, $boxY, $x + $boxW - 18, $boxY + 3, $red);
+            $this->centerAt($image, $label, 14, $boxY + 36, $x, $boxW, $muted, $regular);
+            $this->centerAt($image, $value, 30, $boxY + 76, $x, $boxW, $ink, $bold, false);
+            $this->centerAt($image, $unit, 13, $boxY + 100, $x, $boxW, $red, $regular);
         }
 
-        imagefilledrectangle($image, 410, 424, 1128, 574, $cream);
-        $this->right($image, 'الإجمالي التقريبي', 16, 472, 1096, $this->color($image, '8A8178'), $regular);
+        $this->roundRect($image, $pad, 484, $right - $pad, 112, 16, $ink);
+        $this->right($image, 'الإجمالي التقريبي', 16, 528, $right - 28, $soft, $regular);
         $amount = number_format($this->displayTotal($quotation), 0);
-        $this->right($image, $amount, 40, 540, 1096, $red, $bold, false);
-        $amountWidth = $this->width($amount, 40, $bold);
-        $this->right($image, 'جنيه', 20, 534, 1096 - $amountWidth - 16, $red, $bold);
+        $this->right($image, $amount, 36, 572, $right - 28, $white, $bold, false);
+        $amountWidth = $this->width($amount, 36, $bold);
+        $this->right($image, 'جنيه', 18, 572, $right - 28 - $amountWidth - 14, $white, $bold);
+        if ($type !== '') {
+            $this->left($image, $type, 16, 548, $pad + 28, $white, $bold);
+        }
 
         ob_start();
         imagepng($image, null, 6);
@@ -128,18 +144,49 @@ class ShareCardPainter
     }
 
     /** @param  \GdImage  $image */
-    private function gradient($image, int $width, int $height): void
+    private function pasteLogo($image, int $x, int $y, int $targetW): int
     {
-        for ($y = 0; $y < $height; $y++) {
-            $t = $y / max(1, $height - 1);
-            $color = imagecolorallocate(
-                $image,
-                (int) (28 + (14 - 28) * $t),
-                (int) (20 + (12 - 20) * $t),
-                (int) (18 + (11 - 18) * $t)
-            );
-            imageline($image, 0, $y, $width, $y, $color);
+        $path = public_path('images/brand/mi-logo.png');
+        if (! is_file($path)) {
+            return 0;
         }
+
+        $src = @imagecreatefrompng($path);
+        if ($src === false) {
+            return 0;
+        }
+
+        imagealphablending($src, true);
+        imagesavealpha($src, true);
+        $sourceW = imagesx($src);
+        $sourceH = imagesy($src);
+        $targetH = (int) round($targetW * ($sourceH / max(1, $sourceW)));
+        imagealphablending($image, true);
+        imagecopyresampled($image, $src, $x, $y, 0, 0, $targetW, $targetH, $sourceW, $sourceH);
+        imagedestroy($src);
+
+        return $targetH;
+    }
+
+    /** @param  \GdImage  $image */
+    private function roundRect($image, int $x, int $y, int $w, int $h, int $r, int $color): void
+    {
+        imagefilledrectangle($image, $x + $r, $y, $x + $w - $r, $y + $h, $color);
+        imagefilledrectangle($image, $x, $y + $r, $x + $w, $y + $h - $r, $color);
+        imagefilledellipse($image, $x + $r, $y + $r, $r * 2, $r * 2, $color);
+        imagefilledellipse($image, $x + $w - $r, $y + $r, $r * 2, $r * 2, $color);
+        imagefilledellipse($image, $x + $r, $y + $h - $r, $r * 2, $r * 2, $color);
+        imagefilledellipse($image, $x + $w - $r, $y + $h - $r, $r * 2, $r * 2, $color);
+    }
+
+    /** @param  \GdImage  $image */
+    private function left($image, string $text, int $size, int $baseline, int $x, int $color, string $font, bool $arabic = true): void
+    {
+        $visual = $arabic ? $this->arabic->visual($text) : $text;
+        if ($this->hasArabic($text)) {
+            $visual = $this->arabic->visual($text);
+        }
+        imagettftext($image, $size, 0, $x, $baseline, $color, $font, $visual);
     }
 
     /** @param  \GdImage  $image */

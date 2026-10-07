@@ -62,19 +62,35 @@ try {
   \$word = New-Object -ComObject Word.Application
   \$word.Visible = \$false
   \$word.DisplayAlerts = 0
-  \$doc = \$word.Documents.Open('{$docx}')
+  \$doc = \$word.Documents.Open('{$docx}', \$false, \$true, \$false)
   \$doc.ExportAsFixedFormat('{$pdf}', 17)
+} catch {
+  [Console]::Error.WriteLine(\$_.Exception.Message)
+  exit 1
 } finally {
   if (\$doc -ne \$null) { \$doc.Close(0) }
   if (\$word -ne \$null) { \$word.Quit() }
 }
 PS1);
 
-        exec('powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File '.escapeshellarg($scriptPath), $output, $code);
+        $detail = 'تأكد أن Microsoft Word مثبت.';
+        $code = 1;
+        for ($attempt = 1; $attempt <= 3; $attempt++) {
+            @unlink($pdfPath);
+            $output = [];
+            exec('powershell -NoProfile -STA -NonInteractive -ExecutionPolicy Bypass -File '.escapeshellarg($scriptPath).' 2>&1', $output, $code);
+            if ($code === 0 && is_file($pdfPath)) {
+                break;
+            }
+            $detail = trim(implode(' ', $output)) ?: $detail;
+            if ($attempt < 3) {
+                sleep(2);
+            }
+        }
         @unlink($scriptPath);
 
         if ($code !== 0 || ! is_file($pdfPath)) {
-            throw new RuntimeException('تعذر تصدير صفحات العرض الأصلية. تأكد أن Microsoft Word مثبت.');
+            throw new RuntimeException('تعذر تصدير صفحات ملف الوورد. '.$detail);
         }
 
         $bytes = file_get_contents($pdfPath);

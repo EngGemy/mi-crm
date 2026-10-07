@@ -32,8 +32,9 @@
         }
         .wrap { max-width: 880px; margin: 0 auto; padding: 36px 20px 56px; }
         .brand { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
-        .mark { font-weight: 800; letter-spacing: .18em; color: #e4c98a; font-size: 13px; }
-        .mark span { color: #f6f1e8; letter-spacing: .08em; font-weight: 600; }
+        .mark { display: flex; align-items: center; gap: 12px; }
+        .mark img { height: 52px; width: auto; display: block; }
+        .mark strong { font-size: 15px; font-weight: 700; color: #f6f1e8; }
         .card {
             background: #14110f;
             border: 1px solid rgba(228,201,138,.28);
@@ -67,7 +68,10 @@
 <body>
     <div class="wrap">
         <div class="brand">
-            <div class="mark">MI <span>METAL INDUSTRIES</span></div>
+            <div class="mark">
+                <img src="{{ asset('images/brand/mi-logo.png') }}" alt="{{ $company }}">
+                <strong>{{ $company }}</strong>
+            </div>
             <div>{{ $quotation->quote_number }}</div>
         </div>
 
