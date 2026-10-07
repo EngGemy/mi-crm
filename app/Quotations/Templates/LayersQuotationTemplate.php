@@ -7,6 +7,7 @@ use App\Models\PoultryQuotation;
 use App\Quotations\Contracts\QuotationTemplate;
 use App\Quotations\Layers\LayersDocument;
 use App\Quotations\Layers\LayersOriginalPages;
+use App\Quotations\Layers\LayersTemplateStamper;
 use Mccarlosen\LaravelMpdf\Facades\LaravelMpdf as PDF;
 use Throwable;
 use Illuminate\Http\Response;
@@ -137,11 +138,15 @@ class LayersQuotationTemplate implements QuotationTemplate
 
             return $pages->exportPdf($docx);
         } catch (Throwable $e) {
+            report($e);
+
+            if (is_file(resource_path('quotations/layers/template.pdf'))) {
+                return (new LayersTemplateStamper)->pdf($this->buildData($q));
+            }
+
             if (PHP_OS_FAMILY === 'Windows') {
                 throw $e;
             }
-
-            report($e);
 
             return $this->htmlPdf($q);
         } finally {
