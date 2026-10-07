@@ -7,6 +7,8 @@ use App\Models\PoultryQuotation;
 use App\Quotations\Contracts\QuotationTemplate;
 use App\Quotations\Layers\LayersDocument;
 use App\Quotations\Layers\LayersOriginalPages;
+use Mccarlosen\LaravelMpdf\Facades\LaravelMpdf as PDF;
+use Throwable;
 use Illuminate\Http\Response;
 
 class LayersQuotationTemplate implements QuotationTemplate
@@ -128,13 +130,69 @@ class LayersQuotationTemplate implements QuotationTemplate
     public function pdfBytes(PoultryQuotation $q): string
     {
         $pages = new LayersOriginalPages;
-        $docx = $pages->fill($q);
+        $docx = null;
 
         try {
+            $docx = $pages->fill($q);
+
             return $pages->exportPdf($docx);
+        } catch (Throwable) {
+            return $this->htmlPdf($q);
         } finally {
-            @unlink($docx);
+            if (is_string($docx)) {
+                @unlink($docx);
+            }
         }
+    }
+
+    /**
+     * مسار السيرفر: Word غير متاح على لينكس، فيُرسم العرض بـ mPDF.
+     */
+    private function htmlPdf(PoultryQuotation $q): string
+    {
+        $document = $this->buildData($q)['document'];
+        $styles = view('quotations.layers.styles', $document)->render();
+        $cover = view('quotations.layers.cover', $document)->render();
+        $body = view('quotations.layers.body', $document)->render();
+        $html = '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><style>'
+            .$styles
+            .'</style></head><body>'
+            .$cover
+            .$body
+            .'</body></html>';
+
+        $tempDir = storage_path('app/mpdf-temp');
+        if (! is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+
+        $fontDir = is_dir(public_path('fonts')) ? public_path('fonts/') : storage_path('fonts/');
+        $pdf = PDF::loadHTML($html, [
+            'mode' => 'utf-8',
+            'format' => 'A4',
+            'default_font' => 'cairo',
+            'default_font_size' => 11,
+            'margin_left' => 12,
+            'margin_right' => 12,
+            'margin_top' => 18,
+            'margin_bottom' => 16,
+            'margin_header' => 6,
+            'margin_footer' => 6,
+            'autoLangToFont' => true,
+            'autoScriptToLang' => true,
+            'tempDir' => $tempDir,
+            'custom_font_dir' => $fontDir,
+            'custom_font_data' => [
+                'cairo' => [
+                    'R' => 'Cairo-Regular.ttf',
+                    'B' => 'Cairo-Bold.ttf',
+                    'useOTL' => 0xFF,
+                    'useKashida' => 75,
+                ],
+            ],
+        ]);
+
+        return $pdf->output();
     }
 
     public function shareCardData(PoultryQuotation $q): array

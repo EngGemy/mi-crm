@@ -89,6 +89,9 @@ class LayersQuotationPdfTest extends TestCase
         $this->assertStringNotContainsString('6,789,120', $xml);
         $this->assertStringContainsString('دليل تطهير عنابر بطاريات الدواجن الأوتوماتيك', $xml);
         $this->assertStringContainsString('دمياط', $xml);
+
+        $bytes = $template->pdfBytes($quote->fresh());
+        $this->assertStringStartsWith('%PDF', $bytes);
     }
 
     public function test_broiler_pdf_data_is_unchanged(): void
