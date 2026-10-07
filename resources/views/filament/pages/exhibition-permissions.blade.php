@@ -4,7 +4,8 @@
             <h2 class="text-base font-bold">نص رسالة الواتساب</h2>
             <p class="text-xs text-gray-500">
                 تُرسل للعميل أول ما يُحفظ حساب السعر، ومعها رابط عرض السعر.
-                المتغيرات: {client_name} {quote_number} {project_type} {length} {width} {height} {total} {pdf_url}
+                المتغيرات: {client_name} {quote_number} {project_type} {length} {width} {height} {total} {share_url} {pdf_url}
+                ضع {share_url} أول رابط في النص حتى تظهر صورة الكارت داخل واتساب، و{pdf_url} لملف العرض.
             </p>
             <textarea wire:model="welcomeMessage" rows="8"
                 class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"></textarea>

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\PoultryPricingController;
 use App\Http\Controllers\ContractController;
+use App\Http\Controllers\PoultryShareCardController;
 use App\Http\Controllers\PublicQuotationController;
 use App\Http\Controllers\QuotationController;
 use App\Quotations\Exceptions\LayerRearingDisabledException;
@@ -23,6 +24,11 @@ Route::get('/poultry-quotations/{record}/welcome.pdf', function (App\Models\Poul
         abort(500, 'تعذر إنشاء ملف PDF.');
     }
 })->middleware('signed')->name('poultry-quotations.welcome-pdf');
+
+// صفحة المشاركة: صورتها تظهر داخل واتساب، ومنها يُفتح ملف العرض.
+Route::get('/p/{record}/share', [PoultryShareCardController::class, 'show'])
+    ->middleware('signed')
+    ->name('poultry-quotations.share');
 
 // PDF حاسبة أسعار الدواجن
 Route::middleware(['auth'])->group(function () {

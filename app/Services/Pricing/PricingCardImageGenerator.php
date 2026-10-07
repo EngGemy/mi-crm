@@ -15,12 +15,28 @@ class PricingCardImageGenerator
 {
     public function generate(PoultryQuotation $quotation): string
     {
-        $html = $this->renderHtml($quotation);
-
         $outputDir = storage_path('app/public/pricing-cards');
         if (! is_dir($outputDir)) {
             mkdir($outputDir, 0755, true);
         }
+
+        $name = preg_replace('/[^A-Za-z0-9\-_]/', '-', (string) ($quotation->quote_number ?: 'quote')) ?: 'quote';
+
+        try {
+            $pngPath = $outputDir.'/'.$name.'.png';
+            file_put_contents($pngPath, app(ShareCardPainter::class)->png($quotation));
+
+            return 'public/pricing-cards/'.$name.'.png';
+        } catch (Throwable $e) {
+            report($e);
+        }
+
+        return $this->generatePdfCard($quotation, $outputDir, $name);
+    }
+
+    private function generatePdfCard(PoultryQuotation $quotation, string $outputDir, string $name): string
+    {
+        $html = $this->renderHtml($quotation);
 
         $tempDir = storage_path('app/mpdf-temp');
         if (! is_dir($tempDir)) {
@@ -54,17 +70,17 @@ class PricingCardImageGenerator
                 ],
             ]);
 
-            $pdfPath = $outputDir.'/'.$quotation->quote_number.'.pdf';
+            $pdfPath = $outputDir.'/'.$name.'.pdf';
             file_put_contents($pdfPath, $pdf->output());
 
-            $pngPath = $outputDir.'/'.$quotation->quote_number.'.png';
+            $pngPath = $outputDir.'/'.$name.'.png';
             if ($this->pdfToPng($pdfPath, $pngPath)) {
                 @unlink($pdfPath);
 
-                return 'public/pricing-cards/'.$quotation->quote_number.'.png';
+                return 'public/pricing-cards/'.$name.'.png';
             }
 
-            return 'public/pricing-cards/'.$quotation->quote_number.'.pdf';
+            return 'public/pricing-cards/'.$name.'.pdf';
         } catch (Throwable $e) {
             report($e);
 

@@ -596,7 +596,7 @@ class PoultryQuotationResource extends Resource
                     ->color('success')
                     ->requiresConfirmation()
                     ->modalHeading('توليد كارت السوشيال ميديا')
-                    ->modalDescription('سيتم إنشاء كارت مشاركة احترافي (بدون الحاجة لـ Node.js على السيرفر).')
+                    ->modalDescription('يُنشئ صورة الكارت التي تظهر مع رابط عرض السعر في رسالة الواتساب.')
                     ->action(function (PoultryQuotation $record) {
                         try {
                             $generator = app(PricingCardImageGenerator::class);

@@ -6,6 +6,7 @@ use App\Models\PoultryQuotation;
 use App\Models\User;
 use App\Services\Poultry\PoultryWelcomeWhatsApp;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 class PoultryWelcomeWhatsAppTest extends TestCase
@@ -21,12 +22,18 @@ class PoultryWelcomeWhatsAppTest extends TestCase
         $this->assertStringContainsString('السيد / محمد جمال عبد التواب،', $message);
         $this->assertStringContainsString('معرض أجرينا الشرق الأوسط 2026', $message);
         $this->assertStringContainsString('welcome.pdf', $message);
+        $this->assertMatchesRegularExpression('#https?://\S+/p/'.$quote->id.'/share\?#', $message);
+        $this->assertLessThan(
+            strpos($message, 'welcome.pdf'),
+            strpos($message, '/p/'.$quote->id.'/share')
+        );
 
         app(PoultryWelcomeWhatsApp::class)->saveTemplate('أهلاً {client_name} — عرض {quote_number}');
 
         $custom = app(PoultryWelcomeWhatsApp::class)->message($quote->fresh());
 
-        $this->assertSame('أهلاً محمد جمال عبد التواب — عرض '.$quote->quote_number, $custom);
+        $this->assertStringContainsString('أهلاً محمد جمال عبد التواب — عرض '.$quote->quote_number, $custom);
+        $this->assertStringStartsWith('http', $custom);
     }
 
     public function test_link_opens_that_clients_whatsapp_only(): void
@@ -41,6 +48,18 @@ class PoultryWelcomeWhatsAppTest extends TestCase
         $this->assertStringContainsString(urlencode('محمد جمال عبد التواب'), $link);
         $this->assertStringNotContainsString('201099999999', $link);
         $this->assertNotSame($link, app(PoultryWelcomeWhatsApp::class)->link($other));
+    }
+
+    public function test_share_page_exposes_the_card_image_and_the_quote_file(): void
+    {
+        $quote = $this->quote('محمد جمال عبد التواب', '01012345678');
+        $url = URL::temporarySignedRoute('poultry-quotations.share', now()->addHour(), ['record' => $quote->id]);
+
+        $this->get($url)
+            ->assertOk()
+            ->assertSee('og:image', false)
+            ->assertSee('فتح عرض السعر', false)
+            ->assertSee('welcome.pdf', false);
     }
 
     public function test_missing_phone_does_not_build_a_link(): void

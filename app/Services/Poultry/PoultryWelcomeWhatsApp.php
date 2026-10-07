@@ -23,6 +23,7 @@ class PoultryWelcomeWhatsApp
 الأبعاد: {length} × {width} × {height} متر
 الإجمالي: {total} ج.م
 
+بطاقة العرض: {share_url}
 تحميل العرض: {pdf_url}
 TXT;
 
@@ -33,7 +34,8 @@ TXT;
             $template = self::DEFAULT_TEMPLATE;
         }
 
-        return strtr($template, [
+        $share = $this->shareUrl($quotation);
+        $text = strtr($template, [
             '{client_name}' => $quotation->client_name ?: 'العميل',
             '{quote_number}' => (string) ($quotation->quote_number ?: '—'),
             '{project_type}' => $quotation->project_type_label ?: '—',
@@ -41,8 +43,46 @@ TXT;
             '{width}' => $this->amount($quotation->width),
             '{height}' => $this->amount($quotation->height),
             '{total}' => number_format((float) $quotation->total, 0),
+            '{share_url}' => $share,
             '{pdf_url}' => $this->pdfUrl($quotation),
         ]);
+
+        if ($share !== '' && ! str_contains($text, $share)) {
+            $text = $share."\n\n".$text;
+        }
+
+        return $text;
+    }
+
+    public function shareUrl(PoultryQuotation $quotation): string
+    {
+        if (! $quotation->exists) {
+            return '';
+        }
+
+        $this->ensureCard($quotation);
+
+        try {
+            return URL::temporarySignedRoute(
+                'poultry-quotations.share',
+                now()->addDays(45),
+                ['record' => $quotation->getKey()]
+            );
+        } catch (\Throwable) {
+            return '';
+        }
+    }
+
+    private function ensureCard(PoultryQuotation $quotation): void
+    {
+        try {
+            $path = app(\App\Services\Pricing\PricingCardImageGenerator::class)->generate($quotation);
+            if ($quotation->image_path !== $path) {
+                $quotation->forceFill(['image_path' => $path])->saveQuietly();
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     public function saveTemplate(string $template, ?int $userId = null): void
