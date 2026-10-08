@@ -139,8 +139,27 @@ body {
     <div class="footer">
         <table>
             <tr>
-                <td style="width:55%;">{{ $companyName }}</td>
-                <td class="ltr" style="width:45%;">{{ $quotation->quote_number }} · {{ $quotation->created_at?->format('Y-m-d') }}</td>
+                <td style="width:55%;">
+                    {{ $companyName }}
+                    @if(!empty($profile['address']))
+                        <div>{{ $profile['address'] }}</div>
+                    @endif
+                    @if(!empty($profile['phones']))
+                        <div class="ltr">{{ implode(' · ', array_slice($profile['phones'], 0, 3)) }}</div>
+                    @endif
+                </td>
+                <td class="ltr" style="width:45%;">
+                    {{ $quotation->quote_number }} · {{ $quotation->created_at?->format('Y-m-d') }}
+                    @if(!empty($profile['email']))
+                        <div>{{ $profile['email'] }}</div>
+                    @endif
+                    @if(!empty($profile['tax']) || !empty($profile['register']))
+                        <div>
+                            @if(!empty($profile['tax'])) ضريبي {{ $profile['tax'] }} @endif
+                            @if(!empty($profile['register'])) · سجل {{ $profile['register'] }} @endif
+                        </div>
+                    @endif
+                </td>
             </tr>
         </table>
     </div>

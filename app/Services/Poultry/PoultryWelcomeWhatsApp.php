@@ -51,6 +51,11 @@ TXT;
             $text = $share."\n\n".$text;
         }
 
+        $signature = $this->signature();
+        if ($signature !== '' && ! str_contains($text, $signature)) {
+            $text .= "\n\n".$signature;
+        }
+
         return $text;
     }
 
@@ -140,6 +145,25 @@ TXT;
         } catch (\Throwable) {
             return '';
         }
+    }
+
+    private function signature(): string
+    {
+        $profile = app(\App\Services\Pricing\ShareCardPainter::class)->profile();
+        $phones = implode(' · ', array_slice($profile['phones'], 0, 3));
+        $mail = trim($profile['email'].($profile['website'] !== '' ? ' · '.$profile['website'] : ''));
+        $legal = trim(implode(' · ', array_filter([
+            $profile['tax'] !== '' ? 'ضريبي '.$profile['tax'] : '',
+            $profile['register'] !== '' ? 'سجل '.$profile['register'] : '',
+        ])));
+
+        return implode("\n", array_filter([
+            $profile['name'],
+            $profile['address'],
+            $phones,
+            $mail,
+            $legal,
+        ], fn (string $line) => $line !== ''));
     }
 
     private function amount(mixed $value): string

@@ -31,14 +31,7 @@ class PoultryShareCardController extends Controller
             }
         }
 
-        $company = 'إم آي للصناعات المعدنية';
-        try {
-            $fromSettings = settings('company.name_ar');
-            if (is_string($fromSettings) && trim($fromSettings) !== '') {
-                $company = trim($fromSettings);
-            }
-        } catch (\Throwable) {
-        }
+        $profile = app(\App\Services\Pricing\ShareCardPainter::class)->profile();
 
         return view('poultry.share-card', [
             'quotation' => $record,
@@ -48,7 +41,8 @@ class PoultryShareCardController extends Controller
                 now()->addDays(45),
                 ['record' => $record->getKey()]
             ),
-            'company' => $company,
+            'company' => $profile['name'],
+            'profile' => $profile,
             'total' => $this->total($record),
         ]);
     }

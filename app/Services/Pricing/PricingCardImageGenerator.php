@@ -96,16 +96,13 @@ class PricingCardImageGenerator
             $displayTotal = (float) ($fin['total'] ?? $fin['grand_total'] ?? $quotation->subtotal ?? 0);
         }
 
-        $company = 'إم آي للصناعات المعدنية';
-        try {
-            $company = (string) settings('company.name_ar', $company);
-        } catch (Throwable) {
-        }
+        $profile = app(ShareCardPainter::class)->profile();
 
         return view('pricing-calculator.card', [
             'quotation' => $quotation,
             'displayTotal' => $displayTotal,
-            'companyName' => $company,
+            'companyName' => $profile['name'],
+            'profile' => $profile,
             'managerName' => env('SALES_MANAGER_NAME', 'م. كريم العش'),
         ])->render();
     }

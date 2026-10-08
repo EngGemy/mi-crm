@@ -91,6 +91,15 @@
                 @endif
             </div>
             <p class="note">{{ $company }} — الرابط خاص بهذا العرض.</p>
+            <p class="note">
+                {{ $profile['address'] ?? '' }}
+                @if(!empty($profile['phones']))
+                    · {{ implode(' · ', array_slice($profile['phones'], 0, 3)) }}
+                @endif
+                @if(!empty($profile['email']))
+                    · {{ $profile['email'] }}
+                @endif
+            </p>
         </div>
     </div>
 </body>
