@@ -341,8 +341,9 @@ class MiProposalPdfGeneratorTest extends TestCase
         $this->assertSame('25 طن', $rows[4]['value']);
         $this->assertSame('مكان المشروع', collect($rows)->last()['label']);
         $this->assertSame('كفر شيخ', collect($rows)->last()['value']);
-        $this->assertNotContains('الأعمدة الداخلية', collect($rows)->pluck('label')->all());
-        $this->assertNotContains('نوع السقف', collect($rows)->pluck('label')->all());
+        $labels = collect($rows)->pluck('label')->all();
+        $this->assertNotContains('الأعمدة الداخلية', $labels);
+        $this->assertNotContains('نوع السقف', $labels);
 
         $html = view('poultry.proposal.page2', $data)->render();
         $this->assertStringNotContainsString('<style', $html);

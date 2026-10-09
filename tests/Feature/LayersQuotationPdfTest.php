@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Lookup;
 use App\Models\PoultryQuotation;
 use App\Quotations\Templates\BroilerQuotationTemplate;
 use App\Quotations\Templates\LayersQuotationTemplate;
@@ -24,7 +25,7 @@ class LayersQuotationPdfTest extends TestCase
             'client_location' => 'القاهرة',
             'project_type' => 'layer',
             'length' => 90,
-            'width' => 12.5,
+            'width' => 16,
             'height' => 4,
             'tiers' => 4,
             'lines' => 4,
@@ -39,6 +40,11 @@ class LayersQuotationPdfTest extends TestCase
             'heaters_count' => 0,
             'exchange_rate' => 52,
             'barns_count' => 1,
+            'silo_capacity_id' => $this->lookup('silo_capacity', '25', '25 طن', '25'),
+            'outer_belt_length_id' => $this->lookup('outer_belt_length', '8', '8 متر', '8'),
+            'motor_power_id' => $this->lookup('motor_power', '1_hp', '1 حصان', '1'),
+            'manure_motor_count_id' => $this->lookup('manure_motor_count', '4', '4 ماتور', '4'),
+            'belts_per_line_id' => $this->lookup('belts_per_line', '3', '3 سيور', '3'),
             'pricing_snapshot' => [
                 'technical' => [
                     'effective_length' => 72,
@@ -83,15 +89,61 @@ class LayersQuotationPdfTest extends TestCase
         $zip->close();
         @unlink($path);
 
-        $this->assertStringContainsString('عميل الصفحات', $xml);
-        $this->assertStringContainsString('القاهرة', $xml);
-        $this->assertStringContainsString('12,5', $xml);
+        $this->assertSame([
+            'client' => true,
+            'location' => true,
+            'width' => true,
+            'silo' => true,
+            'inner' => true,
+            'power' => true,
+            'old_silo' => false,
+            'old_inner' => false,
+            'old_power' => false,
+            'motors' => true,
+            'belts' => true,
+            'egg_page' => false,
+            'saved_inner' => '20 متر',
+            'saved_silo' => '11 طن',
+            'saved_power' => '1 حصان',
+            'saved_motors' => '4 ماتور',
+            'saved_belts' => '3 سيور',
+        ], [
+            'client' => str_contains($xml, 'عميل الصفحات'),
+            'location' => str_contains($xml, 'القاهرة'),
+            'width' => ! str_contains($xml, '11,5'),
+            'silo' => str_contains($xml, '11 طن'),
+            'inner' => str_contains($xml, '20 متر'),
+            'power' => str_contains($xml, '1 حصان'),
+            'old_silo' => str_contains($xml, '25 طن'),
+            'old_inner' => str_contains($xml, '12 متر'),
+            'old_power' => str_contains($xml, '1.5 حصان'),
+            'motors' => str_contains(preg_replace('/\s+/u', '', strip_tags($xml)) ?? '', 'عدد4ماتور'),
+            'belts' => str_contains(preg_replace('/\s+/u', '', strip_tags($xml)) ?? '', '3سيور'),
+            'egg_page' => str_contains($xml, 'دولاب البيض'),
+            'saved_inner' => $quote->fresh()->innerBeltLength?->label_ar,
+            'saved_silo' => $quote->fresh()->siloCapacity?->label_ar,
+            'saved_power' => $quote->fresh()->motorPower?->label_ar,
+            'saved_motors' => $quote->fresh()->manureMotorCount?->label_ar,
+            'saved_belts' => $quote->fresh()->beltsPerLine?->label_ar,
+        ]);
         $this->assertStringNotContainsString('6,789,120', $xml);
         $this->assertStringContainsString('دليل تطهير عنابر بطاريات الدواجن الأوتوماتيك', $xml);
         $this->assertStringContainsString('دمياط', $xml);
 
         $bytes = $template->pdfBytes($quote->fresh());
         $this->assertStringStartsWith('%PDF', $bytes);
+    }
+
+    private function lookup(string $type, string $code, string $label, string $value): int
+    {
+        return (int) Lookup::query()->updateOrCreate(
+            ['type' => $type, 'code' => $code],
+            [
+                'label_ar' => $label,
+                'value' => $value,
+                'is_active' => true,
+            ],
+        )->id;
     }
 
     public function test_broiler_pdf_data_is_unchanged(): void

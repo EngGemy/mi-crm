@@ -48,9 +48,7 @@ class ProposalPage10Data
 
         $selected = $quotation->siloCapacity?->label_ar;
         $birds = (int) $quotation->bird_count * max(1, (int) ($quotation->barns_count ?: 1));
-        $siloLabel = PoultryProjectType::tryFrom($projectType)?->isBroiler()
-            ? SiloCapacity::labelForBirds($birds, is_string($selected) ? $selected : null)
-            : (is_string($selected) && $selected !== '' ? $selected : '25 طن');
+        $siloLabel = SiloCapacity::labelForBirds($birds, is_string($selected) ? $selected : null);
         $siloCount = (int) $quotation->silos_count;
         $siloLine = $siloCount > 1
             ? "+ عدد {$siloCount} سايلو سعة {$siloLabel} + بريمة مناولة سايلو\n"

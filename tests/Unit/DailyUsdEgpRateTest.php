@@ -28,7 +28,7 @@ class DailyUsdEgpRateTest extends TestCase
 
         $quote = (new DailyUsdEgpRate)->current();
 
-        $this->assertSame(48.73, $quote['rate']);
+        $this->assertSame(48.7, $quote['rate']);
         $this->assertSame('ExchangeRate-API', $quote['source']);
         $this->assertSame('Thu, 09 Oct 2026 00:02:31 +0000', $quote['as_of']);
         Http::assertSentCount(1);
@@ -46,7 +46,7 @@ class DailyUsdEgpRateTest extends TestCase
 
         $quote = (new DailyUsdEgpRate)->current();
 
-        $this->assertSame(49.15, $quote['rate']);
+        $this->assertSame(49.2, $quote['rate']);
         $this->assertSame('Currency-API', $quote['source']);
         $this->assertSame('2026-10-09', $quote['as_of']);
     }

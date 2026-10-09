@@ -41,8 +41,8 @@ enum PoultryProjectType: string
         return match ($this) {
             self::Broiler => $fourTiers ? 2.8 : 2.9,
             self::BroilerAutoExit => $fourTiers ? 3.5 : 3.6,
-            self::Layer => $fourTiers ? 3.1 : 3.2,
-            self::LayerAutoCollect => $fourTiers ? 3.4 : 3.5,
+            self::Layer => $fourTiers ? 2.8 : 2.9,
+            self::LayerAutoCollect => $fourTiers ? 3.1 : 3.2,
             self::LayerRearing => null,
         };
     }

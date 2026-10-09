@@ -108,7 +108,7 @@ class PoultryQuotation extends Model
         'bird_price' => 'decimal:2',
         'bird_price_usd' => 'decimal:2',
         'internal_columns' => 'integer',
-        'exchange_rate' => 'decimal:4',
+        'exchange_rate' => 'decimal:1',
         'barns_count' => 'integer',
         'silos_count' => 'integer',
         'layer_specs' => 'array',
@@ -300,11 +300,11 @@ class PoultryQuotation extends Model
     public function syncDerivedEquipment(): void
     {
         $this->syncInnerBeltFromWidth();
+        $this->syncSiloFromBirds();
+    }
 
-        if (! (PoultryProjectType::tryFrom((string) $this->project_type)?->isBroiler() ?? false)) {
-            return;
-        }
-
+    private function syncSiloFromBirds(): void
+    {
         $birds = (int) $this->bird_count * max(1, (int) ($this->barns_count ?: 1));
         $tons = SiloCapacity::tonsForBirdCount($birds);
         if ($tons === null) {
@@ -314,6 +314,10 @@ class PoultryQuotation extends Model
         $id = SiloCapacity::lookupIdForTons($tons);
         if ($id !== null) {
             $this->silo_capacity_id = $id;
+        }
+
+        if (! SiloCapacity::allowsSiloCountChoice($birds)) {
+            $this->silos_count = 1;
         }
     }
 

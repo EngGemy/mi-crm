@@ -79,6 +79,7 @@ class LayersQuotationTemplate implements QuotationTemplate
             'bird_count' => $q->bird_count ?? $technical['total_birds'] ?? $computed['bird_count'] ?? null,
             'barns_count' => $barns,
             'silo_capacity' => $this->lookupLabel($q, 'siloCapacity'),
+            'silos_count' => max(1, (int) ($q->silos_count ?: 1)),
             'inner_belt' => $this->lookupLabel($q, 'innerBeltLength'),
             'outer_belt' => $this->lookupLabel($q, 'outerBeltLength'),
             'motor_power' => $this->lookupLabel($q, 'motorPower'),

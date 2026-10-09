@@ -13,10 +13,10 @@ class PoultryProjectTypeBirdPriceTest extends TestCase
         $this->assertSame(2.9, PoultryProjectType::Broiler->birdPriceUsd(3));
         $this->assertSame(3.5, PoultryProjectType::BroilerAutoExit->birdPriceUsd(4));
         $this->assertSame(3.6, PoultryProjectType::BroilerAutoExit->birdPriceUsd(3));
-        $this->assertSame(3.1, PoultryProjectType::Layer->birdPriceUsd(4));
-        $this->assertSame(3.2, PoultryProjectType::Layer->birdPriceUsd(3));
-        $this->assertSame(3.4, PoultryProjectType::LayerAutoCollect->birdPriceUsd(4));
-        $this->assertSame(3.5, PoultryProjectType::LayerAutoCollect->birdPriceUsd(3));
+        $this->assertSame(2.8, PoultryProjectType::Layer->birdPriceUsd(4));
+        $this->assertSame(2.9, PoultryProjectType::Layer->birdPriceUsd(3));
+        $this->assertSame(3.1, PoultryProjectType::LayerAutoCollect->birdPriceUsd(4));
+        $this->assertSame(3.2, PoultryProjectType::LayerAutoCollect->birdPriceUsd(3));
         $this->assertNull(PoultryProjectType::LayerRearing->birdPriceUsd(4));
     }
 

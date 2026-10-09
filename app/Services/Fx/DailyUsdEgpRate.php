@@ -19,7 +19,7 @@ class DailyUsdEgpRate
     {
         $cached = Cache::get($this->cacheKey());
         if ($this->valid($cached)) {
-            return $cached;
+            return $this->oneDecimal($cached);
         }
 
         $fetched = $this->fetch();
@@ -108,7 +108,7 @@ class DailyUsdEgpRate
         }
 
         return [
-            'rate' => round((float) $rate, 4),
+            'rate' => round((float) $rate, 1),
             'source' => $source,
             'as_of' => is_string($asOf) && $asOf !== '' ? $asOf : now()->toDateString(),
         ];
@@ -124,11 +124,11 @@ class DailyUsdEgpRate
             $saved = 48.0;
         }
 
-        return [
+        return $this->oneDecimal([
             'rate' => $saved > 1 ? $saved : 48.0,
             'source' => 'الإعدادات المحفوظة',
             'as_of' => null,
-        ];
+        ]);
     }
 
     /** @param  array{rate: float, source: string, as_of: ?string}  $quote */
@@ -149,6 +149,16 @@ class DailyUsdEgpRate
         } catch (Throwable $e) {
             report($e);
         }
+    }
+
+    /** @param  array{rate: float, source: string, as_of: ?string}  $quote
+     * @return array{rate: float, source: string, as_of: ?string}
+     */
+    private function oneDecimal(array $quote): array
+    {
+        $quote['rate'] = round((float) $quote['rate'], 1);
+
+        return $quote;
     }
 
     private function valid(mixed $cached): bool

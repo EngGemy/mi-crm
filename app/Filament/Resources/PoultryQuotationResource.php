@@ -263,10 +263,8 @@ class PoultryQuotationResource extends Resource
                         ->label('سعة السايلو')
                         ->options(fn () => Lookup::options(Lookup::TYPE_SILO_CAPACITY))
                         ->default(fn () => Lookup::defaultId(Lookup::TYPE_SILO_CAPACITY))
-                        ->helperText(fn (Get $get): string => static::isBroilerProject($get)
-                            ? 'تتحدد من عدد الطيور: حتى 42,000 = 11 طن، فوقها حتى 52,000 = 14 طن، من 52,000 حتى 62,000 = 17 طن، وفوق 62,000 = 25 طن.'
-                            : '11 طن، 14 طن، 17 طن، أو 25 طن. السعة المختارة تُطبع في عرض السعر.')
-                        ->disabled(fn (Get $get) => static::isBroilerProject($get))
+                        ->helperText('تتحدد من عدد الطيور: حتى 42,000 = 11 طن، فوقها حتى 52,000 = 14 طن، من 52,000 حتى 62,000 = 17 طن، وفوق 62,000 = 25 طن.')
+                        ->disabled()
                         ->dehydrated()
                         ->native(false)
                         ->searchable()
@@ -281,13 +279,9 @@ class PoultryQuotationResource extends Resource
                         ])
                         ->default(1)
                         ->native(false)
-                        ->required(fn (Get $get): bool => static::isBroilerProject($get)
-                            && SiloCapacity::allowsSiloCountChoice((int) $get('bird_count')))
-                        ->hidden(fn (Get $get): bool => ! (
-                            static::isBroilerProject($get)
-                            && SiloCapacity::allowsSiloCountChoice((int) $get('bird_count'))
-                        ))
-                        ->dehydrated(fn (Get $get): bool => static::isBroilerProject($get))
+                        ->required(fn (Get $get): bool => SiloCapacity::allowsSiloCountChoice((int) $get('bird_count')))
+                        ->hidden(fn (Get $get): bool => ! SiloCapacity::allowsSiloCountChoice((int) $get('bird_count')))
+                        ->dehydrated()
                         ->live(),
 
                     Forms\Components\TextInput::make('length')
@@ -364,7 +358,7 @@ class PoultryQuotationResource extends Resource
                     Forms\Components\TextInput::make('exchange_rate')
                         ->label('سعر الصرف')
                         ->numeric()
-                        ->step(0.01)
+                        ->step(0.1)
                         ->suffix('ج/$')
                         ->default(fn () => app(DailyUsdEgpRate::class)->rate())
                         ->helperText(function (): string {

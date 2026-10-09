@@ -7,6 +7,7 @@ use App\Filament\Resources\PoultryQuotationResource;
 use App\Models\PoultryQuotation;
 use App\Services\Pricing\PricingCardImageGenerator;
 use App\Support\BroilerWeightReference;
+use App\Support\SiloCapacity;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Infolists\Components;
@@ -82,12 +83,12 @@ class ViewPoultryQuotation extends ViewRecord
                             ->visible(fn (PoultryQuotation $record): bool => PoultryProjectType::tryFrom((string) ($record->project_type ?: 'broiler'))?->isBroiler() ?? false),
                         Components\TextEntry::make('siloCapacity.label_ar')
                             ->label('سعة السايلو')
-                            ->placeholder('25 طن')
-                            ->visible(fn (PoultryQuotation $record): bool => PoultryProjectType::tryFrom((string) ($record->project_type ?: 'broiler'))?->isBroiler() ?? false),
+                            ->placeholder('25 طن'),
                         Components\TextEntry::make('silos_count')
                             ->label('عدد السيلوهات')
-                            ->visible(fn (PoultryQuotation $record): bool => (PoultryProjectType::tryFrom((string) ($record->project_type ?: 'broiler'))?->isBroiler() ?? false)
-                                && (int) $record->bird_count > 62_000),
+                            ->visible(fn (PoultryQuotation $record): bool => SiloCapacity::allowsSiloCountChoice(
+                                (int) $record->bird_count * max(1, (int) ($record->barns_count ?: 1))
+                            )),
                         Components\TextEntry::make('length')->label('الطول')->suffix(' م'),
                         Components\TextEntry::make('width')->label('العرض')->suffix(' م'),
                         Components\TextEntry::make('height')->label('الارتفاع')->suffix(' م'),

@@ -177,6 +177,10 @@ PS1);
         $xpath = new DOMXPath($dom);
         $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
 
+        if (($data['project_type'] ?? '') !== PoultryProjectType::LayerAutoCollect->value) {
+            $this->dropEggCollectionPage($xpath);
+        }
+
         $nodes = [];
         foreach ($xpath->query('//w:t') as $node) {
             if ($node instanceof DOMElement) {
@@ -195,10 +199,23 @@ PS1);
         $this->replaceExact($nodes, '6,789,120', $this->money($data['financial']['barn_egp'] ?? null, '6,789,120'));
         $this->replaceExact($nodes, '3,840', $this->grouped($data['total_nests'] ?? null, '3,840'));
         $this->replaceExact($nodes, '38,400 طائر', $this->withUnit($data['bird_count'] ?? null, 'طائر', '38,400 طائر'));
-        $this->replaceExact($nodes, '11 طن', $this->text($data['silo_capacity'] ?? null, '11 طن'));
+        $silo = $this->text($data['silo_capacity'] ?? null, '11 طن');
+        $siloCount = (int) ($data['silos_count'] ?? 1);
+        if ($siloCount > 1) {
+            $silo = $siloCount.' × '.$silo;
+        }
+        $this->replaceExact($nodes, '11 طن', $silo);
         $this->replaceExact($nodes, '12 متر', $this->text($data['inner_belt'] ?? null, '12 متر'));
         $this->replaceExact($nodes, '8 متر', $this->text($data['outer_belt'] ?? null, '8 متر'));
         $this->replaceExact($nodes, '1.5 حصان', $this->text($data['motor_power'] ?? null, '1.5 حصان'));
+        $motors = $this->leadingInteger($data['manure_motor_count'] ?? null);
+        if ($motors !== null) {
+            $this->patchWords($nodes, ['- عدد', '1', 'ماتور'], [1 => $motors]);
+        }
+        $belts = $this->leadingInteger($data['belts_per_line'] ?? null);
+        if ($belts !== null) {
+            $this->patchWords($nodes, ['4', 'سيور'], [0 => $belts]);
+        }
 
         $this->patchSlots($nodes, ['متر', '7', '2'], [
             1 => $this->optionalComma($data['effective_length'] ?? null),
@@ -209,14 +226,39 @@ PS1);
         $this->patchSlots($nodes, ['120', 'قفص'], [0 => $this->optionalGrouped($data['nests_one_side'] ?? null)]);
         $this->patchSlots($nodes, ['10', 'طائر'], [0 => $this->optionalComma($data['birds_per_nest'] ?? null)]);
         $this->patchSlots($nodes, ['10', 'طيور في العش'], [0 => $this->optionalComma($data['birds_per_nest'] ?? null)]);
-        $motor = $this->horsepowerHead($data['motor_power'] ?? null);
-        $this->patchSlots($nodes, ['1', '.5', 'حصان'], [0 => $motor, 1 => $motor === null ? null : '']);
+        $power = $this->horsepowerParts($data['motor_power'] ?? null);
+        if ($power !== null) {
+            $this->patchWords($nodes, ['1', '.5', 'حصان'], [0 => $power[0], 1 => $power[1]]);
+        }
         $this->patchStocking($nodes, $data['stocking']['area_cm2'] ?? null, $data['stocking']['feeding_cm'] ?? null);
 
         $saved = $dom->saveXML();
         $zip->deleteName('word/document.xml');
         $zip->addFromString('word/document.xml', $saved === false ? $xml : $saved);
         $zip->close();
+    }
+
+    private function dropEggCollectionPage(DOMXPath $xpath): void
+    {
+        $remove = [];
+        foreach ($xpath->query('//w:p') as $paragraph) {
+            if (! $paragraph instanceof DOMElement) {
+                continue;
+            }
+
+            $text = '';
+            foreach ($xpath->query('.//w:t', $paragraph) as $node) {
+                $text .= $node->textContent;
+            }
+
+            if (str_contains($text, 'دولاب البيض') || str_contains($text, 'Eggs Collection') || str_contains($text, 'تتم عملية جمع البيض')) {
+                $remove[] = $paragraph;
+            }
+        }
+
+        foreach ($remove as $paragraph) {
+            $paragraph->parentNode?->removeChild($paragraph);
+        }
     }
 
     /** @param  list<DOMElement>  $nodes */
@@ -230,6 +272,46 @@ PS1);
             if (trim($node->textContent) === $from) {
                 $node->textContent = $this->keepSpace($node->textContent, $to);
             }
+        }
+    }
+
+    /**
+     * يطابق الكلمات حتى لو فصلها وورد بخانات فارغة.
+     *
+     * @param  list<DOMElement>  $nodes
+     * @param  list<string>  $sequence
+     * @param  array<int, string>  $slots
+     */
+    private function patchWords(array $nodes, array $sequence, array $slots): void
+    {
+        $filled = [];
+        foreach ($nodes as $index => $node) {
+            if (trim($node->textContent) !== '') {
+                $filled[] = $index;
+            }
+        }
+
+        $size = count($sequence);
+        $last = count($filled) - $size;
+        for ($cursor = 0; $cursor <= $last; $cursor++) {
+            $matches = true;
+            foreach ($sequence as $offset => $text) {
+                if (trim($nodes[$filled[$cursor + $offset]]->textContent) !== $text) {
+                    $matches = false;
+                    break;
+                }
+            }
+            if (! $matches) {
+                continue;
+            }
+
+            foreach ($slots as $offset => $text) {
+                $node = $nodes[$filled[$cursor + $offset]];
+                $node->textContent = $text === ''
+                    ? ''
+                    : $this->keepSpace($node->textContent, $text);
+            }
+            $cursor += $size - 1;
         }
     }
 
@@ -322,13 +404,29 @@ PS1);
         };
     }
 
-    private function horsepowerHead(mixed $label): ?string
+    /** @return array{0: string, 1: string}|null */
+    private function horsepowerParts(mixed $label): ?array
     {
         if (! is_string($label) || trim($label) === '' || trim($label) === '1.5 حصان') {
             return null;
         }
 
-        return trim($label);
+        if (! preg_match('/(\d+)(?:\.(\d+))?/u', $label, $match)) {
+            return null;
+        }
+
+        $fraction = ($match[2] ?? '') !== '' ? '.'.$match[2] : '';
+
+        return [$match[1], $fraction];
+    }
+
+    private function leadingInteger(mixed $label): ?string
+    {
+        if (! is_string($label) || ! preg_match('/(\d+)/u', $label, $match)) {
+            return null;
+        }
+
+        return $match[1];
     }
 
     private function text(mixed $value, string $fallback = '—'): string
