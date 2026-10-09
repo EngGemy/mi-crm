@@ -24,11 +24,11 @@ CSS;
     public function from(PoultryQuotation $quotation): array
     {
         return [
-            'motor_count' => $this->label($quotation, 'manureMotorCount', '1 ماتور'),
-            'motor_power' => $this->label($quotation, 'motorPower', '1.5 حصان'),
+            'motor_count' => $this->label($quotation, 'manureMotorCount', '4 ماتور'),
+            'motor_power' => $this->label($quotation, 'motorPower', '1 حصان'),
             'belts' => $this->label($quotation, 'beltsPerLine', '3 سيور'),
-            'inner_belt' => $this->label($quotation, 'innerBeltLength', '12 متر'),
-            'outer_belt' => $this->label($quotation, 'outerBeltLength', '8 متر'),
+            'inner_belt' => $this->label($quotation, 'innerBeltLength', '20 متر'),
+            'outer_belt' => $this->label($quotation, 'outerBeltLength', '12 متر'),
         ];
     }
 

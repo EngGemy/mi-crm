@@ -71,6 +71,19 @@ class ViewPoultryQuotation extends ViewRecord
                     ->icon('heroicon-o-home')
                     ->columns(3)
                     ->schema([
+                        Components\TextEntry::make('internal_columns')->label('الأعمدة الداخلية'),
+                        Components\TextEntry::make('roof_type')
+                            ->label('نوع السقف')
+                            ->formatStateUsing(fn (?string $state): string => match ($state) {
+                                'flat' => 'مستوى',
+                                'gable' => 'جمالون',
+                                default => '—',
+                            })
+                            ->visible(fn (PoultryQuotation $record): bool => PoultryProjectType::tryFrom((string) ($record->project_type ?: 'broiler'))?->isBroiler() ?? false),
+                        Components\TextEntry::make('siloCapacity.label_ar')
+                            ->label('سعة السايلو')
+                            ->placeholder('25 طن')
+                            ->visible(fn (PoultryQuotation $record): bool => PoultryProjectType::tryFrom((string) ($record->project_type ?: 'broiler'))?->isBroiler() ?? false),
                         Components\TextEntry::make('length')->label('الطول')->suffix(' م'),
                         Components\TextEntry::make('width')->label('العرض')->suffix(' م'),
                         Components\TextEntry::make('height')->label('الارتفاع')->suffix(' م'),

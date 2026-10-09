@@ -237,6 +237,11 @@ trait HasLivePoultryPricing
         return PoultryProjectType::tryFrom(static::resolveProjectTypeFromForm($get))?->isLayer() ?? false;
     }
 
+    protected static function isBroilerProject(Get $get): bool
+    {
+        return PoultryProjectType::tryFrom(static::resolveProjectTypeFromForm($get))?->isBroiler() ?? false;
+    }
+
     protected static function showsWallTypeField(Get $get): bool
     {
         return ! in_array(static::pricingScopeFromForm($get), [
@@ -361,27 +366,27 @@ trait HasLivePoultryPricing
                     $estimatedUsd = $rate > 0 ? round($estimated / $rate, 2) : 0;
 
                     $rows = [];
+                    $isLayer = PoultryProjectType::tryFrom(static::resolveProjectTypeFromForm($get))?->isLayer() ?? false;
 
                     if (static::showsBatteryPreview($get)) {
                         $rows[] = ['منطقة الخدمات', e(($c['service_length'] ?? '-').' م'), false];
                         $rows[] = ['الطول الفعال', e(($c['effective_length'] ?? '-').' م'), false];
+                        if ($isLayer) {
+                            $effective = (float) ($c['effective_length'] ?? 0);
+                            $nestsOneSide = (int) ($c['nests_one_side'] ?? $tech['nests_one_side'] ?? 0);
+                            $effectiveLabel = rtrim(rtrim(number_format($effective, 2, '.', ''), '0'), '.');
+                            $rows[] = [
+                                'عشوش جهة واحدة من الأدوار',
+                                $nestsOneSide.' عش — '.$effectiveLabel.' م ÷ 60 سم',
+                                false,
+                            ];
+                        }
                         $rows[] = ['الخطوط × الأدوار', e($lines.' × '.$tiers.' = '.($lines * $tiers)), false];
                         $rows[] = ['إجمالي الأعشاش / الأقفاص', e(number_format($c['total_nests'] ?? ($get('total_nests') ?? 0))), false];
                         $rows[] = ['طيور / عش (قفص)', e(number_format($tech['birds_per_nest'] ?? ($get('birds_per_nest') ?? 0))), false];
                         $rows[] = ['سعة الطيور', e(number_format($c['bird_count_total'] ?? $c['bird_count'] ?? ($get('bird_count') ?? 0))), false];
                         $rows[] = ['مساحة الإيواء', e(number_format($c['housing_area'] ?? 0, 1).' م²'), false];
                         $rows[] = ['كثافة الأرضية', e(number_format($c['floor_density'] ?? 0, 2).' طائر/م²'), false];
-                    }
-
-                    if (PoultryProjectType::tryFrom(static::resolveProjectTypeFromForm($get))?->isLayer()) {
-                        $specs = $get('layer_specs');
-                        foreach (LayerBaseLookups::rateRows(is_array($specs) ? $specs : null) as $rateRow) {
-                            $rows[] = [
-                                $rateRow['label'],
-                                'أساسي '.$rateRow['base'].' — معدل '.$rateRow['rate'],
-                                false,
-                            ];
-                        }
                     }
 
                     $rows[] = ['الإجمالي المبدئي', '<strong style="color:#C00000;font-size:16px">'.e(number_format($estimated > 0 ? $estimated : (float) ($preview['subtotal'] ?? 0), 0).' ج.م').'</strong>', true];

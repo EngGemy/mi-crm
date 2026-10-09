@@ -80,7 +80,6 @@ class PoultryQuotationResource extends Resource
                         ...static::customerStepSchema($live),
                         ...static::quoteSetupStepSchema($live),
                         ...static::barnStepSchema($live),
-                        ...static::layerSpecSchema($live),
                         ...static::equipmentStepSchema($live),
                     ])
                         ->columnSpan(['default' => 1, 'lg' => 7])
@@ -231,6 +230,33 @@ class PoultryQuotationResource extends Resource
                 ->description('أدخل الأبعاد → الحساب يتحدث فوراً على اليمين')
                 ->icon('heroicon-o-home-modern')
                 ->schema([
+                    Forms\Components\Select::make('internal_columns')
+                        ->label('الأعمدة الداخلية')
+                        ->options([
+                            0 => '0',
+                            1 => '1',
+                            2 => '2',
+                            3 => '3',
+                            4 => '4',
+                        ])
+                        ->default(0)
+                        ->native(false)
+                        ->required()
+                        ->live(),
+
+                    Forms\Components\Select::make('roof_type')
+                        ->label('نوع السقف')
+                        ->options([
+                            'flat' => 'مستوى',
+                            'gable' => 'جمالون',
+                        ])
+                        ->default('flat')
+                        ->required()
+                        ->native(false)
+                        ->visible(fn (Get $get) => static::isBroilerProject($get))
+                        ->dehydrated(fn (Get $get) => static::isBroilerProject($get))
+                        ->live(),
+
                     Forms\Components\TextInput::make('length')
                         ->label('الطول')
                         ->required()->numeric()->step(0.01)->default(81)->minValue(1)->suffix('م')
@@ -267,20 +293,6 @@ class PoultryQuotationResource extends Resource
                             $set('tiers', (int) $state);
                             static::refreshLivePoultryPricing($set, $get, false, (int) $state);
                         }),
-
-                    Forms\Components\Select::make('internal_columns')
-                        ->label('الأعمدة الداخلية')
-                        ->options([
-                            0 => '0',
-                            1 => '1',
-                            2 => '2',
-                            3 => '3',
-                            4 => '4',
-                        ])
-                        ->default(0)
-                        ->native(false)
-                        ->required()
-                        ->live(),
 
                     Forms\Components\TextInput::make('barns_count')
                         ->label('عدد العنابر')
@@ -353,7 +365,8 @@ class PoultryQuotationResource extends Resource
                                 ->label('نوع الحوائط')
                                 ->options(['sandwich' => 'ساندوتش بانل', 'cement' => 'خرسانة'])
                                 ->default('sandwich')
-                                ->visible(fn (Get $get) => static::isLayerProject($get) || static::showsWallTypeField($get))
+                                ->visible(fn (Get $get) => ! static::isBroilerProject($get) && (static::isLayerProject($get) || static::showsWallTypeField($get)))
+                                ->dehydrated(fn (Get $get) => ! static::isBroilerProject($get))
                                 ->native(false)
                                 ->live()
                                 ->afterStateUpdated($live),
@@ -364,50 +377,6 @@ class PoultryQuotationResource extends Resource
                         ->compact(),
                 ])
                 ->columns(['default' => 2, 'sm' => 3]),
-        ];
-    }
-
-    /** @param  \Closure  $live */
-    protected static function layerSpecSchema(\Closure $live): array
-    {
-        $fields = [];
-        foreach (LayerBaseLookups::fields() as $key => $field) {
-            $type = $field['type'];
-            $select = Forms\Components\Select::make('layer_specs.'.$key)
-                ->label($field['label'])
-                ->options(fn () => Lookup::options($type))
-                ->default(fn () => Lookup::defaultId($type))
-                ->native(false)
-                ->searchable()
-                ->live();
-
-            if ($field['rate']) {
-                $select->helperText(function (Get $get) use ($key, $type): string {
-                    $specs = $get('layer_specs');
-                    $base = LayerBaseLookups::numericOf(is_array($specs) ? ($specs[$key] ?? null) : null)
-                        ?? LayerBaseLookups::defaultNumeric($type);
-                    $rate = LayerBaseLookups::rateFromBase($base);
-
-                    return 'القيمة الأساسية '.LayerBaseLookups::formatNumber($base).' — المعدل (النصف) '.LayerBaseLookups::formatNumber($rate);
-                });
-            } else {
-                $select
-                    ->helperText($field['calc'] === 'birds'
-                        ? 'يدخل في سعة العنبر. الافتراضي 10، والبديل 9.'
-                        : 'خصم منطقة الخدمات. الافتراضي 8 م².')
-                    ->afterStateUpdated($live);
-            }
-
-            $fields[] = $select;
-        }
-
-        return [
-            Forms\Components\Section::make('مواصفات البياض')
-                ->description('تظهر مع إنتاج البياض. الأحمر في الورقة هو الافتراضي، والمعدل = نصف القيمة الأساسية. القوائم تتعدل من الإعدادات ← قوائم الخيارات.')
-                ->icon('heroicon-o-adjustments-horizontal')
-                ->visible(fn (Get $get) => static::isLayerProject($get))
-                ->schema($fields)
-                ->columns(['default' => 1, 'sm' => 2]),
         ];
     }
 
@@ -432,7 +401,7 @@ class PoultryQuotationResource extends Resource
     {
         return [
             Forms\Components\Section::make('④ المعدات (اختياري)')
-                ->description('قيم افتراضية جاهزة — غيّرها فقط عند الحاجة')
+                ->description('نفس المواصفات للتسمين والبياض — القيم الافتراضية جاهزة')
                 ->icon('heroicon-o-cog-6-tooth')
                 ->collapsed()
                 ->schema([

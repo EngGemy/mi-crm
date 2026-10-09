@@ -51,6 +51,7 @@ class PoultryQuotation extends Model
         'bird_price_usd',
         'exchange_rate',
         'internal_columns',
+        'roof_type',
         'birds_per_nest',
         'manure_motor_count_id',
         'motor_power_id',

@@ -223,7 +223,13 @@ td, th { vertical-align: middle; }
     $barnH    = (float)($snap['inputs']['hall_height'] ?? $snap['inputs']['height'] ?? $q->height ?? 0);
     $svcLen   = $snap['inputs']['service_length'] ?? $q->service_length ?? '—';
     $effLen   = (float)($tech['effective_length']  ?? $computed['effective_length'] ?? 0);
+    $isBroiler = in_array($q->project_type, ['broiler', 'broiler_auto_exit'], true);
     $wallType = $q->wall_type === 'sandwich' ? 'ساندوتش' : 'خرسانة';
+    $roofType = match ($q->roof_type) {
+        'flat' => 'مستوى',
+        'gable' => 'جمالون',
+        default => '—',
+    };
     $scopeMap = [
         'full_project' => 'المشروع كاملاً',
         'batteries_only' => 'البطاريات فقط',
@@ -329,9 +335,22 @@ td, th { vertical-align: middle; }
     <tr>
         <td class="k">الطول الفعّال</td>
         <td class="v num">{{ number_format($effLen, 0) }} م</td>
+        @if($isBroiler)
+        <td class="k">نوع السقف</td>
+        <td class="v">{{ $roofType }}</td>
+        @else
         <td class="k">نوع الحوائط</td>
         <td class="v">{{ $wallType }}</td>
+        @endif
     </tr>
+    @if($isBroiler)
+    <tr>
+        <td class="k">الأعمدة الداخلية</td>
+        <td class="v">{{ (int) $q->internal_columns }}</td>
+        <td class="k">سعة السايلو</td>
+        <td class="v">{{ $q->siloCapacity?->label_ar ?: '25 طن' }}</td>
+    </tr>
+    @endif
     <tr>
         <td class="k">الخطوط × الأدوار</td>
         <td class="v">{{ $linesText }}</td>

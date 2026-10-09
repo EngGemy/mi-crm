@@ -45,9 +45,14 @@ class ProposalPage10Data
         $unit = (string) ($terms['unit'] ?? 'داجن');
         $taxed = $vatEgp > 0 ? '14% شامل' : 'غير خاضع';
 
+        $silo = $quotation->siloCapacity?->label_ar;
+        $siloLine = is_string($silo) && $silo !== ''
+            ? "+ سايلو سعة {$silo} + بريمة مناولة سايلو\n"
+            : "+ سايلو سعة 25 طن + بريمة مناولة سايلو\n";
+
         $description = "توريد بطاريات {$batteryLabel} بالمواصفات السابقة\n"
             ."شاملة لوح الكنترول للأجزاء المذكورة أعلاه\n"
-            ."+ سايلو + بريمة مناولة سايلو\n"
+            .$siloLine
             .'توريد قطع غيار 1% من العنبر كخامات صاج وسلك';
 
         $zinc = (string) ($terms['zinc_coating_g_m2'] ?? '');
