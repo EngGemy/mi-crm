@@ -85,8 +85,8 @@ CSS;
         }
 
         $label = match ($quotation->roof_type) {
-            'flat' => 'مستوى',
-            'gable' => 'جمالون',
+            'flat' => 'مستوي',
+            'gable' => 'مائل',
             default => '—',
         };
 

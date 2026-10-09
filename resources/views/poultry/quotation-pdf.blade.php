@@ -226,8 +226,8 @@ td, th { vertical-align: middle; }
     $isBroiler = in_array($q->project_type, ['broiler', 'broiler_auto_exit'], true);
     $wallType = $q->wall_type === 'sandwich' ? 'ساندوتش' : 'خرسانة';
     $roofType = match ($q->roof_type) {
-        'flat' => 'مستوى',
-        'gable' => 'جمالون',
+        'flat' => 'مستوي',
+        'gable' => 'مائل',
         default => '—',
     };
     $scopeMap = [

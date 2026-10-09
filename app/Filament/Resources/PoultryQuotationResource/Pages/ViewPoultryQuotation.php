@@ -75,8 +75,8 @@ class ViewPoultryQuotation extends ViewRecord
                         Components\TextEntry::make('roof_type')
                             ->label('نوع السقف')
                             ->formatStateUsing(fn (?string $state): string => match ($state) {
-                                'flat' => 'مستوى',
-                                'gable' => 'جمالون',
+                                'flat' => 'مستوي',
+                                'gable' => 'مائل',
                                 default => '—',
                             })
                             ->visible(fn (PoultryQuotation $record): bool => PoultryProjectType::tryFrom((string) ($record->project_type ?: 'broiler'))?->isBroiler() ?? false),

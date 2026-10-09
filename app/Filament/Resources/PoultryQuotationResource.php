@@ -249,8 +249,8 @@ class PoultryQuotationResource extends Resource
                     Forms\Components\Select::make('roof_type')
                         ->label('نوع السقف')
                         ->options([
-                            'flat' => 'مستوى',
-                            'gable' => 'جمالون',
+                            'flat' => 'مستوي',
+                            'gable' => 'مائل',
                         ])
                         ->default('flat')
                         ->required()
