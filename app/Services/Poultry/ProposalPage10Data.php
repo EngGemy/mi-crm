@@ -4,6 +4,7 @@ namespace App\Services\Poultry;
 
 use App\Enums\PoultryProjectType;
 use App\Models\PoultryQuotation;
+use App\Support\SiloCapacity;
 use RuntimeException;
 
 /**
@@ -45,8 +46,11 @@ class ProposalPage10Data
         $unit = (string) ($terms['unit'] ?? 'داجن');
         $taxed = $vatEgp > 0 ? '14% شامل' : 'غير خاضع';
 
-        $silo = $quotation->siloCapacity?->label_ar;
-        $siloLabel = is_string($silo) && $silo !== '' ? $silo : '25 طن';
+        $selected = $quotation->siloCapacity?->label_ar;
+        $birds = (int) $quotation->bird_count * max(1, (int) ($quotation->barns_count ?: 1));
+        $siloLabel = PoultryProjectType::tryFrom($projectType)?->isBroiler()
+            ? SiloCapacity::labelForBirds($birds, is_string($selected) ? $selected : null)
+            : (is_string($selected) && $selected !== '' ? $selected : '25 طن');
         $siloCount = (int) $quotation->silos_count;
         $siloLine = $siloCount > 1
             ? "+ عدد {$siloCount} سايلو سعة {$siloLabel} + بريمة مناولة سايلو\n"

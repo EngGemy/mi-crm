@@ -113,7 +113,8 @@ class MiProposalPdfGeneratorTest extends TestCase
         $this->assertSame('داجن', $data10['unit']);
         $offer = collect($data10['sections'])->firstWhere('kind', 'offer');
         $this->assertStringContainsString('تسمين', $offer['description']);
-        $this->assertStringContainsString('سايلو سعة 25 طن', $offer['description']);
+        $this->assertStringContainsString('سايلو سعة 11 طن', $offer['description']);
+        $this->assertStringNotContainsString('سايلو سعة 25 طن', $offer['description']);
 
         $html = view('poultry.proposal.page10', $data10)->render();
         $this->assertStringNotContainsString('<style', $html);

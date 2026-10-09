@@ -7,9 +7,11 @@ use App\Enums\PoultryProjectType;
 use App\Models\Concerns\NormalizesMoneyAttributes;
 use App\Quotations\Exceptions\LayerRearingDisabledException;
 use App\Quotations\QuotationTemplateResolver;
+use App\Services\Poultry\PoultryTechnicalCalculator;
 use App\Services\PoultryHousePricingService;
 use App\Services\Poultry\ProposalSnapshotFreezer;
 use App\Support\FinancialEngine;
+use App\Support\SiloCapacity;
 use App\Support\TaxResolver;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Validation\ValidationException;
@@ -183,6 +185,7 @@ class PoultryQuotation extends Model
                 $quotation->heaters_count = $computed['heaters_count'] ?? $quotation->heaters_count;
                 $quotation->syncCostsFromSnapshot();
                 app(ProposalSnapshotFreezer::class)->apply($quotation);
+                $quotation->syncDerivedEquipment();
 
                 return;
             }
@@ -194,6 +197,8 @@ class PoultryQuotation extends Model
                     // silently fail during seeding or incomplete saves
                 }
             }
+
+            $quotation->syncDerivedEquipment();
         });
     }
 
@@ -286,6 +291,48 @@ class PoultryQuotation extends Model
         $this->vat_amount = FinancialEngine::toFloat($financial['vat_amount']);
         $this->total = FinancialEngine::toFloat($financial['total']);
         app(ProposalSnapshotFreezer::class)->apply($this);
+    }
+
+    /**
+     * سعة السايلو من إجمالي الطيور، وطول السير الداخلي من عرض العنبر.
+     * bird_count هنا سعة العنبر الواحد، فتُضرب في عدد العنابر.
+     */
+    public function syncDerivedEquipment(): void
+    {
+        $this->syncInnerBeltFromWidth();
+
+        if (! (PoultryProjectType::tryFrom((string) $this->project_type)?->isBroiler() ?? false)) {
+            return;
+        }
+
+        $birds = (int) $this->bird_count * max(1, (int) ($this->barns_count ?: 1));
+        $tons = SiloCapacity::tonsForBirdCount($birds);
+        if ($tons === null) {
+            return;
+        }
+
+        $id = SiloCapacity::lookupIdForTons($tons);
+        if ($id !== null) {
+            $this->silo_capacity_id = $id;
+        }
+    }
+
+    private function syncInnerBeltFromWidth(): void
+    {
+        $meters = (new PoultryTechnicalCalculator)->innerBeltMetersForWidth((float) $this->width);
+        if ($meters === null) {
+            return;
+        }
+
+        $id = Lookup::query()
+            ->where('type', Lookup::TYPE_INNER_BELT_LENGTH)
+            ->where('code', (string) $meters)
+            ->where('is_active', true)
+            ->value('id');
+
+        if ($id) {
+            $this->inner_belt_length_id = $id;
+        }
     }
 
     public function resolvedBirdPriceEgp(): ?float

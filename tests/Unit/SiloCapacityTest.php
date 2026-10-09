@@ -20,6 +20,13 @@ class SiloCapacityTest extends TestCase
         $this->assertSame(25, SiloCapacity::tonsForBirdCount(90_000));
     }
 
+    public function test_label_uses_the_bird_band_before_a_saved_choice(): void
+    {
+        $this->assertSame('14 طن', SiloCapacity::labelForBirds(50_000, '11 طن'));
+        $this->assertSame('25 طن', SiloCapacity::labelForBirds(0, null));
+        $this->assertSame('17 طن', SiloCapacity::labelForBirds(0, '17 طن'));
+    }
+
     public function test_silo_count_opens_only_above_sixty_two_thousand_birds(): void
     {
         $this->assertFalse(SiloCapacity::allowsSiloCountChoice(62_000));

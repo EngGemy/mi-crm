@@ -47,4 +47,18 @@ class ProposalPage6DataTest extends TestCase
         $this->assertStringContainsString('25 طن', $html);
         $this->assertStringNotContainsString('11 طن', $html);
     }
+
+    public function test_page7_silo_follows_total_birds_not_the_printed_eleven(): void
+    {
+        $quote = new PoultryQuotation([
+            'project_type' => 'broiler',
+            'bird_count' => 25_000,
+            'barns_count' => 2,
+        ]);
+        $quote->setRelation('siloCapacity', new Lookup(['label_ar' => '11 طن']));
+
+        $data = (new ProposalPage7Data)->from($quote);
+
+        $this->assertSame('14 طن', $data['silo']);
+    }
 }

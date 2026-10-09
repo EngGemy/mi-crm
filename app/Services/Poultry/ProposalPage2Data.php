@@ -100,14 +100,15 @@ CSS;
             return [];
         }
 
-        $label = $quotation->siloCapacity?->label_ar;
+        $selected = $quotation->siloCapacity?->label_ar;
+        $birds = (int) $quotation->bird_count * max(1, (int) ($quotation->barns_count ?: 1));
         $rows = [[
             'label' => 'سعة السايلو',
-            'value' => is_string($label) && $label !== '' ? $label : '25 طن',
+            'value' => SiloCapacity::labelForBirds($birds, is_string($selected) ? $selected : null),
         ]];
 
         $count = (int) $quotation->silos_count;
-        if (SiloCapacity::allowsSiloCountChoice((int) $quotation->bird_count) && in_array($count, [1, 2, 3], true)) {
+        if (SiloCapacity::allowsSiloCountChoice($birds) && in_array($count, [1, 2, 3], true)) {
             $rows[] = [
                 'label' => 'عدد السيلوهات',
                 'value' => (string) $count,

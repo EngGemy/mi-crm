@@ -39,6 +39,16 @@ class SiloCapacity
         return $birds > 62_000;
     }
 
+    public static function labelForBirds(int $birds, ?string $selected = null): string
+    {
+        $tons = self::tonsForBirdCount($birds);
+        if ($tons !== null) {
+            return $tons.' طن';
+        }
+
+        return is_string($selected) && $selected !== '' ? $selected : '25 طن';
+    }
+
     public static function lookupIdForTons(int $tons): ?int
     {
         if (! array_key_exists($tons, self::$lookupIds)) {
