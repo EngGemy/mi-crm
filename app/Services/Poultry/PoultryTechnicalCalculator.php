@@ -310,6 +310,27 @@ class PoultryTechnicalCalculator
     }
 
     /**
+     * طول السير الداخلي حسب عرض العنبر.
+     * 13.5 يبقى مع 12 متر، و15.5 يبقى مع 16 متر.
+     */
+    public function innerBeltMetersForWidth(float $width): ?int
+    {
+        if ($width >= 10.5 && $width <= 13.5) {
+            return 12;
+        }
+
+        if ($width > 13.5 && $width <= 15.5) {
+            return 16;
+        }
+
+        if ($width > 15.5 && $width <= 18) {
+            return 20;
+        }
+
+        return null;
+    }
+
+    /**
      * @param  list<array<string, mixed>>  $rules
      */
     public function lookupRuleCount(array $rules, float $barnLength, int $totalBirds): int

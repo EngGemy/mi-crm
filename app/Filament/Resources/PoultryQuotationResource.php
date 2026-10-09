@@ -8,6 +8,7 @@ use App\Filament\Concerns\HasLivePoultryPricing;
 use App\Filament\Resources\PoultryQuotationResource\Pages;
 use App\Models\Lookup;
 use App\Models\PoultryQuotation;
+use App\Services\Fx\DailyUsdEgpRate;
 use App\Services\Poultry\SavedClientCatalog;
 use App\Services\Pricing\PricingCardImageGenerator;
 use App\Services\Poultry\PoultryConfigLoader;
@@ -16,6 +17,7 @@ use Illuminate\Database\Eloquent\Builder;
 use App\Support\BroilerWeightReference;
 use App\Support\HeaterOptions;
 use App\Support\LayerBaseLookups;
+use App\Support\SiloCapacity;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -257,6 +259,37 @@ class PoultryQuotationResource extends Resource
                         ->dehydrated(fn (Get $get) => static::isBroilerProject($get))
                         ->live(),
 
+                    Forms\Components\Select::make('silo_capacity_id')
+                        ->label('سعة السايلو')
+                        ->options(fn () => Lookup::options(Lookup::TYPE_SILO_CAPACITY))
+                        ->default(fn () => Lookup::defaultId(Lookup::TYPE_SILO_CAPACITY))
+                        ->helperText(fn (Get $get): string => static::isBroilerProject($get)
+                            ? 'تتحدد من عدد الطيور: حتى 42,000 = 11 طن، فوقها حتى 52,000 = 14 طن، من 52,000 حتى 62,000 = 17 طن، وفوق 62,000 = 25 طن.'
+                            : '11 طن، 14 طن، 17 طن، أو 25 طن. السعة المختارة تُطبع في عرض السعر.')
+                        ->disabled(fn (Get $get) => static::isBroilerProject($get))
+                        ->dehydrated()
+                        ->native(false)
+                        ->searchable()
+                        ->live(),
+
+                    Forms\Components\Select::make('silos_count')
+                        ->label('عدد السيلوهات')
+                        ->options([
+                            1 => '1',
+                            2 => '2',
+                            3 => '3',
+                        ])
+                        ->default(1)
+                        ->native(false)
+                        ->required(fn (Get $get): bool => static::isBroilerProject($get)
+                            && SiloCapacity::allowsSiloCountChoice((int) $get('bird_count')))
+                        ->hidden(fn (Get $get): bool => ! (
+                            static::isBroilerProject($get)
+                            && SiloCapacity::allowsSiloCountChoice((int) $get('bird_count'))
+                        ))
+                        ->dehydrated(fn (Get $get): bool => static::isBroilerProject($get))
+                        ->live(),
+
                     Forms\Components\TextInput::make('length')
                         ->label('الطول')
                         ->required()->numeric()->step(0.01)->default(81)->minValue(1)->suffix('م')
@@ -325,7 +358,7 @@ class PoultryQuotationResource extends Resource
                         ->numeric()
                         ->suffix('ج.م')
                         ->readOnly()
-                        ->default(fn () => round(2.8 * (float) settings('poultry_pricing.egp_to_usd_rate', 48), 2))
+                        ->default(fn () => round(2.8 * app(DailyUsdEgpRate::class)->rate(), 2))
                         ->live(),
 
                     Forms\Components\TextInput::make('exchange_rate')
@@ -333,7 +366,13 @@ class PoultryQuotationResource extends Resource
                         ->numeric()
                         ->step(0.01)
                         ->suffix('ج/$')
-                        ->default(fn () => settings('poultry_pricing.egp_to_usd_rate', 48))
+                        ->default(fn () => app(DailyUsdEgpRate::class)->rate())
+                        ->helperText(function (): string {
+                            $quote = app(DailyUsdEgpRate::class)->current();
+                            $when = filled($quote['as_of'] ?? null) ? ' بتاريخ '.$quote['as_of'] : '';
+
+                            return 'سعر الدولار العالمي اليومي من '.$quote['source'].$when.'. يمكن تعديله لهذا العرض فقط.';
+                        })
                         ->live(onBlur: true)
                         ->afterStateUpdated($live),
 
@@ -426,19 +465,15 @@ class PoultryQuotationResource extends Resource
                     Forms\Components\Select::make('inner_belt_length_id')
                         ->label('طول السير الداخلي')
                         ->options(fn () => Lookup::options(Lookup::TYPE_INNER_BELT_LENGTH))
-                        ->default(fn () => Lookup::defaultId(Lookup::TYPE_INNER_BELT_LENGTH))
+                        ->default(fn () => Lookup::query()->where('type', Lookup::TYPE_INNER_BELT_LENGTH)->where('code', '12')->value('id')
+                            ?? Lookup::defaultId(Lookup::TYPE_INNER_BELT_LENGTH))
+                        ->helperText('يتحدد من عرض العنبر: 12 متر من 10.5 حتى 13.5، و16 متر حتى 15.5، و20 متر حتى 18.')
                         ->native(false)->searchable()->live(),
 
                     Forms\Components\Select::make('outer_belt_length_id')
                         ->label('طول السير الخارجي')
                         ->options(fn () => Lookup::options(Lookup::TYPE_OUTER_BELT_LENGTH))
                         ->default(fn () => Lookup::defaultId(Lookup::TYPE_OUTER_BELT_LENGTH))
-                        ->native(false)->searchable()->live(),
-
-                    Forms\Components\Select::make('silo_capacity_id')
-                        ->label('سعة السايلو')
-                        ->options(fn () => Lookup::options(Lookup::TYPE_SILO_CAPACITY))
-                        ->default(fn () => Lookup::defaultId(Lookup::TYPE_SILO_CAPACITY))
                         ->native(false)->searchable()->live(),
 
                     Forms\Components\Select::make('heaters_count')

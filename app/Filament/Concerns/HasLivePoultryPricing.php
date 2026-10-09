@@ -5,12 +5,14 @@ namespace App\Filament\Concerns;
 use App\Enums\PoultryPricingScope;
 use App\Enums\PoultryProjectType;
 use App\Models\QuotationSection;
+use App\Services\Fx\DailyUsdEgpRate;
 use App\Services\Poultry\PoultryConfigLoader;
 use App\Services\Poultry\PoultryTechnicalCalculator;
 use App\Services\PoultryHousePricingService;
 use App\Models\Lookup;
 use App\Support\BroilerWeightReference;
 use App\Support\LayerBaseLookups;
+use App\Support\SiloCapacity;
 use Filament\Forms;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
@@ -38,6 +40,8 @@ trait HasLivePoultryPricing
         $tiers = $tiersOverride ?? (int) ($get('tiers') ?? 0);
         $lines = (int) ($get('lines') ?? 0);
 
+        static::syncInnerBeltFromWidth($set, $width);
+
         if ($length <= 0 || $width <= 0 || $height <= 0 || $tiers <= 0 || $lines <= 0) {
             return;
         }
@@ -49,7 +53,7 @@ trait HasLivePoultryPricing
             $barnsCount = max(1, (int) ($get('barns_count') ?? 1));
 
             if (! $get('exchange_rate')) {
-                $set('exchange_rate', (string) settings('poultry_pricing.egp_to_usd_rate', settings('defaults.exchange_rate', 48)));
+                $set('exchange_rate', (string) app(DailyUsdEgpRate::class)->rate());
             }
 
             if ($get('auto_lines_from_width') && $width > 0) {
@@ -134,6 +138,7 @@ trait HasLivePoultryPricing
 
             if (PoultryProjectType::tryFrom($projectType)?->isBroiler()) {
                 $set('heaters_count', $computed['heaters_count']);
+                static::syncBroilerSilo($set, $get, $totalBirds);
             }
 
             $shouldApplyItems = $applyItems || (bool) ($get('auto_apply_poultry_pricing') ?? true);
@@ -162,6 +167,24 @@ trait HasLivePoultryPricing
             }
         } catch (\Throwable $e) {
             $set('pricing_preview', ['error' => $e->getMessage()]);
+        }
+    }
+
+    protected static function syncInnerBeltFromWidth(Set $set, float $width): void
+    {
+        $meters = (new PoultryTechnicalCalculator)->innerBeltMetersForWidth($width);
+        if ($meters === null) {
+            return;
+        }
+
+        $id = Lookup::query()
+            ->where('type', Lookup::TYPE_INNER_BELT_LENGTH)
+            ->where('code', (string) $meters)
+            ->where('is_active', true)
+            ->value('id');
+
+        if ($id) {
+            $set('inner_belt_length_id', $id);
         }
     }
 
@@ -240,6 +263,28 @@ trait HasLivePoultryPricing
     protected static function isBroilerProject(Get $get): bool
     {
         return PoultryProjectType::tryFrom(static::resolveProjectTypeFromForm($get))?->isBroiler() ?? false;
+    }
+
+    protected static function syncBroilerSilo(Set $set, Get $get, int $totalBirds): void
+    {
+        $tons = SiloCapacity::tonsForBirdCount($totalBirds);
+        if ($tons !== null) {
+            $siloId = SiloCapacity::lookupIdForTons($tons);
+            if ($siloId !== null) {
+                $set('silo_capacity_id', $siloId);
+            }
+        }
+
+        if (! SiloCapacity::allowsSiloCountChoice($totalBirds)) {
+            $set('silos_count', 1);
+
+            return;
+        }
+
+        $count = (int) $get('silos_count');
+        if (! in_array($count, [1, 2, 3], true)) {
+            $set('silos_count', 1);
+        }
     }
 
     protected static function showsWallTypeField(Get $get): bool
@@ -385,6 +430,20 @@ trait HasLivePoultryPricing
                         $rows[] = ['إجمالي الأعشاش / الأقفاص', e(number_format($c['total_nests'] ?? ($get('total_nests') ?? 0))), false];
                         $rows[] = ['طيور / عش (قفص)', e(number_format($tech['birds_per_nest'] ?? ($get('birds_per_nest') ?? 0))), false];
                         $rows[] = ['سعة الطيور', e(number_format($c['bird_count_total'] ?? $c['bird_count'] ?? ($get('bird_count') ?? 0))), false];
+                        if (! $isLayer) {
+                            $birds = (int) ($c['bird_count_total'] ?? $c['bird_count'] ?? ($get('bird_count') ?? 0));
+                            $tons = SiloCapacity::tonsForBirdCount($birds);
+                            $silo = $tons !== null ? $tons.' طن' : null;
+                            if ($silo === null) {
+                                $siloId = $get('silo_capacity_id');
+                                $silo = $siloId ? Lookup::query()->whereKey($siloId)->value('label_ar') : null;
+                            }
+                            $rows[] = ['سعة السايلو', e($silo ?: '25 طن'), false];
+                            if (SiloCapacity::allowsSiloCountChoice($birds)) {
+                                $count = (int) ($get('silos_count') ?: 1);
+                                $rows[] = ['عدد السيلوهات', e((string) (in_array($count, [1, 2, 3], true) ? $count : 1)), false];
+                            }
+                        }
                         $rows[] = ['مساحة الإيواء', e(number_format($c['housing_area'] ?? 0, 1).' م²'), false];
                         $rows[] = ['كثافة الأرضية', e(number_format($c['floor_density'] ?? 0, 2).' طائر/م²'), false];
                     }

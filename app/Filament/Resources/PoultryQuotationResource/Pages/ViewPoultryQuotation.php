@@ -84,6 +84,10 @@ class ViewPoultryQuotation extends ViewRecord
                             ->label('سعة السايلو')
                             ->placeholder('25 طن')
                             ->visible(fn (PoultryQuotation $record): bool => PoultryProjectType::tryFrom((string) ($record->project_type ?: 'broiler'))?->isBroiler() ?? false),
+                        Components\TextEntry::make('silos_count')
+                            ->label('عدد السيلوهات')
+                            ->visible(fn (PoultryQuotation $record): bool => (PoultryProjectType::tryFrom((string) ($record->project_type ?: 'broiler'))?->isBroiler() ?? false)
+                                && (int) $record->bird_count > 62_000),
                         Components\TextEntry::make('length')->label('الطول')->suffix(' م'),
                         Components\TextEntry::make('width')->label('العرض')->suffix(' م'),
                         Components\TextEntry::make('height')->label('الارتفاع')->suffix(' م'),

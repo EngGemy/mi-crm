@@ -46,9 +46,11 @@ class ProposalPage10Data
         $taxed = $vatEgp > 0 ? '14% شامل' : 'غير خاضع';
 
         $silo = $quotation->siloCapacity?->label_ar;
-        $siloLine = is_string($silo) && $silo !== ''
-            ? "+ سايلو سعة {$silo} + بريمة مناولة سايلو\n"
-            : "+ سايلو سعة 25 طن + بريمة مناولة سايلو\n";
+        $siloLabel = is_string($silo) && $silo !== '' ? $silo : '25 طن';
+        $siloCount = (int) $quotation->silos_count;
+        $siloLine = $siloCount > 1
+            ? "+ عدد {$siloCount} سايلو سعة {$siloLabel} + بريمة مناولة سايلو\n"
+            : "+ سايلو سعة {$siloLabel} + بريمة مناولة سايلو\n";
 
         $description = "توريد بطاريات {$batteryLabel} بالمواصفات السابقة\n"
             ."شاملة لوح الكنترول للأجزاء المذكورة أعلاه\n"

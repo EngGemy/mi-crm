@@ -2,15 +2,25 @@
 
 namespace App\Support;
 
+use App\Services\Fx\DailyUsdEgpRate;
 use App\Services\SettingsService;
+use Throwable;
 
 /**
- * تحويل مجاني بين الجنيه والدولار حسب سعر الصرف في الإعدادات.
+ * تحويل بين الجنيه والدولار حسب سعر الدولار العالمي اليومي.
  */
 class CurrencyConverter
 {
     public static function egpToUsdRate(): float
     {
+        try {
+            $rate = app(DailyUsdEgpRate::class)->rate();
+            if ($rate > 1) {
+                return $rate;
+            }
+        } catch (Throwable) {
+        }
+
         if (function_exists('app') && app()->bound(SettingsService::class)) {
             $rate = (float) settings(
                 'poultry_pricing.egp_to_usd_rate',

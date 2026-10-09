@@ -12,7 +12,7 @@ use Throwable;
  * Builds the 13-page branded "Technical Proposal" PDF.
  *
  * Static brochure pages are imported verbatim from the template; data pages
- * (2 = barn card, 6 = belts, 9 = technical specs, 10 = financial offer) are re-rendered
+ * (2 = barn card, 6 = belts, 7 = silo capacity, 9 = technical specs, 10 = financial offer) are re-rendered
  * from the quotation snapshot on top of the branded header and footer.
  */
 class MiProposalPdfGenerator
@@ -112,6 +112,7 @@ class MiProposalPdfGenerator
         match ($page) {
             2 => $this->renderPage2($mpdf, $q),
             6 => $this->renderPage6($mpdf, $q),
+            7 => $this->renderPage7($mpdf, $q),
             9 => $this->renderPage9($mpdf, $q),
             10 => $this->renderPage10($mpdf, $q),
             default => null,
@@ -163,6 +164,25 @@ class MiProposalPdfGenerator
             $this->mm(576),
             $this->mm(226),
             $this->mm(40),
+            'auto'
+        );
+    }
+
+    protected function renderPage7(Mpdf $mpdf, PoultryQuotation $q): void
+    {
+        $data = (new ProposalPage7Data)->from($q);
+        $mpdf->WriteHTML((new ProposalPage7Data)->stylesheet(), HTMLParserMode::HEADER_CSS);
+        $mpdf->SetFillColor(247, 237, 236);
+
+        // Cover the brochure's fixed red "11 طن" between السايلو and علف.
+        $this->paintPt($mpdf, 426, 181.5, 40, 16);
+
+        $mpdf->WriteFixedPosHTML(
+            view('poultry.proposal.page7-silo', $data)->render(),
+            $this->mm(426),
+            $this->mm(181.5),
+            $this->mm(40),
+            $this->mm(16),
             'auto'
         );
     }

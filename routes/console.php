@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('leads:send-reminders')->everyFiveMinutes();
 Schedule::command('crm:scan-alerts')->dailyAt('08:00');
+Schedule::command('fx:refresh-usd-egp')->dailyAt('08:05');

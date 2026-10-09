@@ -4,6 +4,7 @@ namespace App\Services\Poultry;
 
 use App\Enums\PoultryProjectType;
 use App\Models\PoultryQuotation;
+use App\Support\SiloCapacity;
 
 /**
  * Page 2 of the branded proposal: the barn card on the cover photo.
@@ -53,6 +54,7 @@ class ProposalPage2Data
                         ['label' => 'مكان المشروع', 'value' => $location !== '' ? $location : '—'],
                         ['label' => 'الأعمدة الداخلية', 'value' => (string) (int) ($quotation->internal_columns ?? 0)],
                         ...$this->roofRow($quotation, $projectType),
+                        ...$this->siloRow($quotation, $projectType),
                     ],
                 ],
             ],
@@ -89,6 +91,30 @@ CSS;
         };
 
         return [['label' => 'نوع السقف', 'value' => $label]];
+    }
+
+    /** @return list<array{label: string, value: string}> */
+    private function siloRow(PoultryQuotation $quotation, string $projectType): array
+    {
+        if (! (PoultryProjectType::tryFrom($projectType)?->isBroiler() ?? false)) {
+            return [];
+        }
+
+        $label = $quotation->siloCapacity?->label_ar;
+        $rows = [[
+            'label' => 'سعة السايلو',
+            'value' => is_string($label) && $label !== '' ? $label : '25 طن',
+        ]];
+
+        $count = (int) $quotation->silos_count;
+        if (SiloCapacity::allowsSiloCountChoice((int) $quotation->bird_count) && in_array($count, [1, 2, 3], true)) {
+            $rows[] = [
+                'label' => 'عدد السيلوهات',
+                'value' => (string) $count,
+            ];
+        }
+
+        return $rows;
     }
 
     private function projectLabel(string $projectType): string

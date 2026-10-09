@@ -185,4 +185,20 @@ class PoultryTechnicalCalculatorTest extends TestCase
         $this->assertEquals(5, $this->calc->resolveLinesFromWidth(15, $config));
         $this->assertEquals(4, $this->calc->resolveLinesFromWidth(12, $config));
     }
+
+    /** @test */
+    public function inner_belt_follows_barn_width(): void
+    {
+        $this->assertSame(12, $this->calc->innerBeltMetersForWidth(10.5));
+        $this->assertSame(12, $this->calc->innerBeltMetersForWidth(12));
+        $this->assertSame(12, $this->calc->innerBeltMetersForWidth(13.5));
+        $this->assertSame(16, $this->calc->innerBeltMetersForWidth(13.51));
+        $this->assertSame(16, $this->calc->innerBeltMetersForWidth(15));
+        $this->assertSame(16, $this->calc->innerBeltMetersForWidth(15.5));
+        $this->assertSame(20, $this->calc->innerBeltMetersForWidth(15.51));
+        $this->assertSame(20, $this->calc->innerBeltMetersForWidth(16.5));
+        $this->assertSame(20, $this->calc->innerBeltMetersForWidth(18));
+        $this->assertNull($this->calc->innerBeltMetersForWidth(10.49));
+        $this->assertNull($this->calc->innerBeltMetersForWidth(18.01));
+    }
 }

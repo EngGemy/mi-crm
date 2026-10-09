@@ -13,7 +13,7 @@ return [
     'page_count' => 13,
 
     // Pages rebuilt with dynamic data (everything else is imported verbatim).
-    'dynamic_pages' => [2, 6, 9, 10],
+    'dynamic_pages' => [2, 6, 7, 9, 10],
 
     /*
     |--------------------------------------------------------------------------
@@ -35,7 +35,7 @@ return [
         'x' => 16,
         'y' => 164,
         'w' => 178,
-        'h' => 82,
+        'h' => 96,
     ],
 
     // Page 10 has a slightly taller header strip in the brochure.

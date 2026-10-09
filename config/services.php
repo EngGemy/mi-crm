@@ -32,4 +32,8 @@ return [
     'node' => [
         'binary' => env('NODE_BINARY'),
     ],
+
+    'fx' => [
+        'daily_fetch' => env('FX_DAILY_FETCH', true),
+    ],
 ];

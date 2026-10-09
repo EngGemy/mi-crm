@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Models\Lookup;
 use App\Models\PoultryQuotation;
 use App\Services\Poultry\MiProposalPdfGenerator;
 use App\Services\Poultry\ProposalPage2Data;
@@ -112,6 +113,7 @@ class MiProposalPdfGeneratorTest extends TestCase
         $this->assertSame('داجن', $data10['unit']);
         $offer = collect($data10['sections'])->firstWhere('kind', 'offer');
         $this->assertStringContainsString('تسمين', $offer['description']);
+        $this->assertStringContainsString('سايلو سعة 25 طن', $offer['description']);
 
         $html = view('poultry.proposal.page10', $data10)->render();
         $this->assertStringNotContainsString('<style', $html);
@@ -335,11 +337,36 @@ class MiProposalPdfGeneratorTest extends TestCase
         $this->assertSame('13 متر', $rows[2]['value']);
         $this->assertSame('2.9 متر', $rows[3]['value']);
         $this->assertSame('كفر شيخ', $rows[4]['value']);
+        $this->assertSame('سعة السايلو', collect($rows)->last()['label']);
+        $this->assertSame('25 طن', collect($rows)->last()['value']);
 
         $html = view('poultry.proposal.page2', $data)->render();
         $this->assertStringNotContainsString('<style', $html);
         $this->assertStringContainsString('71 متر', $html);
         $this->assertStringContainsString('كفر شيخ', $html);
+        $this->assertStringContainsString('سعة السايلو', $html);
         $this->assertStringNotContainsString('99 متر', $html);
+    }
+
+    public function test_broiler_quote_prints_the_chosen_silo_capacity(): void
+    {
+        $q = $this->page10Quote([
+            'project_type' => 'broiler',
+            'pricing_snapshot' => [
+                'project_type' => 'broiler',
+                'financial' => [
+                    'subtotal' => '100.00',
+                    'vat_amount' => '0.00',
+                    'total' => '100.00',
+                ],
+                'currency' => ['rate' => 48],
+            ],
+        ]);
+        $q->setRelation('siloCapacity', new Lookup(['label_ar' => '14 طن']));
+
+        $offer = collect((new ProposalPage10Data)->from($q)['sections'])->firstWhere('kind', 'offer');
+
+        $this->assertStringContainsString('سايلو سعة 14 طن', $offer['description']);
+        $this->assertStringNotContainsString('سايلو سعة 25 طن', $offer['description']);
     }
 }

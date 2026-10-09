@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Models\Lookup;
 use App\Models\PoultryQuotation;
 use App\Services\Poultry\ProposalPage6Data;
+use App\Services\Poultry\ProposalPage7Data;
 use Tests\TestCase;
 
 class ProposalPage6DataTest extends TestCase
@@ -32,5 +33,18 @@ class ProposalPage6DataTest extends TestCase
         $this->assertStringContainsString('12 متر', $belts);
         $this->assertStringContainsString('8 متر', $belts);
         $this->assertStringNotContainsString('عدد 2 سير', $belts);
+    }
+
+    public function test_page7_prints_the_chosen_silo_capacity(): void
+    {
+        $quote = new PoultryQuotation;
+        $quote->setRelation('siloCapacity', new Lookup(['label_ar' => '25 طن']));
+
+        $data = (new ProposalPage7Data)->from($quote);
+        $html = view('poultry.proposal.page7-silo', $data)->render();
+
+        $this->assertSame('25 طن', $data['silo']);
+        $this->assertStringContainsString('25 طن', $html);
+        $this->assertStringNotContainsString('11 طن', $html);
     }
 }
