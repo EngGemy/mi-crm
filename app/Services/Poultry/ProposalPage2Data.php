@@ -51,10 +51,8 @@ class ProposalPage2Data
                         ['label' => 'طول العنبر', 'value' => $this->meters($length)],
                         ['label' => 'عرض العنبر', 'value' => $this->meters($width)],
                         ['label' => 'ارتفاع العنبر', 'value' => $this->meters($height)],
-                        ['label' => 'مكان المشروع', 'value' => $location !== '' ? $location : '—'],
-                        ['label' => 'الأعمدة الداخلية', 'value' => (string) (int) ($quotation->internal_columns ?? 0)],
-                        ...$this->roofRow($quotation, $projectType),
                         ...$this->siloRow($quotation, $projectType),
+                        ['label' => 'مكان المشروع', 'value' => $location !== '' ? $location : '—'],
                     ],
                 ],
             ],
@@ -75,22 +73,6 @@ class ProposalPage2Data
     .p2 .odd td { background: #faf1f1; }
     .p2 .even td { background: #ffffff; }
 CSS;
-    }
-
-    /** @return list<array{label: string, value: string}> */
-    private function roofRow(PoultryQuotation $quotation, string $projectType): array
-    {
-        if (! (PoultryProjectType::tryFrom($projectType)?->isBroiler() ?? false)) {
-            return [];
-        }
-
-        $label = match ($quotation->roof_type) {
-            'flat' => 'مستوي',
-            'gable' => 'مائل',
-            default => '—',
-        };
-
-        return [['label' => 'نوع السقف', 'value' => $label]];
     }
 
     /** @return list<array{label: string, value: string}> */
