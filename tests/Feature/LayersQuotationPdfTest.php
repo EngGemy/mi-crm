@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Lookup;
 use App\Models\PoultryQuotation;
+use App\Quotations\Layers\LayersTemplateStamper;
 use App\Quotations\Templates\BroilerQuotationTemplate;
 use App\Quotations\Templates\LayersQuotationTemplate;
 use App\Services\Poultry\ProposalPage10Data;
@@ -144,6 +145,17 @@ class LayersQuotationPdfTest extends TestCase
                 'is_active' => true,
             ],
         )->id;
+    }
+
+    public function test_regular_layer_template_drops_the_egg_collection_page(): void
+    {
+        $stamper = new LayersTemplateStamper;
+
+        $layer = $stamper->pdf(['project_type' => 'layer']);
+        $auto = $stamper->pdf(['project_type' => 'layer_auto_collect']);
+
+        $this->assertSame(13, preg_match_all('/\/Type\s*\/Page(?!s)/', $layer));
+        $this->assertSame(14, preg_match_all('/\/Type\s*\/Page(?!s)/', $auto));
     }
 
     public function test_broiler_pdf_data_is_unchanged(): void

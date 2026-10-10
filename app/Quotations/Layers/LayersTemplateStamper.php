@@ -11,6 +11,9 @@ use RuntimeException;
  */
 class LayersTemplateStamper
 {
+    /** صفحة دولاب البيض في القالب. تظهر مع جمع البيض الآلي فقط. */
+    private const EGG_COLLECTION_PAGE = 7;
+
     public function pdf(array $data): string
     {
         $template = resource_path('quotations/layers/template.pdf');
@@ -50,9 +53,19 @@ class LayersTemplateStamper
         $pageCount = $mpdf->SetSourceFile($template);
         $stamps = $this->stamps($data);
 
+        $keepEggPage = ($data['project_type'] ?? '') === PoultryProjectType::LayerAutoCollect->value;
+
         for ($page = 1; $page <= $pageCount; $page++) {
+            if ($page === self::EGG_COLLECTION_PAGE && ! $keepEggPage) {
+                continue;
+            }
+
             $mpdf->AddPage();
             $mpdf->UseTemplate($mpdf->ImportPage($page));
+
+            if ($page === 2) {
+                $this->paintCover($mpdf, $data);
+            }
 
             foreach ($stamps as $stamp) {
                 if ($stamp['page'] !== $page || $stamp['text'] === '') {
@@ -79,15 +92,63 @@ class LayersTemplateStamper
         $financial = is_array($data['financial'] ?? null) ? $data['financial'] : [];
 
         return [
-            $this->box(2, 31.3, 184.2, 70, 8, 13, $this->barnType((string) ($data['project_type'] ?? ''))),
-            $this->box(2, 31.5, 193.6, 70, 8, 13, $this->withUnit($data['length'] ?? null, 'متر')),
-            $this->box(2, 33.6, 200.6, 70, 8, 13, $this->withUnit($data['width'] ?? null, 'متر')),
-            $this->box(2, 33.0, 208.3, 70, 8, 13, $this->withUnit($data['height'] ?? null, 'متر')),
-            $this->box(2, 34.4, 215.6, 70, 8, 13, trim((string) ($data['location'] ?? ''))),
             $this->box(10, 37.7, 121.4, 28, 6, 12, $this->grouped($data['total_nests'] ?? null)),
             $this->box(11, 122.3, 112.6, 32, 6, 11, $this->grouped($financial['barn_usd'] ?? null)),
             $this->box(11, 161.9, 112.6, 36, 6, 11, $this->grouped($financial['barn_egp'] ?? null)),
         ];
+    }
+
+    /** @param  array<string, mixed>  $data */
+    private function paintCover(Mpdf $mpdf, array $data): void
+    {
+        $client = trim((string) ($data['client_name'] ?? ''));
+        if ($client !== '') {
+            $mpdf->SetFillColor(138, 79, 68);
+            $mpdf->Rect(18, 189.6, 148, 9.4, 'F');
+            $mpdf->SetFont('cairo', 'B', 14);
+            $mpdf->SetTextColor(255, 255, 255);
+            $mpdf->SetXY(18, 190.8);
+            $mpdf->WriteCell(148, 7, 'مقدم الى '.$client, 0, 0, 'C');
+        }
+
+        $rows = [
+            ['نوع العنبر', $this->barnType((string) ($data['project_type'] ?? ''))],
+            ['طول العنبر', $this->withUnit($data['length'] ?? null, 'متر')],
+            ['عرض العنبر الداخلي', $this->withUnit($data['width'] ?? null, 'متر')],
+            ['ارتفاع العنبر', $this->withUnit($data['height'] ?? null, 'متر')],
+            ['مكان المشروع', trim((string) ($data['location'] ?? ''))],
+        ];
+
+        $x = 28.0;
+        $y = 199.6;
+        $width = 154.0;
+        $headerH = 11.0;
+        $rowH = 8.8;
+        $valueW = 70.0;
+
+        $mpdf->SetFillColor(176, 26, 34);
+        $mpdf->Rect($x, $y, $width, $headerH, 'F');
+        $mpdf->SetFont('cairo', 'B', 13);
+        $mpdf->SetTextColor(255, 255, 255);
+        $mpdf->SetXY($x, $y + 1.6);
+        $mpdf->WriteCell($width, $headerH - 2, 'تفاصيل العنبر', 0, 0, 'C');
+
+        $mpdf->SetLineWidth(0.25);
+        $mpdf->SetDrawColor(214, 164, 162);
+        $y += $headerH;
+        foreach ($rows as $i => [$label, $value]) {
+            $mpdf->SetFillColor($i % 2 === 0 ? 249 : 255, $i % 2 === 0 ? 229 : 246, $i % 2 === 0 ? 228 : 245);
+            $mpdf->Rect($x, $y, $width, $rowH, 'F');
+            $mpdf->Rect($x, $y, $width, $rowH, 'D');
+            $mpdf->Line($x + $valueW, $y, $x + $valueW, $y + $rowH);
+            $mpdf->SetTextColor(32, 32, 32);
+            $mpdf->SetFont('cairo', 'B', 12);
+            $mpdf->SetXY($x, $y + 1.3);
+            $mpdf->WriteCell($valueW, $rowH - 1.6, $value, 0, 0, 'C');
+            $mpdf->SetXY($x + $valueW, $y + 1.3);
+            $mpdf->WriteCell($width - $valueW, $rowH - 1.6, $label, 0, 0, 'C');
+            $y += $rowH;
+        }
     }
 
     /** @return array{page: int, x: float, y: float, w: float, h: float, size: int, text: string} */

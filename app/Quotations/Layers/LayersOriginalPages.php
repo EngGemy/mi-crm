@@ -188,7 +188,7 @@ PS1);
             }
         }
 
-        $this->replaceExact($nodes, 'م/ محمد جامع', $this->text($data['client_name'] ?? null));
+        $this->replaceContaining($nodes, 'م/ محمد جامع', $this->text($data['client_name'] ?? null, 'م/ محمد جامع'));
         $this->replaceExact($nodes, '01/10/2026', $this->text($data['issued_at'] ?? null));
         $this->replaceExact($nodes, 'بياض', $this->barnType((string) ($data['project_type'] ?? '')));
         $this->replaceExact($nodes, '81', $this->comma($data['length'] ?? null, '81'));
@@ -271,6 +271,20 @@ PS1);
         foreach ($nodes as $node) {
             if (trim($node->textContent) === $from) {
                 $node->textContent = $this->keepSpace($node->textContent, $to);
+            }
+        }
+    }
+
+    /** @param  list<DOMElement>  $nodes */
+    private function replaceContaining(array $nodes, string $from, string $to): void
+    {
+        if ($from === '' || $to === $from) {
+            return;
+        }
+
+        foreach ($nodes as $node) {
+            if (str_contains($node->textContent, $from)) {
+                $node->textContent = str_replace($from, $to, $node->textContent);
             }
         }
     }
