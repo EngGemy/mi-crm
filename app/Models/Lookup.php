@@ -78,6 +78,17 @@ class Lookup extends Model
 
     protected static function booted(): void
     {
+        static::creating(function (Lookup $lookup): void {
+            if (filled($lookup->code)) {
+                return;
+            }
+
+            $lookup->code = static::uniqueCode(
+                (string) $lookup->type,
+                (string) ($lookup->value ?: $lookup->label_ar),
+            );
+        });
+
         static::saved(function (Lookup $lookup): void {
             if (! data_get($lookup->meta, 'is_default')) {
                 return;
@@ -115,6 +126,22 @@ class Lookup extends Model
         return static::ofType($type)
             ->pluck('label_ar', 'id')
             ->all();
+    }
+
+    public static function uniqueCode(string $type, string $source): string
+    {
+        $base = trim($source);
+        $base = preg_replace('/\s+/u', '-', $base) ?: 'option';
+        $base = mb_substr($base, 0, 50);
+        $code = $base;
+        $suffix = 2;
+
+        while (static::query()->where('type', $type)->where('code', $code)->exists()) {
+            $code = $base.'-'.$suffix;
+            $suffix++;
+        }
+
+        return $code;
     }
 
     public static function defaultId(string $type): ?int
