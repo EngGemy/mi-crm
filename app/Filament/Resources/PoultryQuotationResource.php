@@ -311,6 +311,7 @@ class PoultryQuotationResource extends Resource
                         ->options([
                             3 => '3 أدوار',
                             4 => '4 أدوار',
+                            5 => '5 أدوار',
                         ])
                         ->default(4)
                         ->required()

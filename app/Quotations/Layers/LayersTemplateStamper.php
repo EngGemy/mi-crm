@@ -67,6 +67,22 @@ class LayersTemplateStamper
                 $this->paintCover($mpdf, $data);
             }
 
+            if ($page === 6) {
+                $this->paintBelts($mpdf, $data);
+            }
+
+            if ($page === 8) {
+                $this->paintSilo($mpdf, $data);
+            }
+
+            if ($page === 10) {
+                $this->paintTiers($mpdf, $data);
+            }
+
+            if ($page === 11) {
+                $this->paintCustomer($mpdf, $data);
+            }
+
             foreach ($stamps as $stamp) {
                 if ($stamp['page'] !== $page || $stamp['text'] === '') {
                     continue;
@@ -149,6 +165,66 @@ class LayersTemplateStamper
             $mpdf->WriteCell($width - $valueW, $rowH - 1.6, $label, 0, 0, 'C');
             $y += $rowH;
         }
+    }
+
+    /** @param  array<string, mixed>  $data */
+    private function paintBelts(Mpdf $mpdf, array $data): void
+    {
+        $this->paintLabel($mpdf, 71.5, 225.6, 16, 5.2, 9, trim((string) ($data['inner_belt'] ?? '')));
+        $this->paintLabel($mpdf, 98, 225.6, 14, 5.2, 9, trim((string) ($data['outer_belt'] ?? '')));
+    }
+
+    /** @param  array<string, mixed>  $data */
+    private function paintSilo(Mpdf $mpdf, array $data): void
+    {
+        $label = trim((string) ($data['silo_capacity'] ?? ''));
+        if ($label === '') {
+            return;
+        }
+
+        $count = (int) ($data['silos_count'] ?? 1);
+        if ($count > 1) {
+            $label = $count.' × '.$label;
+        }
+
+        $wide = mb_strlen($label) > 8;
+        $this->paintLabel($mpdf, $wide ? 38 : 47, 69, $wide ? 32 : 18, 5.2, 9, $label);
+    }
+
+    /** @param  array<string, mixed>  $data */
+    private function paintTiers(Mpdf $mpdf, array $data): void
+    {
+        $tiers = $data['tiers'] ?? null;
+        if (! is_numeric($tiers) || (int) $tiers <= 0) {
+            return;
+        }
+
+        $this->paintLabel($mpdf, 35, 83.6, 30, 5.2, 10, ((int) $tiers).' أدوار');
+    }
+
+    /** @param  array<string, mixed>  $data */
+    private function paintCustomer(Mpdf $mpdf, array $data): void
+    {
+        $client = trim((string) ($data['client_name'] ?? ''));
+        if ($client === '') {
+            return;
+        }
+
+        $this->paintLabel($mpdf, 112, 49.2, 36, 6.8, 11, $client);
+    }
+
+    private function paintLabel(Mpdf $mpdf, float $x, float $y, float $w, float $h, int $size, string $text, string $align = 'C'): void
+    {
+        if ($text === '') {
+            return;
+        }
+
+        $mpdf->SetFillColor(255, 255, 255);
+        $mpdf->Rect($x, $y, $w, $h, 'F');
+        $mpdf->SetFont('cairo', 'B', $size);
+        $mpdf->SetTextColor(21, 21, 21);
+        $mpdf->SetXY($x, $y + 0.4);
+        $mpdf->WriteCell($w, $h - 0.6, $text, 0, 0, $align);
     }
 
     /** @return array{page: int, x: float, y: float, w: float, h: float, size: int, text: string} */
