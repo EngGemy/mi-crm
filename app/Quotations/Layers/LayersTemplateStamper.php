@@ -206,11 +206,36 @@ class LayersTemplateStamper
     private function paintCustomer(Mpdf $mpdf, array $data): void
     {
         $client = trim((string) ($data['client_name'] ?? ''));
-        if ($client === '') {
+        $this->paintRedValue($mpdf, 81.4, 56.4, 37.2, 10.4, 22, $client, 108.0);
+
+        $date = trim((string) ($data['issued_at'] ?? ''));
+        if ($date !== '') {
+            $this->paintRedValue($mpdf, 47.5, 66.7, 42.0, 10.4, 22, $date, 90.0);
+        }
+    }
+
+    /**
+     * يغطي قيمة حمراء ثابتة في القالب ويكتب القيمة الفعلية بنفس المقاس والمحاذاة.
+     */
+    private function paintRedValue(Mpdf $mpdf, float $x, float $y, float $w, float $h, int $size, string $text, float $maxW): void
+    {
+        $mpdf->SetFillColor(255, 255, 255);
+        $mpdf->Rect($x, $y, max($w, 4), $h, 'F');
+        if ($text === '') {
             return;
         }
 
-        $this->paintLabel($mpdf, 112, 49.2, 36, 6.8, 11, $client);
+        $mpdf->SetTextColor(255, 0, 0);
+        $mpdf->SetFont('cairo', 'B', $size);
+        $width = $mpdf->GetStringWidth($text);
+        while ($size > 12 && $width > $maxW) {
+            $size--;
+            $mpdf->SetFont('cairo', 'B', $size);
+            $width = $mpdf->GetStringWidth($text);
+        }
+
+        $mpdf->SetXY($x + 0.4, $y + 1.15);
+        $mpdf->WriteCell(min($maxW, max($width + 1.2, 8)), $h - 2.2, $text, 0, 0, 'L');
     }
 
     private function paintLabel(Mpdf $mpdf, float $x, float $y, float $w, float $h, int $size, string $text, string $align = 'C'): void
