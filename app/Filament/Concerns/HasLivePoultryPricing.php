@@ -42,28 +42,44 @@ trait HasLivePoultryPricing
 
         static::syncInnerBeltFromWidth($set, $width);
 
-        if ($length <= 0 || $width <= 0 || $height <= 0 || $tiers <= 0 || $lines <= 0) {
-            return;
-        }
-
         try {
             $projectType = static::resolveProjectTypeFromForm($get);
+            $isBroiler = PoultryProjectType::tryFrom($projectType)?->isBroiler() ?? false;
+            $calc = new PoultryTechnicalCalculator;
+
+            if ($isBroiler && $height > 0) {
+                $rule = $calc->broilerTierRule($height, (string) ($get('roof_type') ?: 'flat'));
+                if ($rule['message'] !== null) {
+                    $set('pricing_preview', ['error' => $rule['message']]);
+
+                    return;
+                }
+                if ($rule['tiers'] !== null) {
+                    $tiers = $rule['tiers'];
+                    $set('tiers', $tiers);
+                }
+            }
+
+            if ($get('auto_lines_from_width') && $width > 0) {
+                $suggested = $isBroiler
+                    ? (int) ($calc->broilerLinesForWidth($width, (int) ($get('internal_columns') ?? 0)) ?? 0)
+                    : $calc->resolveLinesFromWidth($width, (new PoultryConfigLoader)->loadTechnicalConfig());
+                if ($suggested > 0) {
+                    $set('lines', $suggested);
+                    $lines = $suggested;
+                }
+            }
+
+            if ($length <= 0 || $width <= 0 || $height <= 0 || $tiers <= 0 || $lines <= 0) {
+                return;
+            }
+
             $autoService = $get('auto_service_deduction') !== false;
             $birdWeight = (float) ($get('bird_weight_kg') ?? $get('average_weight_kg') ?? 2.1);
             $barnsCount = max(1, (int) ($get('barns_count') ?? 1));
 
             if (! $get('exchange_rate')) {
                 $set('exchange_rate', (string) app(DailyUsdEgpRate::class)->rate());
-            }
-
-            if ($get('auto_lines_from_width') && $width > 0) {
-                $calc = new PoultryTechnicalCalculator;
-                $config = (new PoultryConfigLoader)->loadTechnicalConfig();
-                $suggested = $calc->resolveLinesFromWidth($width, $config);
-                if ($suggested > 0) {
-                    $set('lines', $suggested);
-                    $lines = $suggested;
-                }
             }
 
             $isLayer = PoultryProjectType::tryFrom($projectType)?->isLayer() ?? false;

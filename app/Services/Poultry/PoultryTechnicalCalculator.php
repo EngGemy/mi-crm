@@ -291,6 +291,70 @@ class PoultryTechnicalCalculator
     }
 
     /**
+     * تسمين + سقف مستوي: أقل من 2.9 م مرفوض، ومن 3 إلى 3.5 م = 3 أدوار، ومن 3.7 إلى 4.5 م = 4 أدوار.
+     * السقف المائل يقبل أقل بـ 30 سم في كل حد.
+     *
+     * @return array{tiers: int|null, message: string|null}
+     */
+    public function broilerTierRule(float $height, string $roofType): array
+    {
+        if ($height <= 0) {
+            return ['tiers' => null, 'message' => null];
+        }
+
+        $drop = $roofType === 'gable' ? 0.3 : 0.0;
+        $sloped = $roofType === 'gable';
+
+        if ($height < (2.9 - $drop) - 0.0001) {
+            return [
+                'tiers' => null,
+                'message' => $sloped
+                    ? 'السقف المائل لا يقبل ارتفاعاً أقل من 2.6 م'
+                    : 'السقف المستوي لا يقبل ارتفاعاً أقل من 2.9 م',
+            ];
+        }
+
+        if ($this->within($height, 3.0 - $drop, 3.5 - $drop)) {
+            return ['tiers' => 3, 'message' => null];
+        }
+
+        if ($this->within($height, 3.7 - $drop, 4.5 - $drop)) {
+            return ['tiers' => 4, 'message' => null];
+        }
+
+        return ['tiers' => null, 'message' => null];
+    }
+
+    /**
+     * عرض 11–13.5 = 4 خطوط. عرض 13.6–16 = 5، و16.10–18 = 6، بشرط عدم وجود أعمدة.
+     */
+    public function broilerLinesForWidth(float $width, int $internalColumns = 0): ?int
+    {
+        if ($this->within($width, 11, 13.5)) {
+            return 4;
+        }
+
+        if ($internalColumns > 0) {
+            return null;
+        }
+
+        if ($this->within($width, 13.6, 16)) {
+            return 5;
+        }
+
+        if ($this->within($width, 16.10, 18)) {
+            return 6;
+        }
+
+        return null;
+    }
+
+    private function within(float $value, float $min, float $max): bool
+    {
+        return $value + 0.0001 >= $min && $value - 0.0001 <= $max;
+    }
+
+    /**
      * @param  array<string, mixed>  $config
      */
     public function resolveLinesFromWidth(float $width, array $config): int

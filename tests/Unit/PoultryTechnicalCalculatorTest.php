@@ -177,6 +177,47 @@ class PoultryTechnicalCalculatorTest extends TestCase
     }
 
     /** @test */
+    public function broiler_flat_roof_rejects_short_barns_and_picks_tiers(): void
+    {
+        $this->assertSame('السقف المستوي لا يقبل ارتفاعاً أقل من 2.9 م', $this->calc->broilerTierRule(2.89, 'flat')['message']);
+        $this->assertNull($this->calc->broilerTierRule(2.9, 'flat')['message']);
+        $this->assertNull($this->calc->broilerTierRule(2.9, 'flat')['tiers']);
+        $this->assertSame(3, $this->calc->broilerTierRule(3, 'flat')['tiers']);
+        $this->assertSame(3, $this->calc->broilerTierRule(3.5, 'flat')['tiers']);
+        $this->assertNull($this->calc->broilerTierRule(3.6, 'flat')['tiers']);
+        $this->assertSame(4, $this->calc->broilerTierRule(3.7, 'flat')['tiers']);
+        $this->assertSame(4, $this->calc->broilerTierRule(4.5, 'flat')['tiers']);
+        $this->assertNull($this->calc->broilerTierRule(4.6, 'flat')['tiers']);
+    }
+
+    /** @test */
+    public function broiler_sloped_roof_accepts_thirty_centimeters_less(): void
+    {
+        $this->assertSame('السقف المائل لا يقبل ارتفاعاً أقل من 2.6 م', $this->calc->broilerTierRule(2.59, 'gable')['message']);
+        $this->assertNull($this->calc->broilerTierRule(2.6, 'gable')['message']);
+        $this->assertSame(3, $this->calc->broilerTierRule(2.7, 'gable')['tiers']);
+        $this->assertSame(3, $this->calc->broilerTierRule(3.2, 'gable')['tiers']);
+        $this->assertSame(4, $this->calc->broilerTierRule(3.4, 'gable')['tiers']);
+        $this->assertSame(4, $this->calc->broilerTierRule(4.2, 'gable')['tiers']);
+        $this->assertNull($this->calc->broilerTierRule(4.3, 'gable')['tiers']);
+    }
+
+    /** @test */
+    public function broiler_lines_follow_width_and_skip_five_and_six_when_columns_exist(): void
+    {
+        $this->assertSame(4, $this->calc->broilerLinesForWidth(11, 2));
+        $this->assertSame(4, $this->calc->broilerLinesForWidth(13.5));
+        $this->assertSame(5, $this->calc->broilerLinesForWidth(13.6));
+        $this->assertSame(5, $this->calc->broilerLinesForWidth(16));
+        $this->assertNull($this->calc->broilerLinesForWidth(16, 1));
+        $this->assertNull($this->calc->broilerLinesForWidth(16.09));
+        $this->assertSame(6, $this->calc->broilerLinesForWidth(16.10));
+        $this->assertSame(6, $this->calc->broilerLinesForWidth(18));
+        $this->assertNull($this->calc->broilerLinesForWidth(18, 1));
+        $this->assertNull($this->calc->broilerLinesForWidth(10.9));
+    }
+
+    /** @test */
     public function width_to_lines_mapping(): void
     {
         $config = array_merge($this->baseConfig(), [

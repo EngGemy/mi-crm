@@ -12,6 +12,7 @@ use App\Services\Fx\DailyUsdEgpRate;
 use App\Services\Poultry\SavedClientCatalog;
 use App\Services\Pricing\PricingCardImageGenerator;
 use App\Services\Poultry\PoultryConfigLoader;
+use App\Services\Poultry\PoultryTechnicalCalculator;
 use App\Services\Poultry\PoultryQuoteAccess;
 use Illuminate\Database\Eloquent\Builder;
 use App\Support\BroilerWeightReference;
@@ -244,7 +245,8 @@ class PoultryQuotationResource extends Resource
                         ->default(0)
                         ->native(false)
                         ->required()
-                        ->live(),
+                        ->live()
+                        ->afterStateUpdated($live),
 
                     Forms\Components\Select::make('roof_type')
                         ->label('نوع السقف')
@@ -257,7 +259,8 @@ class PoultryQuotationResource extends Resource
                         ->native(false)
                         ->visible(fn (Get $get) => static::isBroilerProject($get))
                         ->dehydrated(fn (Get $get) => static::isBroilerProject($get))
-                        ->live(),
+                        ->live()
+                        ->afterStateUpdated($live),
 
                     Forms\Components\Select::make('silo_capacity_id')
                         ->label('سعة السايلو')
@@ -299,11 +302,44 @@ class PoultryQuotationResource extends Resource
                         ->required()->numeric()->step(0.1)
                         ->default('4')
                         ->minValue(0.1)->suffix('م')
-                        ->live(onBlur: true)->afterStateUpdated($live),
+                        ->live(onBlur: true)
+                        ->afterStateUpdated($live)
+                        ->helperText(fn (Get $get): ?string => static::isBroilerProject($get)
+                            ? 'سقف مستوي: أقل من 2.9 م مرفوض، ومن 3 إلى 3.5 م يختار 3 أدوار، ومن 3.7 إلى 4.5 م يختار 4 أدوار. السقف المائل أقل بـ 30 سم.'
+                            : null)
+                        ->hint(function (Get $get): ?string {
+                            if (! static::isBroilerProject($get)) {
+                                return null;
+                            }
+
+                            return (new PoultryTechnicalCalculator)->broilerTierRule(
+                                (float) ($get('height') ?: 0),
+                                (string) ($get('roof_type') ?: 'flat'),
+                            )['message'];
+                        })
+                        ->hintColor('danger')
+                        ->rules([
+                            fn (Get $get): \Closure => function (string $attribute, mixed $value, \Closure $fail) use ($get): void {
+                                if (! static::isBroilerProject($get)) {
+                                    return;
+                                }
+
+                                $message = (new PoultryTechnicalCalculator)->broilerTierRule(
+                                    (float) $value,
+                                    (string) ($get('roof_type') ?: 'flat'),
+                                )['message'];
+                                if ($message !== null) {
+                                    $fail($message);
+                                }
+                            },
+                        ]),
 
                     Forms\Components\TextInput::make('lines')
                         ->label('الخطوط')
                         ->required()->numeric()->integer()->default(4)->minValue(1)->maxValue(12)
+                        ->helperText(fn (Get $get): ?string => static::isBroilerProject($get)
+                            ? 'عرض 11–13.5 م = 4 خطوط. ومن 13.6–16 م = 5، ومن 16.10–18 م = 6، بشرط عدم وجود أعمدة.'
+                            : null)
                         ->live(onBlur: true)->afterStateUpdated($live),
 
                     Forms\Components\Select::make('tiers')
@@ -317,6 +353,22 @@ class PoultryQuotationResource extends Resource
                         ->required()
                         ->native(false)
                         ->live()
+                        ->disabled(function (Get $get): bool {
+                            if (! static::isBroilerProject($get)) {
+                                return false;
+                            }
+
+                            $height = (float) ($get('height') ?: 0);
+
+                            return $height > 0 && (new PoultryTechnicalCalculator)->broilerTierRule(
+                                $height,
+                                (string) ($get('roof_type') ?: 'flat'),
+                            )['tiers'] !== null;
+                        })
+                        ->dehydrated()
+                        ->helperText(fn (Get $get): ?string => static::isBroilerProject($get)
+                            ? 'يتحدد من الارتفاع ونوع السقف داخل النطاقات المعتمدة.'
+                            : null)
                         ->afterStateUpdated(function (Set $set, Get $get, $state) {
                             $set('tiers', (int) $state);
                             static::refreshLivePoultryPricing($set, $get, false, (int) $state);
