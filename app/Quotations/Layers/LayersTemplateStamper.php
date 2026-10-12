@@ -77,6 +77,7 @@ class LayersTemplateStamper
 
             if ($page === 10) {
                 $this->paintTiers($mpdf, $data);
+                $this->paintNestCount($mpdf, $data);
             }
 
             if ($page === 11) {
@@ -108,7 +109,6 @@ class LayersTemplateStamper
         $financial = is_array($data['financial'] ?? null) ? $data['financial'] : [];
 
         return [
-            $this->box(10, 37.7, 121.4, 28, 6, 12, $this->grouped($data['total_nests'] ?? null)),
             $this->box(11, 122.3, 112.6, 32, 6, 11, $this->grouped($financial['barn_usd'] ?? null)),
             $this->box(11, 161.9, 112.6, 36, 6, 11, $this->grouped($financial['barn_egp'] ?? null)),
         ];
@@ -199,7 +199,28 @@ class LayersTemplateStamper
             return;
         }
 
-        $this->paintLabel($mpdf, 35, 83.6, 30, 5.2, 10, ((int) $tiers).' أدوار');
+        $this->paintValue($mpdf, 46.2, 85.0, 8.5, 6.0, 12, (string) (int) $tiers, [247, 247, 247]);
+    }
+
+    /** @param  array<string, mixed>  $data */
+    private function paintNestCount(Mpdf $mpdf, array $data): void
+    {
+        $this->paintValue($mpdf, 41.8, 122.4, 16.5, 6.3, 12, $this->grouped($data['total_nests'] ?? null), [255, 255, 255]);
+    }
+
+    /** @param  array{0: int, 1: int, 2: int}  $fill */
+    private function paintValue(Mpdf $mpdf, float $x, float $y, float $w, float $h, int $size, string $text, array $fill): void
+    {
+        if ($text === '') {
+            return;
+        }
+
+        $mpdf->SetFillColor($fill[0], $fill[1], $fill[2]);
+        $mpdf->Rect($x, $y, $w, $h, 'F');
+        $mpdf->SetFont('cairo', 'B', $size);
+        $mpdf->SetTextColor(21, 21, 21);
+        $mpdf->SetXY($x, $y + 0.55);
+        $mpdf->WriteCell($w, $h - 1.0, $text, 0, 0, 'L');
     }
 
     /** @param  array<string, mixed>  $data */
