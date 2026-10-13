@@ -4,6 +4,7 @@ namespace App\Quotations\Templates;
 
 use App\Enums\PoultryProjectType;
 use App\Models\PoultryQuotation;
+use App\Quotations\Broiler\BroilerAutoExitPages;
 use App\Quotations\Contracts\QuotationTemplate;
 use App\Services\Poultry\MiProposalPdfGenerator;
 use App\Services\Poultry\ProposalPage2Data;
@@ -50,6 +51,15 @@ class BroilerQuotationTemplate implements QuotationTemplate
 
     public function render(PoultryQuotation $q): Response
     {
+        if ((string) $q->project_type === PoultryProjectType::BroilerAutoExit->value) {
+            $number = $q->quote_number ?: 'quotation';
+
+            return response((new BroilerAutoExitPages)->pdfBytes($q), 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="MI-Broiler-Auto-'.$number.'.pdf"',
+            ]);
+        }
+
         return app(MiProposalPdfGenerator::class)->download($q);
     }
 
