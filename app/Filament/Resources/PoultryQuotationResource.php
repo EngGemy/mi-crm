@@ -650,14 +650,6 @@ class PoultryQuotationResource extends Resource
                 ->icon('heroicon-o-calculator')
                 ->extraAttributes(['class' => 'pq-summary-sticky'])
                 ->schema([
-                    Forms\Components\Placeholder::make('offer_files')
-                        ->label('ملفات العرض')
-                        ->columnSpanFull()
-                        ->content(function ($livewire): HtmlString {
-                            $record = $livewire->record ?? null;
-
-                            return static::offerActionsHtml($record instanceof PoultryQuotation && $record->exists ? $record : null);
-                        }),
                     Forms\Components\Grid::make(2)->schema([
                         Forms\Components\TextInput::make('bird_count')->label('الطيور')->readOnly(),
                         Forms\Components\TextInput::make('birds_per_nest')->label('طيور / عش')->readOnly(),
@@ -667,6 +659,14 @@ class PoultryQuotationResource extends Resource
                     ...static::livePricingPreviewSchema(),
                     ...static::broilerWeightTableSchema(),
                     ...static::accessoriesPreviewTableSchema(),
+                    Forms\Components\Placeholder::make('offer_files')
+                        ->label('')
+                        ->columnSpanFull()
+                        ->content(function ($livewire): HtmlString {
+                            $record = $livewire->record ?? null;
+
+                            return static::offerActionsHtml($record instanceof PoultryQuotation && $record->exists ? $record : null);
+                        }),
                 ]),
         ];
     }
@@ -674,16 +674,16 @@ class PoultryQuotationResource extends Resource
     public static function offerActionsHtml(?PoultryQuotation $record): HtmlString
     {
         if ($record === null) {
-            return new HtmlString('<p class="pq-offer-note">احفظ العرض، وتظهر ملفات الـ PDF هنا مرتبة جنب بعض.</p>');
+            return new HtmlString('<p class="pq-offer-note">بعد الحفظ تظهر أزرار التحميل تحت الملخص.</p>');
         }
 
         $buttons = [
-            ['عرض السعر', route('poultry-quotations.pdf', $record), 'price'],
-            ['عرض المشتملات', route('poultry-quotations.accessories', $record), 'accessories'],
+            [static::quoteDownloadLabel($record), route('poultry-quotations.pdf', $record), 'price'],
+            ['تحميل عرض سعر المشتملات', route('poultry-quotations.accessories', $record), 'accessories'],
         ];
         if ($record->include_ventilation) {
             array_splice($buttons, 1, 0, [[
-                'عرض التهوية',
+                'تحميل عرض سعر التهوية',
                 route('poultry-quotations.ventilation', $record),
                 'ventilation',
             ]]);
@@ -696,6 +696,16 @@ class PoultryQuotationResource extends Resource
         $html .= '</div>';
 
         return new HtmlString($html);
+    }
+
+    public static function quoteDownloadLabel(PoultryQuotation $record): string
+    {
+        return match (PoultryProjectType::tryFrom((string) $record->project_type)) {
+            PoultryProjectType::Broiler => 'تحميل عرض سعر التسمين',
+            PoultryProjectType::BroilerAutoExit => 'تحميل عرض سعر التسمين تخريج آلي',
+            PoultryProjectType::Layer, PoultryProjectType::LayerAutoCollect, PoultryProjectType::LayerRearing => 'تحميل عرض سعر البياض',
+            default => 'تحميل عرض السعر',
+        };
     }
 
     public static function table(Table $table): Table
@@ -768,21 +778,21 @@ class PoultryQuotationResource extends Resource
                     ]))
                     ->extraModalFooterActions([
                         Tables\Actions\Action::make('downloadQuotePdf')
-                            ->label('تحميل PDF')
+                            ->label(fn (PoultryQuotation $record): string => static::quoteDownloadLabel($record))
                             ->icon('heroicon-o-arrow-down-tray')
                             ->url(fn (PoultryQuotation $record) => route('poultry-quotations.pdf', $record))
                             ->openUrlInNewTab(),
                     ]),
 
                 Tables\Actions\Action::make('downloadPdf')
-                    ->label('PDF')
+                    ->label(fn (PoultryQuotation $record): string => static::quoteDownloadLabel($record))
                     ->icon('heroicon-o-document-arrow-down')
                     ->color('primary')
                     ->url(fn (PoultryQuotation $record) => route('poultry-quotations.pdf', $record))
                     ->openUrlInNewTab(),
 
                 Tables\Actions\Action::make('downloadVentilation')
-                    ->label('عرض التهوية')
+                    ->label('تحميل عرض سعر التهوية')
                     ->icon('heroicon-o-cloud')
                     ->color('info')
                     ->visible(fn (PoultryQuotation $record): bool => (bool) $record->include_ventilation)
@@ -790,7 +800,7 @@ class PoultryQuotationResource extends Resource
                     ->openUrlInNewTab(),
 
                 Tables\Actions\Action::make('downloadAccessories')
-                    ->label('عرض المشتملات')
+                    ->label('تحميل عرض سعر المشتملات')
                     ->icon('heroicon-o-document-text')
                     ->color('warning')
                     ->url(fn (PoultryQuotation $record) => route('poultry-quotations.accessories', $record))
@@ -825,7 +835,7 @@ class PoultryQuotationResource extends Resource
                     }),
 
                 Tables\Actions\Action::make('downloadCard')
-                    ->label('تحميل')
+                    ->label('تحميل الكارت')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('primary')
                     ->visible(fn (PoultryQuotation $record): bool => $record->image_path !== null)

@@ -24,12 +24,6 @@ class ViewPoultryQuotation extends ViewRecord
     {
         return $infolist
             ->schema([
-                Components\TextEntry::make('offer_files')
-                    ->label('ملفات العرض')
-                    ->state(fn (PoultryQuotation $record): string => (string) PoultryQuotationResource::offerActionsHtml($record))
-                    ->html()
-                    ->columnSpanFull(),
-
                 Components\Section::make('كارت المشاركة')
                     ->icon('heroicon-o-photo')
                     ->visible(fn (PoultryQuotation $record): bool => $record->image_path !== null
@@ -178,6 +172,12 @@ class ViewPoultryQuotation extends ViewRecord
                             ->money('EGP')
                             ->visible(fn (PoultryQuotation $record) => $record->costForItemKey('electricity') > 0),
                     ]),
+
+                Components\TextEntry::make('offer_files')
+                    ->label('تحميل العروض')
+                    ->state(fn (PoultryQuotation $record): string => (string) PoultryQuotationResource::offerActionsHtml($record))
+                    ->html()
+                    ->columnSpanFull(),
             ]);
     }
 
@@ -197,7 +197,7 @@ class ViewPoultryQuotation extends ViewRecord
                 ]))
                 ->extraModalFooterActions([
                     Actions\Action::make('downloadQuotePdf')
-                        ->label('تحميل PDF')
+                        ->label(fn (): string => PoultryQuotationResource::quoteDownloadLabel($this->record))
                         ->icon('heroicon-o-arrow-down-tray')
                         ->url(fn () => route('poultry-quotations.pdf', $this->record))
                         ->openUrlInNewTab(),
