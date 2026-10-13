@@ -128,7 +128,7 @@ class PoultryQuotationResource extends Resource
                         ->native(false)
                         ->dehydrated(false)
                         ->placeholder('من العملاء أو العملاء المحتملين')
-                        ->helperText('نفس الشخص لو متسجل في الجهتين يظهر مرة واحدة.')
+                        ->helperText('العميل المتسجل من بره يظهر لكل السيلز، ومعاه اسم المندوب اللي أضافه.')
                         ->live()
                         ->afterStateHydrated(function (Forms\Components\Select $component, ?PoultryQuotation $record): void {
                             if ($record?->customer_id) {

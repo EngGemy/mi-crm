@@ -16,7 +16,7 @@ class SavedClientCatalog
     public static function options(): array
     {
         $customers = Customer::query()->orderBy('name')->get();
-        $leads = Lead::query()->orderBy('name')->get();
+        $leads = Lead::query()->with('creator:id,name')->orderBy('name')->get();
 
         $phones = [];
         $options = [];
@@ -40,7 +40,9 @@ class SavedClientCatalog
             }
 
             self::remember($phones, [$lead->phone, $lead->whatsapp]);
-            $options['lead:'.$lead->id] = self::label($lead->name, $lead->phone ?: $lead->whatsapp, 'محتمل');
+            $addedBy = trim((string) ($lead->creator?->name ?? ''));
+            $source = $addedBy !== '' ? 'محتمل · أضافه '.$addedBy : 'محتمل';
+            $options['lead:'.$lead->id] = self::label($lead->name, $lead->phone ?: $lead->whatsapp, $source);
         }
 
         return $options;

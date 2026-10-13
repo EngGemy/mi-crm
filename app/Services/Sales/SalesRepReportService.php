@@ -82,10 +82,12 @@ class SalesRepReportService
                 ->where('scheduled_at', '<=', $to)
                 ->count();
 
-            $newLeads = Lead::query()
-                ->where('assigned_to', $user->id)
+            $addedLeads = Lead::query()
+                ->where('created_by', $user->id)
                 ->whereBetween('created_at', [$from, $to])
-                ->count();
+                ->orderBy('name')
+                ->get(['name', 'phone']);
+            $newLeads = $addedLeads->count();
 
             $won = Lead::query()
                 ->where('assigned_to', $user->id)
@@ -109,6 +111,9 @@ class SalesRepReportService
                 'completed' => $completed,
                 'pending' => $pending,
                 'new_leads' => $newLeads,
+                'added_clients' => $addedLeads
+                    ->map(fn (Lead $lead): string => trim($lead->name.' '.($lead->phone ?: '')))
+                    ->all(),
                 'won' => $won,
                 'outcomes' => $activities
                     ->whereNotNull('outcome')

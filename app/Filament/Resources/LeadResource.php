@@ -41,7 +41,9 @@ class LeadResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return auth()->user()?->can('leads.view_any') ?? false;
+        $user = auth()->user();
+
+        return $user?->can('leads.view_any') || $user?->can('leads.view_own') || $user?->can('leads.create');
     }
 
     public static function form(Form $form): Form
@@ -226,6 +228,10 @@ class LeadResource extends Resource
                     ->money('EGP')
                     ->sortable()
                     ->alignEnd(),
+
+                Tables\Columns\TextColumn::make('creator.name')
+                    ->label('أضافه')
+                    ->sortable(),
 
                 Tables\Columns\TextColumn::make('assignedUser.name')
                     ->label('المسؤول')
@@ -437,8 +443,11 @@ class LeadResource extends Resource
         $query = parent::getEloquentQuery();
         $user = auth()->user();
 
-        if ($user && $user->hasRole('sales_rep')) {
-            $query->where('assigned_to', $user->id);
+        if ($user && $user->can('leads.view_own') && ! $user->can('leads.view_any')) {
+            $query->where(function (Builder $inner) use ($user): void {
+                $inner->where('assigned_to', $user->id)
+                    ->orWhere('created_by', $user->id);
+            });
         }
 
         return $query;

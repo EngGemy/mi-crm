@@ -119,7 +119,12 @@
                                     <span class="mi-rpt-pill ok">0</span>
                                 @endif
                             </td>
-                            <td class="num">{{ $rep['new_leads'] }}</td>
+                            <td class="num">
+                                {{ $rep['new_leads'] }}
+                                @if (! empty($rep['added_clients']))
+                                    <div class="mi-rpt-sub">{{ implode('، ', $rep['added_clients']) }}</div>
+                                @endif
+                            </td>
                             <td class="num">{{ $rep['won'] }}</td>
                         </tr>
                     @empty
