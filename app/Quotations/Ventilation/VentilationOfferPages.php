@@ -20,13 +20,30 @@ class VentilationOfferPages
 
     public function httpResponse(PoultryQuotation $quotation): Response
     {
-        $bytes = $this->pdfBytes($quotation);
-        $name = 'ventilation-'.($quotation->quote_number ?: $quotation->getKey()).'.pdf';
+        $docx = $this->fill($quotation);
+        $base = 'ventilation-'.($quotation->quote_number ?: $quotation->getKey());
 
-        return response($bytes, 200, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="'.$name.'"',
-        ]);
+        try {
+            $bytes = $this->exportPdf($docx);
+
+            return response($bytes, 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="'.$base.'.pdf"',
+            ]);
+        } catch (\Throwable $error) {
+            report($error);
+            $bytes = file_get_contents($docx);
+            if ($bytes === false) {
+                throw $error;
+            }
+
+            return response($bytes, 200, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'Content-Disposition' => 'attachment; filename="'.$base.'.docx"',
+            ]);
+        } finally {
+            @unlink($docx);
+        }
     }
 
     public function pdfBytes(PoultryQuotation $quotation): string
@@ -243,8 +260,13 @@ class VentilationOfferPages
 
     private function exportPdf(string $docxPath): string
     {
+        $libre = $this->viaLibreOffice($docxPath);
+        if ($libre !== null) {
+            return $libre;
+        }
+
         if (PHP_OS_FAMILY !== 'Windows') {
-            throw new RuntimeException('تعذر تصدير عرض التهوية. Word غير متاح على السيرفر.');
+            throw new RuntimeException('تعذر تصدير عرض التهوية. LibreOffice غير متاح على السيرفر.');
         }
 
         $pdfPath = $docxPath.'.pdf';
@@ -297,5 +319,59 @@ PS1);
         }
 
         return $bytes;
+    }
+
+    private function viaLibreOffice(string $docxPath): ?string
+    {
+        $binary = $this->libreOfficeBinary();
+        if ($binary === null) {
+            return null;
+        }
+
+        $outDir = dirname($docxPath);
+        exec(
+            escapeshellarg($binary).' --headless --norestore --convert-to pdf --outdir '.escapeshellarg($outDir).' '.escapeshellarg($docxPath),
+            $output,
+            $code
+        );
+
+        $pdfPath = $outDir.DIRECTORY_SEPARATOR.pathinfo($docxPath, PATHINFO_FILENAME).'.pdf';
+        if ($code !== 0 || ! is_file($pdfPath)) {
+            @unlink($pdfPath);
+
+            return null;
+        }
+
+        $bytes = file_get_contents($pdfPath);
+        @unlink($pdfPath);
+        if ($bytes === false || ! str_starts_with($bytes, '%PDF')) {
+            return null;
+        }
+
+        return $bytes;
+    }
+
+    private function libreOfficeBinary(): ?string
+    {
+        $candidates = PHP_OS_FAMILY === 'Windows'
+            ? [
+                'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
+                'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe',
+            ]
+            : ['soffice', 'libreoffice'];
+
+        foreach ($candidates as $candidate) {
+            if (is_file($candidate)) {
+                return $candidate;
+            }
+        }
+
+        if (PHP_OS_FAMILY === 'Windows') {
+            return null;
+        }
+
+        exec('command -v soffice', $output, $code);
+
+        return $code === 0 && isset($output[0]) && $output[0] !== '' ? trim($output[0]) : null;
     }
 }
