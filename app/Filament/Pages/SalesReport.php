@@ -40,9 +40,7 @@ class SalesReport extends Page
     {
         $user = auth()->user();
 
-        return $user?->hasAnyRole(['super_admin', 'admin', 'sales_manager'])
-            || $user?->can('reports.view_sales')
-            ?? false;
+        return $user?->can('reports.view_sales') ?? false;
     }
 
     public function mount(): void

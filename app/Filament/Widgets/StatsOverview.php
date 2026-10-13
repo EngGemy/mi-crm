@@ -13,6 +13,11 @@ class StatsOverview extends BaseWidget
 
     protected int|string|array $columnSpan = 'full';
 
+    public static function canView(): bool
+    {
+        return \App\Support\PermissionGate::allows('contracts.view_any', 'payments.view_any');
+    }
+
     protected function getStats(): array
     {
         $totalContracts = Contract::count();

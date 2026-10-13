@@ -42,14 +42,14 @@ class TaskCalendar extends Page
 
     public static function canAccess(): bool
     {
-        return auth()->check();
+        return \App\Support\PermissionGate::allows('leads.view_any', 'leads.view_own');
     }
 
     public function mount(): void
     {
         $this->currentMonth   = now()->format('Y-m');
         $this->taskScheduledAt = now()->format('Y-m-d\TH:i');
-        $this->filterUser     = Auth::user()?->hasRole('sales_rep') ? (string) Auth::id() : null;
+        $this->filterUser     = \App\Support\PermissionGate::ownOnly('leads.view_any') ? (string) Auth::id() : null;
         $this->loadEvents();
     }
 
@@ -65,7 +65,7 @@ class TaskCalendar extends Page
             ->whereNotNull('scheduled_at')
             ->whereBetween('scheduled_at', [$start, $end]);
 
-        if (Auth::user()?->hasRole('sales_rep')) {
+        if (\App\Support\PermissionGate::ownOnly('leads.view_any')) {
             $query->where('user_id', Auth::id());
         } elseif ($this->filterUser) {
             $query->where('user_id', $this->filterUser);
@@ -173,7 +173,7 @@ class TaskCalendar extends Page
     {
         $activity = LeadActivity::findOrFail($id);
 
-        if (! Auth::user()?->hasAnyRole(['super_admin', 'admin', 'sales_manager'])
+        if (\App\Support\PermissionGate::ownOnly('leads.view_any')
             && $activity->user_id !== Auth::id()) {
             Notification::make()->title('غير مصرح لك')->danger()->send();
             return;
@@ -186,6 +186,11 @@ class TaskCalendar extends Page
 
     public function getSalesReps(): array
     {
+        $user = Auth::user();
+        if (\App\Support\PermissionGate::ownOnly('leads.view_any') && $user) {
+            return [$user->id => $user->name];
+        }
+
         return User::whereHas('roles', fn ($q) =>
             $q->whereIn('name', ['sales_rep', 'sales_manager', 'admin', 'super_admin'])
         )->pluck('name', 'id')->toArray();
@@ -193,7 +198,9 @@ class TaskCalendar extends Page
 
     public function getLeadsForSelect(): array
     {
-        return Lead::whereNotIn('status', ['lost'])
+        return \App\Support\PermissionGate::scopeLeads(
+            Lead::whereNotIn('status', ['lost'])
+        )
             ->orderBy('name')
             ->pluck('name', 'id')
             ->toArray();

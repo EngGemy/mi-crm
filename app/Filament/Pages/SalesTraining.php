@@ -36,7 +36,7 @@ class SalesTraining extends Page
 
     public static function canAccess(): bool
     {
-        return auth()->check();
+        return \App\Support\PermissionGate::allows('quotations.view_any', 'quotations.view_own');
     }
 
     public function mount(): void

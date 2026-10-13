@@ -46,7 +46,7 @@ class ExhibitionDailyReport extends Page
             return false;
         }
 
-        if ($user->hasAnyRole(['super_admin', 'admin', 'sales_manager'])) {
+        if (\App\Support\PermissionGate::allows('exhibitions.view_any', 'reports.view_sales')) {
             return true;
         }
 

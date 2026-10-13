@@ -16,6 +16,11 @@ class DueRemindersWidget extends Widget
 
     protected int|string|array $columnSpan = 'full';
 
+    public static function canView(): bool
+    {
+        return \App\Support\PermissionGate::allows('leads.view_any', 'leads.view_own');
+    }
+
     public function getReminders(): Collection
     {
         return LeadReminder::with('lead')

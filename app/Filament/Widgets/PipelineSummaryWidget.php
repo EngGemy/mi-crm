@@ -5,20 +5,19 @@ namespace App\Filament\Widgets;
 use App\Models\Lead;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
-use Illuminate\Support\Facades\Auth;
 
 class PipelineSummaryWidget extends BaseWidget
 {
     protected static ?int $sort = 5;
 
+    public static function canView(): bool
+    {
+        return \App\Support\PermissionGate::allows('leads.view_any', 'leads.view_own');
+    }
+
     protected function getStats(): array
     {
-        $user = Auth::user();
-        $query = Lead::query();
-
-        if ($user?->hasRole('sales_rep')) {
-            $query->where('assigned_to', $user->id);
-        }
+        $query = \App\Support\PermissionGate::scopeLeads(Lead::query());
 
         $stats = [];
         foreach (Lead::STATUSES as $status => $label) {

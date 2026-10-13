@@ -123,6 +123,11 @@ class UserResource extends Resource
         return auth()->user()?->can('users.view_any') ?? false;
     }
 
+    public static function canViewAny(): bool
+    {
+        return static::shouldRegisterNavigation();
+    }
+
     public static function getPages(): array
     {
         return [

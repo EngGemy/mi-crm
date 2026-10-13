@@ -114,7 +114,7 @@ class RoleResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->hasAnyRole(['super_admin', 'admin']) ?? false;
+        return \App\Support\PermissionGate::allows('users.view_any', 'users.assign_roles');
     }
 
     public static function canCreate(): bool

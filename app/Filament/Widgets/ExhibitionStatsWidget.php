@@ -11,6 +11,11 @@ class ExhibitionStatsWidget extends BaseWidget
 {
     protected static bool $isLazy = false;
 
+    public static function canView(): bool
+    {
+        return \App\Support\PermissionGate::allows('exhibitions.view_any');
+    }
+
     protected function getStats(): array
     {
         $total    = Exhibition::count();

@@ -49,9 +49,16 @@ class PoultryQuotationResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return auth()->user()?->hasAnyRole([
-            'super_admin', 'admin', 'sales_manager', 'sales_rep',
-        ]) ?? false;
+        return \App\Support\PermissionGate::allows(
+            'quotations.view_any',
+            'quotations.view_own',
+            'quotations.create',
+        );
+    }
+
+    public static function canViewAny(): bool
+    {
+        return static::shouldRegisterNavigation();
     }
 
     public static function getEloquentQuery(): Builder

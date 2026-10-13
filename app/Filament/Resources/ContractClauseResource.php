@@ -34,7 +34,12 @@ class ContractClauseResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return auth()->user()?->hasAnyRole(['super_admin', 'admin', 'sales_manager']) ?? false;
+        return \App\Support\PermissionGate::allows('contracts.view_any');
+    }
+
+    public static function canViewAny(): bool
+    {
+        return static::shouldRegisterNavigation();
     }
 
     public static function form(Form $form): Form

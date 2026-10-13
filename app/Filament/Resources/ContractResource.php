@@ -49,6 +49,11 @@ class ContractResource extends Resource
         return auth()->user()?->can('contracts.view_any') ?? false;
     }
 
+    public static function canViewAny(): bool
+    {
+        return static::shouldRegisterNavigation();
+    }
+
     public static function form(Form $form): Form
     {
         return $form->schema([

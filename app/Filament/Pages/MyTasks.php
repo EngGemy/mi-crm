@@ -39,7 +39,7 @@ class MyTasks extends Page
 
     public static function canAccess(): bool
     {
-        return auth()->check();
+        return \App\Support\PermissionGate::allows('leads.view_any', 'leads.view_own');
     }
 
     public function mount(): void
@@ -130,7 +130,9 @@ class MyTasks extends Page
             ])
             ->toArray();
 
-        $this->leadsForSelect = Lead::whereNotIn('status', ['lost'])
+        $this->leadsForSelect = \App\Support\PermissionGate::scopeLeads(
+            Lead::whereNotIn('status', ['lost'])
+        )
             ->orderBy('name')
             ->pluck('name', 'id')
             ->toArray();

@@ -31,7 +31,12 @@ class ExhibitionResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return auth()->user()?->can('leads.view_any') ?? false;
+        return \App\Support\PermissionGate::allows('exhibitions.view_any');
+    }
+
+    public static function canViewAny(): bool
+    {
+        return static::shouldRegisterNavigation();
     }
 
     public static function form(Form $form): Form

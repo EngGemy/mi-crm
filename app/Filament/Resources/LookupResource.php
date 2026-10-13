@@ -30,7 +30,12 @@ class LookupResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return auth()->user()?->hasAnyRole(['super_admin', 'admin']) ?? false;
+        return \App\Support\PermissionGate::allows('settings.view');
+    }
+
+    public static function canViewAny(): bool
+    {
+        return static::shouldRegisterNavigation();
     }
 
     public static function form(Form $form): Form

@@ -12,14 +12,14 @@ class LeadsStatsWidget extends BaseWidget
 
     protected int|string|array $columnSpan = 'full';
 
+    public static function canView(): bool
+    {
+        return \App\Support\PermissionGate::allows('leads.view_any', 'leads.view_own');
+    }
+
     protected function getStats(): array
     {
-        $user = auth()->user();
-        $query = Lead::query();
-
-        if ($user && $user->hasRole('sales_rep')) {
-            $query->where('assigned_to', $user->id);
-        }
+        $query = \App\Support\PermissionGate::scopeLeads(Lead::query());
 
         $thisMonth = $query->clone()->whereMonth('created_at', now()->month);
 

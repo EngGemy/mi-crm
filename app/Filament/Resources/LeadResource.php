@@ -46,6 +46,11 @@ class LeadResource extends Resource
         return $user?->can('leads.view_any') || $user?->can('leads.view_own') || $user?->can('leads.create');
     }
 
+    public static function canViewAny(): bool
+    {
+        return static::shouldRegisterNavigation();
+    }
+
     public static function form(Form $form): Form
     {
         return $form->schema([

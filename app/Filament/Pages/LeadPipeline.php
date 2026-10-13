@@ -56,8 +56,8 @@ class LeadPipeline extends Page
 
     public function mount(): void
     {
-        if (Auth::user()?->hasRole('sales_rep')) {
-            $this->filterUser = Auth::id();
+        if (\App\Support\PermissionGate::ownOnly('leads.view_any')) {
+            $this->filterUser = (int) Auth::id();
         }
         $this->loadColumns();
     }
@@ -74,12 +74,17 @@ class LeadPipeline extends Page
         foreach ($statuses as $status) {
             $query = Lead::byStatus($status)->with('assignedUser');
 
-            if ($this->filterUser)     $query->where('assigned_to', $this->filterUser);
+            if ($this->filterUser && ! \App\Support\PermissionGate::ownOnly('leads.view_any')) {
+                $query->where('assigned_to', $this->filterUser);
+            }
             if ($this->filterSource)   $query->where('source', $this->filterSource);
             if ($this->filterPriority) $query->where('priority', $this->filterPriority);
 
-            if (Auth::user()?->hasRole('sales_rep')) {
-                $query->where('assigned_to', Auth::id());
+            if (\App\Support\PermissionGate::ownOnly('leads.view_any')) {
+                $query->where(function ($inner): void {
+                    $inner->where('assigned_to', Auth::id())
+                        ->orWhere('created_by', Auth::id());
+                });
             }
 
             $leads = $query->orderByDesc('score')->get();
@@ -242,6 +247,11 @@ class LeadPipeline extends Page
 
     public function getSalesReps(): array
     {
+        $user = Auth::user();
+        if (\App\Support\PermissionGate::ownOnly('leads.view_any') && $user) {
+            return [$user->id => $user->name];
+        }
+
         return User::whereHas('roles', fn ($q) => $q->whereIn('name', ['sales_rep', 'sales_manager']))
             ->pluck('name', 'id')
             ->toArray();

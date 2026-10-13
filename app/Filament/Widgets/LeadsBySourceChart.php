@@ -13,13 +13,19 @@ class LeadsBySourceChart extends ChartWidget
 
     protected int|string|array $columnSpan = 6;
 
+    public static function canView(): bool
+    {
+        return \App\Support\PermissionGate::allows('leads.view_any', 'leads.view_own');
+    }
+
     protected function getData(): array
     {
         $data = [];
         $labels = [];
+        $query = \App\Support\PermissionGate::scopeLeads(Lead::query());
 
         foreach (Lead::SOURCES as $key => $label) {
-            $count = Lead::where('source', $key)->count();
+            $count = (clone $query)->where('source', $key)->count();
             if ($count > 0) {
                 $labels[] = $label;
                 $data[] = $count;

@@ -15,6 +15,11 @@ class OverduePayments extends BaseWidget
 
     protected static ?string $heading = '⚠️ دفعات تحتاج متابعة';
 
+    public static function canView(): bool
+    {
+        return \App\Support\PermissionGate::allows('payments.view_any');
+    }
+
     public function table(Table $table): Table
     {
         return $table

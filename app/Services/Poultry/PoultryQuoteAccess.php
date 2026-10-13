@@ -12,15 +12,15 @@ class PoultryQuoteAccess
 {
     public static function seesOwnQuotesOnly(?User $user): bool
     {
-        if ($user === null || ! $user->hasRole('sales_rep')) {
+        if ($user === null) {
+            return true;
+        }
+
+        if ($user->can('quotations.view_any')) {
             return false;
         }
 
-        if ($user->hasAnyRole(['super_admin', 'admin', 'sales_manager'])) {
-            return false;
-        }
-
-        return ! self::allows($user, 'view_team');
+        return ! (bool) ($user->exhibitionAccess?->view_team ?? false);
     }
 
     public static function allows(?User $user, string $ability): bool

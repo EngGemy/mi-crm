@@ -47,8 +47,7 @@ class StaffFollowUp extends Page
             return false;
         }
 
-        return $user->hasAnyRole(['super_admin', 'admin', 'sales_manager', 'sales_rep'])
-            || $user->can('reports.view_sales');
+        return $user->can('reports.view_sales');
     }
 
     public function mount(): void
@@ -78,7 +77,7 @@ class StaffFollowUp extends Page
         $auth = auth()->user();
         $service = app(SalesRepReportService::class);
 
-        if ($auth->hasRole('sales_rep') && ! $auth->hasAnyRole(['super_admin', 'admin', 'sales_manager'])) {
+        if (\App\Support\PermissionGate::ownOnly('quotations.view_any')) {
             $this->userOptions = [$auth->id => $auth->name];
             $this->userId = (string) $auth->id;
 
@@ -98,7 +97,7 @@ class StaffFollowUp extends Page
             ? (int) $this->userId
             : null;
 
-        if ($auth->hasRole('sales_rep') && ! $auth->hasAnyRole(['super_admin', 'admin', 'sales_manager'])) {
+        if (\App\Support\PermissionGate::ownOnly('quotations.view_any')) {
             $onlyUserId = (int) $auth->id;
         }
 

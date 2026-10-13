@@ -29,7 +29,7 @@ class ExhibitionPermissions extends Page
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->hasAnyRole(['super_admin', 'admin', 'sales_manager']) ?? false;
+        return \App\Support\PermissionGate::allows('exhibitions.update');
     }
 
     public function mount(): void
