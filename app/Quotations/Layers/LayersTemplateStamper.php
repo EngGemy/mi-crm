@@ -72,7 +72,6 @@ class LayersTemplateStamper
             }
 
             if ($page === 8) {
-                $this->paintSilo($mpdf, $data);
                 $this->paintSiloCapacityLine($mpdf, $data);
             }
 
@@ -146,25 +145,17 @@ class LayersTemplateStamper
     /** @param  array<string, mixed>  $data */
     private function paintBelts(Mpdf $mpdf, array $data): void
     {
-        $this->paintLabel($mpdf, 71.5, 225.6, 16, 5.2, 9, trim((string) ($data['inner_belt'] ?? '')));
-        $this->paintLabel($mpdf, 98, 225.6, 14, 5.2, 9, trim((string) ($data['outer_belt'] ?? '')));
+        $this->paintBeltNumber($mpdf, 63.8, 214.6, 6.4, 6.2, (string) ($data['inner_belt'] ?? ''), 14, 'C');
+        $this->paintBeltNumber($mpdf, 25.05, 214.6, 4.3, 6.2, (string) ($data['outer_belt'] ?? ''), 12, 'R');
     }
 
-    /** @param  array<string, mixed>  $data */
-    private function paintSilo(Mpdf $mpdf, array $data): void
+    private function paintBeltNumber(Mpdf $mpdf, float $x, float $y, float $w, float $h, string $label, int $size, string $align): void
     {
-        $label = trim((string) ($data['silo_capacity'] ?? ''));
-        if ($label === '') {
+        if (! preg_match('/(\d+(?:[.,]\d+)?)/u', $label, $match)) {
             return;
         }
 
-        $count = (int) ($data['silos_count'] ?? 1);
-        if ($count > 1) {
-            $label = $count.' × '.$label;
-        }
-
-        $wide = mb_strlen($label) > 8;
-        $this->paintLabel($mpdf, $wide ? 38 : 47, 69, $wide ? 32 : 18, 5.2, 9, $label);
+        $this->paintRedNumber($mpdf, $x, $y, $w, $h, $match[1], [247, 237, 236], $size, $align);
     }
 
     /** عدد سيور السبلة يساوي عدد الأدوار. */
@@ -175,7 +166,7 @@ class LayersTemplateStamper
             return;
         }
 
-        $this->paintRedNumber($mpdf, 185.7, 146.7, 3.5, 6.1, (string) (int) $tiers, [246, 228, 228], 13);
+        $this->paintRedNumber($mpdf, 185.7, 146.7, 3.5, 6.1, (string) (int) $tiers, [246, 228, 228], 13, 'C');
     }
 
     /** يستبدل 11 في «سعة السايلو 11 طن» بالسعة المختارة. */
@@ -186,11 +177,11 @@ class LayersTemplateStamper
             return;
         }
 
-        $this->paintRedNumber($mpdf, 157.3, 64.0, 6.9, 6.5, $match[1], [247, 237, 236], 14);
+        $this->paintRedNumber($mpdf, 157.3, 64.0, 6.9, 6.5, $match[1], [247, 237, 236], 14, 'C');
     }
 
     /** @param  array{0: int, 1: int, 2: int}  $fill */
-    private function paintRedNumber(Mpdf $mpdf, float $x, float $y, float $w, float $h, string $text, array $fill, int $size): void
+    private function paintRedNumber(Mpdf $mpdf, float $x, float $y, float $w, float $h, string $text, array $fill, int $size, string $align): void
     {
         if ($text === '') {
             return;
@@ -201,7 +192,7 @@ class LayersTemplateStamper
         $mpdf->SetFont('cairo', '', $size);
         $mpdf->SetTextColor(255, 0, 0);
         $mpdf->SetXY($x, $y + 0.55);
-        $mpdf->WriteCell($w, $h - 0.9, $text, 0, 0, 'C');
+        $mpdf->WriteCell($w, $h - 0.9, $text, 0, 0, $align);
     }
 
     /** @param  array<string, mixed>  $data */
@@ -292,20 +283,6 @@ class LayersTemplateStamper
 
         $mpdf->SetXY($x + 0.4, $y + 1.15);
         $mpdf->WriteCell(min($maxW, max($width + 1.2, 8)), $h - 2.2, $text, 0, 0, 'L');
-    }
-
-    private function paintLabel(Mpdf $mpdf, float $x, float $y, float $w, float $h, int $size, string $text, string $align = 'C'): void
-    {
-        if ($text === '') {
-            return;
-        }
-
-        $mpdf->SetFillColor(255, 255, 255);
-        $mpdf->Rect($x, $y, $w, $h, 'F');
-        $mpdf->SetFont('cairo', 'B', $size);
-        $mpdf->SetTextColor(21, 21, 21);
-        $mpdf->SetXY($x, $y + 0.4);
-        $mpdf->WriteCell($w, $h - 0.6, $text, 0, 0, $align);
     }
 
     private function barnType(string $projectType): string
