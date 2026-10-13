@@ -3,6 +3,7 @@
 namespace App\Quotations\Ventilation;
 
 use App\Models\PoultryQuotation;
+use App\Quotations\Pdf\OfferPdf;
 use App\Services\Poultry\VentilationOffer;
 use DOMDocument;
 use DOMElement;
@@ -20,41 +21,27 @@ class VentilationOfferPages
 
     public function httpResponse(PoultryQuotation $quotation): Response
     {
-        $docx = $this->fill($quotation);
-        $base = 'ventilation-'.($quotation->quote_number ?: $quotation->getKey());
+        $name = 'ventilation-'.($quotation->quote_number ?: $quotation->getKey()).'.pdf';
 
-        try {
-            $bytes = $this->exportPdf($docx);
+        return response($this->pdfBytes($quotation), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$name.'"',
+        ]);
+    }
 
-            return response($bytes, 200, [
-                'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="'.$base.'.pdf"',
-            ]);
-        } catch (\Throwable $error) {
-            report($error);
-            $bytes = file_get_contents($docx);
-            if ($bytes === false) {
-                throw $error;
-            }
+    public function accessoriesResponse(PoultryQuotation $quotation): Response
+    {
+        $name = 'accessories-'.($quotation->quote_number ?: $quotation->getKey()).'.pdf';
 
-            return response($bytes, 200, [
-                'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'Content-Disposition' => 'attachment; filename="'.$base.'.docx"',
-            ]);
-        } finally {
-            @unlink($docx);
-        }
+        return response(app(OfferPdf::class)->accessories($quotation), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$name.'"',
+        ]);
     }
 
     public function pdfBytes(PoultryQuotation $quotation): string
     {
-        $docx = $this->fill($quotation);
-
-        try {
-            return $this->exportPdf($docx);
-        } finally {
-            @unlink($docx);
-        }
+        return app(OfferPdf::class)->ventilation($quotation);
     }
 
     public function fill(PoultryQuotation $quotation): string

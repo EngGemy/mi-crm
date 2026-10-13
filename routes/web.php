@@ -84,6 +84,20 @@ Route::middleware(['auth'])->group(function () {
             abort(500, 'تعذر إنشاء عرض التهوية.');
         }
     })->name('poultry-quotations.ventilation');
+
+    Route::get('/poultry-quotations/{record}/accessories', function (App\Models\PoultryQuotation $record) {
+        $user = auth()->user();
+        if (\App\Services\Poultry\PoultryQuoteAccess::seesOwnQuotesOnly($user) && $record->created_by !== $user->id) {
+            abort(403);
+        }
+
+        try {
+            return app(VentilationOfferPages::class)->accessoriesResponse($record);
+        } catch (\Throwable $e) {
+            report($e);
+            abort(500, 'تعذر إنشاء عرض المشتملات.');
+        }
+    })->name('poultry-quotations.accessories');
 });
 
 // مسارات العقود (محمية بالمصادقة)

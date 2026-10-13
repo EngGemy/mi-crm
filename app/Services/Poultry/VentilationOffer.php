@@ -99,6 +99,23 @@ class VentilationOffer
         $rows[] = ['جهاز المونيتور', self::money($monitor), false];
         $rows[] = ['إجمالي عرض التهوية', self::range($totalMin, $totalMax), false];
 
+        $ventilationLines = [
+            ['شفاطات طرد 140×140', (string) $fans, self::money((float) $prices['fan_unit']), self::money($fanAmount)],
+            ['التبريد', self::plain($cooling).' م²', self::money((float) $prices['cooling_m2']), self::money($coolingAmount)],
+            ['شبابيك الأير إنلت', (string) $inlets, self::money((float) $prices['inlet_unit']), self::money($inletAmount)],
+        ];
+        $accessoryLines = [];
+        $accessoryFixed = $monitor;
+        if ($sideFans !== null) {
+            $accessoryLines[] = ['الشفاطات الجانبية', (string) $sideFans, self::money((float) $prices['circulation_unit']), self::money($circulationAmount)];
+            $accessoryFixed += $circulationAmount;
+        }
+        if ($broiler) {
+            $accessoryLines[] = ['منظومة التدفئة بالمياه الساخنة', '1', self::range($heatingMin, $heatingMax), self::range($heatingMin, $heatingMax)];
+        }
+        $accessoryLines[] = ['الكهرباء والكنترول والإنارة', '1', self::range($electricMin, $electricMax), self::range($electricMin, $electricMax)];
+        $accessoryLines[] = ['جهاز المونيتور', '1', self::money($monitor), self::money($monitor)];
+
         return [
             'fans' => $fans,
             'cooling_m2' => $cooling,
@@ -141,6 +158,17 @@ class VentilationOffer
                     'amount' => self::range($electricMin, $electricMax),
                 ],
                 'total' => self::range($totalMin, $totalMax),
+            ],
+            'ventilation_pdf' => [
+                'lines' => $ventilationLines,
+                'total' => self::money($fanAmount + $coolingAmount + $inletAmount),
+            ],
+            'accessories_pdf' => [
+                'lines' => $accessoryLines,
+                'total' => self::range(
+                    $accessoryFixed + $electricMin + ($broiler ? $heatingMin : 0),
+                    $accessoryFixed + $electricMax + ($broiler ? $heatingMax : 0),
+                ),
             ],
         ];
     }

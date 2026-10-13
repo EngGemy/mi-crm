@@ -24,6 +24,10 @@ class VentilationOfferTest extends TestCase
         $this->assertSame('من 750,000 إلى 1,000,000 ج.م', $offer['document']['electricity']['amount']);
         $this->assertSame('250,000 ج.م', $offer['document']['monitor']['amount']);
         $this->assertSame('من 4,167,600 إلى 4,767,600 ج.م', $offer['document']['total']);
+        $this->assertSame('2,306,600 ج.م', $offer['ventilation_pdf']['total']);
+        $this->assertCount(3, $offer['ventilation_pdf']['lines']);
+        $this->assertSame('من 1,861,000 إلى 2,461,000 ج.م', $offer['accessories_pdf']['total']);
+        $this->assertSame('الشفاطات الجانبية', $offer['accessories_pdf']['lines'][0][0]);
     }
 
     public function test_layers_drop_heating_and_side_fans(): void
@@ -36,6 +40,7 @@ class VentilationOfferTest extends TestCase
         $this->assertNull($offer['document']['heating']);
         $this->assertNull($offer['document']['circulation']);
         $this->assertSame('من 2,870,600 إلى 3,120,600 ج.م', $offer['document']['total']);
+        $this->assertSame('الكهرباء والكنترول والإنارة', $offer['accessories_pdf']['lines'][0][0]);
     }
 
     public function test_side_fan_choice_accepts_only_the_four_options(): void

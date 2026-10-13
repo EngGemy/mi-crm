@@ -753,6 +753,13 @@ class PoultryQuotationResource extends Resource
                     ->url(fn (PoultryQuotation $record) => route('poultry-quotations.ventilation', $record))
                     ->openUrlInNewTab(),
 
+                Tables\Actions\Action::make('downloadAccessories')
+                    ->label('عرض المشتملات')
+                    ->icon('heroicon-o-document-text')
+                    ->color('warning')
+                    ->url(fn (PoultryQuotation $record) => route('poultry-quotations.accessories', $record))
+                    ->openUrlInNewTab(),
+
                 Tables\Actions\Action::make('generateCard')
                     ->label('توليد الكارت')
                     ->icon('heroicon-o-sparkles')
