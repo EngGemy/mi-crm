@@ -307,6 +307,20 @@ class CompanySettings extends Page implements HasForms
                                 Section::make('الخزانات والبنود الثابتة')
                                     ->description('بند الخزانات يُحسب كمقطوعة ثابتة (لوت واحد) ويُضاف تلقائياً في المشروع الكامل ونطاق الإنشاءات.')
                                     ->schema([
+                                        TextInput::make('poultry_pricing.construction_sandwich_price')
+                                            ->label('إنشاءات ساندوتش بانل (مبلغ ثابت)')
+                                            ->numeric()
+                                            ->minValue(0)
+                                            ->default(0)
+                                            ->suffix('EGP')
+                                            ->helperText('الرقم ده هو اللي يتكتب في العرض لو الاختيار ساندوتش بانل'),
+                                        TextInput::make('poultry_pricing.construction_cement_price')
+                                            ->label('إنشاءات خرسانة (مبلغ ثابت)')
+                                            ->numeric()
+                                            ->minValue(0)
+                                            ->default(0)
+                                            ->suffix('EGP')
+                                            ->helperText('الرقم ده هو اللي يتكتب في العرض لو الاختيار خرسانة'),
                                         TextInput::make('poultry_pricing.tanks_fixed_cost')
                                             ->label('تكلفة الخزانات الثابتة (جنيه)')
                                             ->numeric()

@@ -548,30 +548,25 @@ class PoultryQuotationResource extends Resource
 
                     Forms\Components\Toggle::make('include_construction')
                         ->label('العميل عاوز الإنشاءات')
-                        ->helperText('الأرقام تتمشى مع الطول والعرض والارتفاع، وتتبعت في رسالة الواتساب مع العرض.')
+                        ->helperText('المبلغ ثابت من الإعدادات. الاختيار يحدد رقم الساندوتش بانل أو رقم الخرسانة.')
                         ->live()
                         ->columnSpanFull(),
+
+                    Forms\Components\Select::make('construction_choice')
+                        ->label('نوع الإنشاءات')
+                        ->options(fn (): array => ConstructionSummary::options())
+                        ->default('sandwich')
+                        ->native(false)
+                        ->live()
+                        ->required(fn (Get $get): bool => (bool) $get('include_construction'))
+                        ->visible(fn (Get $get): bool => (bool) $get('include_construction')),
 
                     Forms\Components\Placeholder::make('construction_preview')
                         ->label('ملخص الإنشاءات')
                         ->columnSpanFull()
                         ->visible(fn (Get $get): bool => (bool) $get('include_construction'))
                         ->content(function (Get $get) {
-                            $length = (float) ($get('length') ?? 0);
-                            $width = (float) ($get('width') ?? 0);
-                            $height = (float) ($get('height') ?? 0);
-                            if ($length <= 0 || $width <= 0 || $height <= 0) {
-                                return 'أدخل طول العنبر وعرضه وارتفاعه عشان تتحسب الإنشاءات.';
-                            }
-
-                            $params = app(PoultryConfigLoader::class)->loadPricingParams($get('wall_type'));
-                            $summary = app(ConstructionSummary::class)->lines($length, $width, $height, [
-                                'concrete' => (float) $params['concrete_cost_per_m2'],
-                                'steel' => (float) $params['steel_cost_per_m2'],
-                                'wall' => (float) $params['wall_cost_per_m2'],
-                                'tanks' => (float) $params['tanks_fixed_cost'],
-                                'include_tanks' => (bool) $params['include_tanks'],
-                            ]);
+                            $summary = app(ConstructionSummary::class)->chosen((string) ($get('construction_choice') ?: 'sandwich'));
 
                             return static::summaryRowsHtml('', $summary['rows']);
                         }),

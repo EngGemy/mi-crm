@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\ExhibitionAccess;
 use App\Models\User;
+use App\Services\Poultry\ClientWelcomeWhatsApp;
 use App\Services\Poultry\PoultryWelcomeWhatsApp;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -27,6 +28,8 @@ class ExhibitionPermissions extends Page
 
     public string $welcomeMessage = '';
 
+    public string $clientWelcomeMessage = '';
+
     public static function canAccess(): bool
     {
         return \App\Support\PermissionGate::allows('exhibitions.update');
@@ -38,6 +41,7 @@ class ExhibitionPermissions extends Page
         $this->welcomeMessage = trim((string) $saved) !== ''
             ? (string) $saved
             : PoultryWelcomeWhatsApp::DEFAULT_TEMPLATE;
+        $this->clientWelcomeMessage = app(ClientWelcomeWhatsApp::class)->template();
         $this->loadReps();
     }
 
@@ -49,6 +53,18 @@ class ExhibitionPermissions extends Page
 
         Notification::make()
             ->title('تم حفظ نص رسالة الواتساب')
+            ->success()
+            ->send();
+    }
+
+    public function saveClientWelcome(): void
+    {
+        abort_unless(static::canAccess(), 403);
+
+        app(ClientWelcomeWhatsApp::class)->saveTemplate($this->clientWelcomeMessage, auth()->id());
+
+        Notification::make()
+            ->title('تم حفظ رسالة ترحيب العميل الجديد')
             ->success()
             ->send();
     }

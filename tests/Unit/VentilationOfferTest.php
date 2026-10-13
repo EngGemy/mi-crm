@@ -45,18 +45,19 @@ class VentilationOfferTest extends TestCase
         $this->assertNull(VentilationOffer::sideFanChoice(null));
     }
 
-    public function test_construction_follows_barn_dimensions(): void
+    public function test_construction_uses_the_fixed_price_of_the_chosen_type(): void
     {
-        $summary = (new ConstructionSummary)->lines(10, 5, 4, [
-            'concrete' => 1000,
-            'steel' => 2000,
-            'wall' => 500,
-            'tanks' => 400000,
-            'include_tanks' => true,
-        ]);
+        $prices = ['sandwich' => 2500000, 'cement' => 3200000];
 
-        $this->assertSame(590000.0, $summary['total']);
-        $this->assertStringContainsString('10 × 5 × 4', $summary['message']);
+        $sandwich = (new ConstructionSummary)->chosen('sandwich', $prices);
+        $cement = (new ConstructionSummary)->chosen('cement', $prices);
+
+        $this->assertSame(2500000.0, $sandwich['total']);
+        $this->assertSame('ساندوتش بانل', $sandwich['rows'][0][1]);
+        $this->assertSame('2,500,000 ج.م', $sandwich['rows'][1][1]);
+        $this->assertSame(3200000.0, $cement['total']);
+        $this->assertStringContainsString('خرسانة', $cement['message']);
+        $this->assertStringContainsString('3,200,000', $cement['message']);
     }
 
     /** @return array<string, float> */

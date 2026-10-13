@@ -15,6 +15,20 @@
             </button>
         </section>
 
+        <section class="space-y-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <h2 class="text-base font-bold">رسالة ترحيب العميل الجديد</h2>
+            <p class="text-xs text-gray-500">
+                تتفتح واتساب أول ما يتسجل عميل من غير عرض سعر.
+                المتغيرات: {client_name} {phone} {city} {company}
+            </p>
+            <textarea wire:model="clientWelcomeMessage" rows="6"
+                class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"></textarea>
+            <button type="button" wire:click="saveClientWelcome"
+                class="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white">
+                حفظ نص الترحيب
+            </button>
+        </section>
+
         <p class="text-sm text-gray-600 dark:text-gray-300">
             المدير يحدد لكل مندوب: التقرير اليومي، التقرير الأسبوعي، وهل يرى عملاء زملائه.
             بدون «يشوف كل المندوبين» المندوب يرى عملاءه وتقاريره فقط.

@@ -88,6 +88,7 @@ class PoultryQuotation extends Model
         'electricity_cost',
         'include_ventilation',
         'include_construction',
+        'construction_choice',
         'ventilation_side_fans',
         'subtotal',
         'vat_amount',
