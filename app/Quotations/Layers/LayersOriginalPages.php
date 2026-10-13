@@ -205,6 +205,10 @@ PS1);
             $silo = $siloCount.' × '.$silo;
         }
         $this->replaceExact($nodes, '11 طن', $silo);
+        $siloTons = $this->leadingInteger($silo);
+        if ($siloTons !== null) {
+            $this->patchWords($nodes, ['11', 'طن'], [0 => $siloTons]);
+        }
         $this->replaceExact($nodes, '12 متر', $this->text($data['inner_belt'] ?? null, '12 متر'));
         $this->replaceExact($nodes, '8 متر', $this->text($data['outer_belt'] ?? null, '8 متر'));
         $this->replaceExact($nodes, '1.5 حصان', $this->text($data['motor_power'] ?? null, '1.5 حصان'));
@@ -212,9 +216,9 @@ PS1);
         if ($motors !== null) {
             $this->patchWords($nodes, ['- عدد', '1', 'ماتور'], [1 => $motors]);
         }
-        $belts = $this->leadingInteger($data['belts_per_line'] ?? null);
-        if ($belts !== null) {
-            $this->patchWords($nodes, ['4', 'سيور'], [0 => $belts]);
+        $beltTiers = $this->leadingInteger(isset($data['tiers']) ? (string) $data['tiers'] : null);
+        if ($beltTiers !== null) {
+            $this->patchWords($nodes, ['4', 'سيور'], [0 => $beltTiers]);
         }
 
         $this->patchSlots($nodes, ['متر', '7', '2'], [

@@ -51,7 +51,6 @@ class LayersTemplateStamper
         $mpdf->SetAutoPageBreak(false);
 
         $pageCount = $mpdf->SetSourceFile($template);
-        $stamps = $this->stamps($data);
 
         $keepEggPage = ($data['project_type'] ?? '') === PoultryProjectType::LayerAutoCollect->value;
 
@@ -69,10 +68,12 @@ class LayersTemplateStamper
 
             if ($page === 6) {
                 $this->paintBelts($mpdf, $data);
+                $this->paintManureBeltCount($mpdf, $data);
             }
 
             if ($page === 8) {
                 $this->paintSilo($mpdf, $data);
+                $this->paintSiloCapacityLine($mpdf, $data);
             }
 
             if ($page === 10) {
@@ -82,36 +83,11 @@ class LayersTemplateStamper
 
             if ($page === 11) {
                 $this->paintCustomer($mpdf, $data);
-            }
-
-            foreach ($stamps as $stamp) {
-                if ($stamp['page'] !== $page || $stamp['text'] === '') {
-                    continue;
-                }
-
-                $mpdf->SetFillColor(255, 255, 255);
-                $mpdf->Rect($stamp['x'], $stamp['y'], $stamp['w'], $stamp['h'], 'F');
-                $mpdf->SetFont('cairo', 'B', $stamp['size']);
-                $mpdf->SetTextColor(21, 21, 21);
-                $mpdf->SetXY($stamp['x'], $stamp['y'] + 1.2);
-                $mpdf->WriteCell($stamp['w'], $stamp['h'] - 1.2, $stamp['text'], 0, 0, 'C');
+                $this->paintBarnAmounts($mpdf, $data);
             }
         }
 
         return $mpdf->Output('', 'S');
-    }
-
-    /** @param  array<string, mixed>  $data
-     * @return list<array{page: int, x: float, y: float, w: float, h: float, size: int, text: string}>
-     */
-    private function stamps(array $data): array
-    {
-        $financial = is_array($data['financial'] ?? null) ? $data['financial'] : [];
-
-        return [
-            $this->box(11, 122.3, 112.6, 32, 6, 11, $this->grouped($financial['barn_usd'] ?? null)),
-            $this->box(11, 161.9, 112.6, 36, 6, 11, $this->grouped($financial['barn_egp'] ?? null)),
-        ];
     }
 
     /** @param  array<string, mixed>  $data */
@@ -191,6 +167,43 @@ class LayersTemplateStamper
         $this->paintLabel($mpdf, $wide ? 38 : 47, 69, $wide ? 32 : 18, 5.2, 9, $label);
     }
 
+    /** عدد سيور السبلة يساوي عدد الأدوار. */
+    private function paintManureBeltCount(Mpdf $mpdf, array $data): void
+    {
+        $tiers = $data['tiers'] ?? null;
+        if (! is_numeric($tiers) || (int) $tiers <= 0) {
+            return;
+        }
+
+        $this->paintRedNumber($mpdf, 185.7, 146.7, 3.5, 6.1, (string) (int) $tiers, [246, 228, 228], 13);
+    }
+
+    /** يستبدل 11 في «سعة السايلو 11 طن» بالسعة المختارة. */
+    private function paintSiloCapacityLine(Mpdf $mpdf, array $data): void
+    {
+        $label = trim((string) ($data['silo_capacity'] ?? ''));
+        if (! preg_match('/(\d+)/u', $label, $match)) {
+            return;
+        }
+
+        $this->paintRedNumber($mpdf, 157.3, 64.0, 6.9, 6.5, $match[1], [247, 237, 236], 14);
+    }
+
+    /** @param  array{0: int, 1: int, 2: int}  $fill */
+    private function paintRedNumber(Mpdf $mpdf, float $x, float $y, float $w, float $h, string $text, array $fill, int $size): void
+    {
+        if ($text === '') {
+            return;
+        }
+
+        $mpdf->SetFillColor($fill[0], $fill[1], $fill[2]);
+        $mpdf->Rect($x, $y, $w, $h, 'F');
+        $mpdf->SetFont('cairo', '', $size);
+        $mpdf->SetTextColor(255, 0, 0);
+        $mpdf->SetXY($x, $y + 0.55);
+        $mpdf->WriteCell($w, $h - 0.9, $text, 0, 0, 'C');
+    }
+
     /** @param  array<string, mixed>  $data */
     private function paintTiers(Mpdf $mpdf, array $data): void
     {
@@ -221,6 +234,28 @@ class LayersTemplateStamper
         $mpdf->SetTextColor(21, 21, 21);
         $mpdf->SetXY($x, $y + 0.55);
         $mpdf->WriteCell($w, $h - 1.0, $text, 0, 0, 'L');
+    }
+
+    /** @param  array<string, mixed>  $data */
+    private function paintBarnAmounts(Mpdf $mpdf, array $data): void
+    {
+        $financial = is_array($data['financial'] ?? null) ? $data['financial'] : [];
+        $this->paintAmount($mpdf, 128.2, 114.7, 24.0, 4.0, $this->grouped($financial['barn_usd'] ?? null));
+        $this->paintAmount($mpdf, 166.8, 114.7, 26.0, 4.0, $this->grouped($financial['barn_egp'] ?? null));
+    }
+
+    private function paintAmount(Mpdf $mpdf, float $x, float $y, float $w, float $h, string $text): void
+    {
+        if ($text === '') {
+            return;
+        }
+
+        $mpdf->SetFillColor(255, 255, 255);
+        $mpdf->Rect($x, $y, $w, $h, 'F');
+        $mpdf->SetFont('cairo', 'B', 11);
+        $mpdf->SetTextColor(21, 21, 21);
+        $mpdf->SetXY($x, $y + 0.15);
+        $mpdf->WriteCell($w, $h - 0.55, $text, 0, 0, 'C');
     }
 
     /** @param  array<string, mixed>  $data */
@@ -271,12 +306,6 @@ class LayersTemplateStamper
         $mpdf->SetTextColor(21, 21, 21);
         $mpdf->SetXY($x, $y + 0.4);
         $mpdf->WriteCell($w, $h - 0.6, $text, 0, 0, $align);
-    }
-
-    /** @return array{page: int, x: float, y: float, w: float, h: float, size: int, text: string} */
-    private function box(int $page, float $x, float $y, float $w, float $h, int $size, string $text): array
-    {
-        return compact('page', 'x', 'y', 'w', 'h', 'size', 'text');
     }
 
     private function barnType(string $projectType): string
