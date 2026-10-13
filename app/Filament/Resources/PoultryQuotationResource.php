@@ -30,6 +30,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\HtmlString;
 
 class PoultryQuotationResource extends Resource
 {
@@ -649,6 +650,14 @@ class PoultryQuotationResource extends Resource
                 ->icon('heroicon-o-calculator')
                 ->extraAttributes(['class' => 'pq-summary-sticky'])
                 ->schema([
+                    Forms\Components\Placeholder::make('offer_files')
+                        ->label('ملفات العرض')
+                        ->columnSpanFull()
+                        ->content(function ($livewire): HtmlString {
+                            $record = $livewire->record ?? null;
+
+                            return static::offerActionsHtml($record instanceof PoultryQuotation && $record->exists ? $record : null);
+                        }),
                     Forms\Components\Grid::make(2)->schema([
                         Forms\Components\TextInput::make('bird_count')->label('الطيور')->readOnly(),
                         Forms\Components\TextInput::make('birds_per_nest')->label('طيور / عش')->readOnly(),
@@ -660,6 +669,33 @@ class PoultryQuotationResource extends Resource
                     ...static::accessoriesPreviewTableSchema(),
                 ]),
         ];
+    }
+
+    public static function offerActionsHtml(?PoultryQuotation $record): HtmlString
+    {
+        if ($record === null) {
+            return new HtmlString('<p class="pq-offer-note">احفظ العرض، وتظهر ملفات الـ PDF هنا مرتبة جنب بعض.</p>');
+        }
+
+        $buttons = [
+            ['عرض السعر', route('poultry-quotations.pdf', $record), 'price'],
+            ['عرض المشتملات', route('poultry-quotations.accessories', $record), 'accessories'],
+        ];
+        if ($record->include_ventilation) {
+            array_splice($buttons, 1, 0, [[
+                'عرض التهوية',
+                route('poultry-quotations.ventilation', $record),
+                'ventilation',
+            ]]);
+        }
+
+        $html = '<div class="pq-offer-actions">';
+        foreach ($buttons as [$label, $url, $kind]) {
+            $html .= '<a class="pq-offer-btn pq-offer-btn-'.$kind.'" href="'.e($url).'" target="_blank" rel="noopener">'.e($label).'</a>';
+        }
+        $html .= '</div>';
+
+        return new HtmlString($html);
     }
 
     public static function table(Table $table): Table

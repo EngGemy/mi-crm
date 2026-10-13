@@ -13,6 +13,44 @@
     margin-bottom: 0.75rem;
 }
 
+.fi-header-actions,
+.fi-ac {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.pq-offer-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+    gap: 0.5rem;
+    width: 100%;
+}
+
+.pq-offer-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.75rem;
+    padding: 0.55rem 0.75rem;
+    border-radius: 0.75rem;
+    font-weight: 700;
+    font-size: 0.95rem;
+    text-decoration: none;
+    text-align: center;
+    color: #fff;
+}
+
+.pq-offer-btn-price { background: #C00000; }
+.pq-offer-btn-ventilation { background: #0369a1; }
+.pq-offer-btn-accessories { background: #b45309; }
+
+.pq-offer-note {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
 .pq-form-summary .fi-section-content-ctn {
     background: linear-gradient(180deg, #fff8f8 0%, #ffffff 40%);
 }

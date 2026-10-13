@@ -24,6 +24,12 @@ class ViewPoultryQuotation extends ViewRecord
     {
         return $infolist
             ->schema([
+                Components\TextEntry::make('offer_files')
+                    ->label('ملفات العرض')
+                    ->state(fn (PoultryQuotation $record): string => (string) PoultryQuotationResource::offerActionsHtml($record))
+                    ->html()
+                    ->columnSpanFull(),
+
                 Components\Section::make('كارت المشاركة')
                     ->icon('heroicon-o-photo')
                     ->visible(fn (PoultryQuotation $record): bool => $record->image_path !== null
@@ -234,28 +240,6 @@ class ViewPoultryQuotation extends ViewRecord
                             ->send();
                     }
                 }),
-
-            Actions\Action::make('downloadPdf')
-                ->label('تحميل PDF')
-                ->icon('heroicon-o-document-arrow-down')
-                ->color('primary')
-                ->url(fn () => route('poultry-quotations.pdf', $this->record))
-                ->openUrlInNewTab(),
-
-            Actions\Action::make('downloadVentilation')
-                ->label('عرض التهوية')
-                ->icon('heroicon-o-cloud')
-                ->color('info')
-                ->visible(fn (): bool => (bool) $this->record->include_ventilation)
-                ->url(fn () => route('poultry-quotations.ventilation', $this->record))
-                ->openUrlInNewTab(),
-
-            Actions\Action::make('downloadAccessories')
-                ->label('عرض المشتملات')
-                ->icon('heroicon-o-document-text')
-                ->color('warning')
-                ->url(fn () => route('poultry-quotations.accessories', $this->record))
-                ->openUrlInNewTab(),
 
             Actions\Action::make('generateCard')
                 ->label('توليد كارت المشاركة')
