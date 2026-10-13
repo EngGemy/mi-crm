@@ -242,4 +242,20 @@ class PoultryTechnicalCalculatorTest extends TestCase
         $this->assertNull($this->calc->innerBeltMetersForWidth(10.49));
         $this->assertNull($this->calc->innerBeltMetersForWidth(18.01));
     }
+
+    /** @test */
+    public function ventilation_fans_round_to_the_nearest_even_number(): void
+    {
+        $this->assertSame(34, $this->calc->nearestEvenFanCount(80952, 2.100, 5000));
+        $this->assertSame(16, $this->calc->nearestEvenFanCount(36464, 2.100, 5000));
+        $this->assertSame(26, $this->calc->nearestEvenFanCount(62720, 2.100, 5000));
+    }
+
+    /** @test */
+    public function ventilation_air_inlets_subtract_three_when_odd_and_four_when_even(): void
+    {
+        $this->assertSame(110, $this->calc->ventilationAirInlets(114));
+        $this->assertSame(78, $this->calc->ventilationAirInlets(81));
+        $this->assertSame(0, $this->calc->ventilationAirInlets(0));
+    }
 }

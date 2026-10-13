@@ -1,0 +1,153 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\PoultryQuotation;
+use App\Quotations\Ventilation\VentilationOfferPages;
+use DOMDocument;
+use DOMElement;
+use DOMXPath;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+use ZipArchive;
+
+class VentilationOfferDocumentTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_broiler_ventilation_document_uses_the_calculated_quantities(): void
+    {
+        $quote = $this->quote('broiler', 114, 17, 4.1, 6);
+        $cells = $this->cells((new VentilationOfferPages)->fill($quote));
+
+        $this->assertSame('تسمين', $this->valueBeside($cells, 'نوع العنبر'));
+        $this->assertSame('114 متر', $this->valueBeside($cells, 'طول العنبر'));
+        $this->assertSame('17 متر', $this->valueBeside($cells, 'عرض العنبر'));
+        $this->assertSame('4.1 متر', $this->valueBeside($cells, 'ارتفاع العنبر'));
+        $this->assertStringContainsString('34', $this->row($cells, 'شفاطات طرد'));
+        $this->assertStringContainsString('1,156,000', $this->row($cells, 'شفاطات طرد'));
+        $this->assertStringContainsString('187', $this->row($cells, 'التبريد الخاص'));
+        $this->assertStringContainsString('897,600', $this->row($cells, 'التبريد الخاص'));
+        $this->assertStringContainsString('من 750,000 إلى 1,100,000', $this->row($cells, 'التدفئة المركزية'));
+        $this->assertStringContainsString('6', $this->row($cells, 'مراوح تقليب'));
+        $this->assertStringContainsString('111,000', $this->row($cells, 'مراوح تقليب'));
+        $this->assertStringContainsString('110', $this->row($cells, 'شبابيك تهوية'));
+        $this->assertStringContainsString('253,000', $this->row($cells, 'شبابيك تهوية'));
+        $this->assertStringContainsString('250,000', $this->row($cells, 'MUNTER TRIO'));
+        $this->assertStringNotContainsString('260,000', $this->row($cells, 'MUNTER TRIO'));
+        $this->assertStringContainsString('من 750,000 إلى 1,000,000', $this->row($cells, 'لوح الكنترول'));
+        $this->assertStringContainsString('من 4,167,600 إلى 4,767,600', $this->row($cells, 'TOTAL'));
+    }
+
+    public function test_layer_ventilation_document_omits_heating_and_side_fans(): void
+    {
+        $quote = $this->quote('layer', 81, 12, 4, 6);
+        $cells = $this->cells((new VentilationOfferPages)->fill($quote));
+        $flat = implode("\n", array_map(fn (array $row) => implode(' | ', $row), $cells));
+
+        $this->assertSame('بياض', $this->valueBeside($cells, 'نوع العنبر'));
+        $this->assertSame('81 متر', $this->valueBeside($cells, 'طول العنبر'));
+        $this->assertStringContainsString('28', $this->row($cells, 'شفاطات طرد'));
+        $this->assertStringContainsString('154', $this->row($cells, 'التبريد الخاص'));
+        $this->assertStringContainsString('78', $this->row($cells, 'شبابيك تهوية'));
+        $this->assertStringNotContainsString('التدفئة المركزية', $flat);
+        $this->assertStringNotContainsString('مراوح تقليب', $flat);
+        $this->assertStringContainsString('من 2,870,600 إلى 3,120,600', $this->row($cells, 'TOTAL'));
+    }
+
+    private function quote(string $type, float $length, float $width, float $height, int $sideFans): PoultryQuotation
+    {
+        $quote = PoultryQuotation::create([
+            'client_name' => 'عميل تهوية',
+            'project_type' => $type,
+            'length' => $length,
+            'width' => $width,
+            'height' => $height,
+            'tiers' => 4,
+            'lines' => 4,
+            'birds_per_nest' => 10,
+            'bird_count' => 1000,
+            'bird_weight_kg' => 2.1,
+            'back_fans_count' => 0,
+            'cooling_units' => 0,
+            'windows_count' => 0,
+            'side_fans_count' => 0,
+            'heaters_count' => 0,
+            'barns_count' => 1,
+            'include_ventilation' => true,
+            'ventilation_side_fans' => $sideFans,
+        ]);
+
+        $quote->forceFill([
+            'bird_count' => 80952,
+            'include_ventilation' => true,
+            'ventilation_side_fans' => $sideFans,
+        ])->saveQuietly();
+
+        return $quote->fresh();
+    }
+
+    /** @return list<list<string>> */
+    private function cells(string $docx): array
+    {
+        $zip = new ZipArchive;
+        $this->assertTrue($zip->open($docx));
+        $xml = $zip->getFromName('word/document.xml');
+        $zip->close();
+        @unlink($docx);
+        $this->assertNotFalse($xml);
+
+        $dom = new DOMDocument;
+        $dom->loadXML($xml);
+        $xpath = new DOMXPath($dom);
+        $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+
+        $rows = [];
+        foreach ($xpath->query('//w:tr') as $row) {
+            if (! $row instanceof DOMElement) {
+                continue;
+            }
+            $line = [];
+            foreach ($row->childNodes as $child) {
+                if (! $child instanceof DOMElement || $child->localName !== 'tc') {
+                    continue;
+                }
+                $text = '';
+                foreach ($xpath->query('.//w:t', $child) as $node) {
+                    $text .= $node->textContent;
+                }
+                $line[] = trim($text);
+            }
+            if ($line !== []) {
+                $rows[] = $line;
+            }
+        }
+
+        return $rows;
+    }
+
+    /** @param  list<list<string>>  $rows */
+    private function valueBeside(array $rows, string $label): string
+    {
+        foreach ($rows as $row) {
+            if (($row[0] ?? '') === $label) {
+                return $row[1] ?? '';
+            }
+        }
+
+        $this->fail('صف غير موجود: '.$label);
+    }
+
+    /** @param  list<list<string>>  $rows */
+    private function row(array $rows, string $marker): string
+    {
+        foreach ($rows as $row) {
+            $text = implode(' | ', $row);
+            if (str_contains($text, $marker)) {
+                return $text;
+            }
+        }
+
+        $this->fail('صف غير موجود: '.$marker);
+    }
+}

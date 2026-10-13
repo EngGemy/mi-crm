@@ -60,7 +60,7 @@ class BroilerAutoExitPages
         $computed = is_array($snapshot['computed'] ?? null) ? $snapshot['computed'] : [];
         $financial = is_array($snapshot['financial'] ?? null) ? $snapshot['financial'] : [];
 
-        $tiers = (int) ($technical['tiers'] ?? $quotation->tiers ?? 0);
+        $tiers = (int) ($quotation->tiers ?: ($technical['tiers'] ?? 0));
         $lines = (int) ($technical['lines'] ?? $quotation->lines ?? 0);
         $totalNests = (int) ($quotation->total_nests ?? $computed['total_nests'] ?? $technical['total_nests'] ?? 0);
         $nestsPerLine = (int) ($quotation->nests_per_line ?? $computed['nests_per_line'] ?? $technical['nests_per_line'] ?? 0);
@@ -141,13 +141,11 @@ class BroilerAutoExitPages
         $this->replaceExact($this->textNodes($xpath), '576 قفص', (string) ($data['nests_per_line'] ?: '576 قفص'));
         $this->replaceExact($this->textNodes($xpath), '2,304 قفص', (string) ($data['total_nests'] ?: '2,304 قفص'));
 
-        $nodes = $this->textNodes($xpath);
         if ($data['tier_count'] !== null) {
-            $this->patchWords($nodes, ['4', 'ماتور'], [0 => (string) $data['tier_count']]);
-            $this->patchWords($nodes, ['4', 'سيور'], [0 => (string) $data['tier_count']]);
+            $this->patchManureCounts($xpath, (string) $data['tier_count']);
         }
         if (is_string($data['motor_power']) && $data['motor_power'] !== '') {
-            $this->patchWords($nodes, ['1.5', 'حصان'], [0 => (string) $data['motor_power']]);
+            $this->patchWords($this->textNodes($xpath), ['1.5', 'حصان'], [0 => (string) $data['motor_power']]);
         }
 
         $this->patchCare($this->textNodes($xpath), $data['care']);
@@ -288,6 +286,46 @@ class BroilerAutoExitPages
             if (trim($text) !== '') {
                 $previous = $text;
             }
+        }
+    }
+
+    /**
+     * عدد مواتير دولاب السبلة وعدد السيور رقم واحد، وهو عدد الأدوار.
+     */
+    private function patchManureCounts(DOMXPath $xpath, string $count): void
+    {
+        foreach ($xpath->query('//w:p') as $paragraph) {
+            if (! $paragraph instanceof DOMElement) {
+                continue;
+            }
+
+            $text = '';
+            $nodes = [];
+            foreach ($xpath->query('.//w:t', $paragraph) as $node) {
+                if ($node instanceof DOMElement) {
+                    $nodes[] = $node;
+                    $text .= $node->textContent;
+                }
+            }
+
+            if (! str_contains($text, 'سيور السبلة') && ! str_contains($text, 'لتشغيل')) {
+                continue;
+            }
+
+            foreach ($nodes as $node) {
+                $value = $node->textContent;
+                $updated = str_replace(
+                    ['عدد 4 ماتور', '4 سيور'],
+                    ['عدد '.$count.' ماتور', $count.' سيور'],
+                    $value,
+                );
+                if ($updated !== $value) {
+                    $node->textContent = $updated;
+                }
+            }
+
+            $this->patchWords($nodes, ['4', 'ماتور'], [0 => $count]);
+            $this->patchWords($nodes, ['4', 'سيور'], [0 => $count]);
         }
     }
 

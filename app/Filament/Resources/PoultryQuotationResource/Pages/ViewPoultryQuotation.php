@@ -242,6 +242,14 @@ class ViewPoultryQuotation extends ViewRecord
                 ->url(fn () => route('poultry-quotations.pdf', $this->record))
                 ->openUrlInNewTab(),
 
+            Actions\Action::make('downloadVentilation')
+                ->label('عرض التهوية')
+                ->icon('heroicon-o-cloud')
+                ->color('info')
+                ->visible(fn (): bool => (bool) $this->record->include_ventilation)
+                ->url(fn () => route('poultry-quotations.ventilation', $this->record))
+                ->openUrlInNewTab(),
+
             Actions\Action::make('generateCard')
                 ->label('توليد كارت المشاركة')
                 ->icon('heroicon-o-sparkles')

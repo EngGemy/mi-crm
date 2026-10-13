@@ -268,6 +268,34 @@ class PoultryTechnicalCalculator
     }
 
     /**
+     * شبابيك الأير إنلت لعرض التهوية: طول فردي − 3، وطول زوجي − 4.
+     */
+    public function ventilationAirInlets(int $barnLength): int
+    {
+        if ($barnLength <= 0) {
+            return 0;
+        }
+
+        $windows = ($barnLength % 2 === 1) ? $barnLength - 3 : $barnLength - 4;
+
+        return max(0, $windows);
+    }
+
+    /**
+     * شفاطات 140×140 لعرض التهوية: عدد الطيور × أقصى وزن ÷ السعة، لأقرب رقم زوجي.
+     */
+    public function nearestEvenFanCount(int $totalBirds, float $maxBirdWeightKg, float $fanCapacityKg = 5000): int
+    {
+        if ($totalBirds <= 0 || $fanCapacityKg <= 0 || $maxBirdWeightKg <= 0) {
+            return 0;
+        }
+
+        $raw = ($totalBirds * $maxBirdWeightKg) / $fanCapacityKg;
+
+        return max(0, (int) (round($raw / 2) * 2));
+    }
+
+    /**
      * @param  array<string, int|float>  $weightMap
      */
     public function birdsPerNestFromWeight(float $weightKg, array $config): int

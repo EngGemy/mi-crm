@@ -45,7 +45,7 @@ class BroilerAutoExitDocumentTest extends TestCase
                 'project_type' => 'broiler_auto_exit',
                 'technical' => [
                     'effective_length' => 80,
-                    'tiers' => 3,
+                    'tiers' => 4,
                     'lines' => 5,
                     'nests_per_line' => 600,
                     'total_nests' => 3000,
@@ -124,6 +124,8 @@ class BroilerAutoExitDocumentTest extends TestCase
         $this->assertStringContainsString('بقوه2حصان', $compact);
         $this->assertStringNotContainsString('1.5حصان', $compact);
         $this->assertStringNotContainsString('عدد4ماتور', $compact);
+        $this->assertStringNotContainsString('4ماتور', $compact);
+        $this->assertStringNotContainsString('4سيور', $compact);
     }
 
     private function lookup(string $type, string $code, string $label, string $value): int

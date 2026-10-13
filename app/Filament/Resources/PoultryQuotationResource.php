@@ -11,7 +11,9 @@ use App\Models\PoultryQuotation;
 use App\Services\Fx\DailyUsdEgpRate;
 use App\Services\Poultry\SavedClientCatalog;
 use App\Services\Pricing\PricingCardImageGenerator;
+use App\Services\Poultry\ConstructionSummary;
 use App\Services\Poultry\PoultryConfigLoader;
+use App\Services\Poultry\VentilationOffer;
 use App\Services\Poultry\PoultryTechnicalCalculator;
 use App\Services\Poultry\PoultryQuoteAccess;
 use Illuminate\Database\Eloquent\Builder;
@@ -91,6 +93,7 @@ class PoultryQuotationResource extends Resource
                         ...static::quoteSetupStepSchema($live),
                         ...static::barnStepSchema($live),
                         ...static::equipmentStepSchema($live),
+                        ...static::extrasStepSchema(),
                     ])
                         ->columnSpan(['default' => 1, 'lg' => 7])
                         ->extraAttributes(['class' => 'pq-form-main']),
@@ -489,6 +492,94 @@ class PoultryQuotationResource extends Resource
         $set('layer_specs', $specs);
     }
 
+    /** @return array<int, Forms\Components\Component> */
+    protected static function extrasStepSchema(): array
+    {
+        return [
+            Forms\Components\Section::make('⑤ التبريد والإنشاءات')
+                ->description('التبريد يطلع عرض تهوية مستقل. الإنشاءات تتحسب من أبعاد العنبر وتتغير معاه.')
+                ->icon('heroicon-o-sparkles')
+                ->schema([
+                    Forms\Components\Toggle::make('include_ventilation')
+                        ->label('العميل عاوز التبريد')
+                        ->helperText('بعد الحفظ يظهر زر عرض التهوية، ورابط الملف يتبعت في واتساب مع عرض البطاريات.')
+                        ->live()
+                        ->columnSpanFull(),
+
+                    Forms\Components\Select::make('ventilation_side_fans')
+                        ->label('الشفاطات الجانبية')
+                        ->options([
+                            4 => '4',
+                            6 => '6',
+                            8 => '8',
+                            10 => '10',
+                        ])
+                        ->placeholder('اختار 4 أو 6 أو 8 أو 10')
+                        ->helperText('للتسمين فقط. المعادلة لسه، والعدد اختيار من الأربعة دول.')
+                        ->native(false)
+                        ->live()
+                        ->visible(fn (Get $get): bool => (bool) $get('include_ventilation') && static::isBroilerProject($get)),
+
+                    Forms\Components\Placeholder::make('ventilation_preview')
+                        ->label('ملخص عرض التهوية')
+                        ->columnSpanFull()
+                        ->visible(fn (Get $get): bool => (bool) $get('include_ventilation'))
+                        ->content(function (Get $get) {
+                            $preview = $get('pricing_preview');
+                            $birds = (int) (is_array($preview) ? ($preview['computed']['bird_count'] ?? 0) : 0);
+                            if ($birds <= 0) {
+                                $birds = (int) ($get('bird_count') ?? 0);
+                            }
+                            $length = (int) round((float) ($get('length') ?? 0));
+                            if ($birds <= 0 || $length <= 0) {
+                                return 'أدخل طول العنبر وخلّي عدد الطيور يتحسب، وبعدين يظهر عرض التهوية هنا.';
+                            }
+
+                            $broiler = static::isBroilerProject($get);
+                            $offer = app(VentilationOffer::class)->calculate(
+                                $birds,
+                                $length,
+                                $broiler,
+                                $broiler ? $get('ventilation_side_fans') : null,
+                            );
+
+                            return static::summaryRowsHtml('', $offer['rows']);
+                        }),
+
+                    Forms\Components\Toggle::make('include_construction')
+                        ->label('العميل عاوز الإنشاءات')
+                        ->helperText('الأرقام تتمشى مع الطول والعرض والارتفاع، وتتبعت في رسالة الواتساب مع العرض.')
+                        ->live()
+                        ->columnSpanFull(),
+
+                    Forms\Components\Placeholder::make('construction_preview')
+                        ->label('ملخص الإنشاءات')
+                        ->columnSpanFull()
+                        ->visible(fn (Get $get): bool => (bool) $get('include_construction'))
+                        ->content(function (Get $get) {
+                            $length = (float) ($get('length') ?? 0);
+                            $width = (float) ($get('width') ?? 0);
+                            $height = (float) ($get('height') ?? 0);
+                            if ($length <= 0 || $width <= 0 || $height <= 0) {
+                                return 'أدخل طول العنبر وعرضه وارتفاعه عشان تتحسب الإنشاءات.';
+                            }
+
+                            $params = app(PoultryConfigLoader::class)->loadPricingParams($get('wall_type'));
+                            $summary = app(ConstructionSummary::class)->lines($length, $width, $height, [
+                                'concrete' => (float) $params['concrete_cost_per_m2'],
+                                'steel' => (float) $params['steel_cost_per_m2'],
+                                'wall' => (float) $params['wall_cost_per_m2'],
+                                'tanks' => (float) $params['tanks_fixed_cost'],
+                                'include_tanks' => (bool) $params['include_tanks'],
+                            ]);
+
+                            return static::summaryRowsHtml('', $summary['rows']);
+                        }),
+                ])
+                ->columns(['default' => 1, 'sm' => 2]),
+        ];
+    }
+
     /** @param  \Closure  $live */
     protected static function equipmentStepSchema(\Closure $live): array
     {
@@ -498,10 +589,20 @@ class PoultryQuotationResource extends Resource
                 ->icon('heroicon-o-cog-6-tooth')
                 ->collapsed()
                 ->schema([
+                    Forms\Components\Placeholder::make('auto_exit_manure_count')
+                        ->label('عدد مواتير دولاب السبلة')
+                        ->visible(fn (Get $get): bool => static::isAutoExitProject($get))
+                        ->content(function (Get $get): string {
+                            $tiers = (int) ($get('tiers') ?: 0);
+
+                            return $tiers > 0 ? $tiers.' ماتور، و'.$tiers.' سيور' : '—';
+                        }),
+
                     Forms\Components\Select::make('manure_motor_count_id')
                         ->label('عدد مواتير دولاب السبلة')
                         ->options(fn () => Lookup::options(Lookup::TYPE_MANURE_MOTOR_COUNT))
                         ->default(fn () => Lookup::defaultId(Lookup::TYPE_MANURE_MOTOR_COUNT))
+                        ->visible(fn (Get $get): bool => ! static::isAutoExitProject($get))
                         ->native(false)->searchable()->live(),
 
                     Forms\Components\Select::make('motor_power_id')
@@ -514,6 +615,7 @@ class PoultryQuotationResource extends Resource
                         ->label('عدد السيور في الخط')
                         ->options(fn () => Lookup::options(Lookup::TYPE_BELTS_PER_LINE))
                         ->default(fn () => Lookup::defaultId(Lookup::TYPE_BELTS_PER_LINE))
+                        ->visible(fn (Get $get): bool => ! static::isAutoExitProject($get))
                         ->native(false)->searchable()->live(),
 
                     Forms\Components\Select::make('inner_belt_length_id')
@@ -646,6 +748,14 @@ class PoultryQuotationResource extends Resource
                     ->icon('heroicon-o-document-arrow-down')
                     ->color('primary')
                     ->url(fn (PoultryQuotation $record) => route('poultry-quotations.pdf', $record))
+                    ->openUrlInNewTab(),
+
+                Tables\Actions\Action::make('downloadVentilation')
+                    ->label('عرض التهوية')
+                    ->icon('heroicon-o-cloud')
+                    ->color('info')
+                    ->visible(fn (PoultryQuotation $record): bool => (bool) $record->include_ventilation)
+                    ->url(fn (PoultryQuotation $record) => route('poultry-quotations.ventilation', $record))
                     ->openUrlInNewTab(),
 
                 Tables\Actions\Action::make('generateCard')

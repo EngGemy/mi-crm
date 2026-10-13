@@ -370,6 +370,72 @@ class CompanySettings extends Page implements HasForms
                                             ->rows(2)
                                             ->columnSpanFull(),
                                     ])->columns(2),
+
+                                Section::make('عرض التهوية والمشتملات')
+                                    ->description('الأرقام دي بتفضل ثابتة في عروض التهوية لحد ما تتغير من هنا. التدفئة والشفاطات الجانبية للتسمين فقط، والكهرباء والمونيتور للتسمين والبياض.')
+                                    ->schema([
+                                        TextInput::make('poultry_pricing.ventilation_broiler_max_weight_kg')
+                                            ->label('أقصى وزن لحساب شفاطات التسمين')
+                                            ->numeric()
+                                            ->minValue(0.1)
+                                            ->step(0.001)
+                                            ->default(2.1)
+                                            ->suffix('كجم'),
+                                        TextInput::make('poultry_pricing.ventilation_fan_unit_price')
+                                            ->label('سعر شفاط 140×140')
+                                            ->numeric()
+                                            ->minValue(0)
+                                            ->default(34000)
+                                            ->suffix('EGP'),
+                                        TextInput::make('poultry_pricing.ventilation_cooling_m2_price')
+                                            ->label('سعر متر التبريد')
+                                            ->numeric()
+                                            ->minValue(0)
+                                            ->default(4800)
+                                            ->suffix('EGP'),
+                                        TextInput::make('poultry_pricing.ventilation_inlet_unit_price')
+                                            ->label('سعر شباك الأير إنلت')
+                                            ->numeric()
+                                            ->minValue(0)
+                                            ->default(2300)
+                                            ->suffix('EGP'),
+                                        TextInput::make('poultry_pricing.ventilation_circulation_unit_price')
+                                            ->label('سعر الشفاط الجانبي / مروحة التقليب')
+                                            ->numeric()
+                                            ->minValue(0)
+                                            ->default(18500)
+                                            ->suffix('EGP'),
+                                        TextInput::make('poultry_pricing.ventilation_heating_min')
+                                            ->label('تدفئة المياه الساخنة — من')
+                                            ->numeric()
+                                            ->minValue(0)
+                                            ->default(750000)
+                                            ->suffix('EGP'),
+                                        TextInput::make('poultry_pricing.ventilation_heating_max')
+                                            ->label('تدفئة المياه الساخنة — إلى')
+                                            ->numeric()
+                                            ->minValue(0)
+                                            ->default(1100000)
+                                            ->suffix('EGP'),
+                                        TextInput::make('poultry_pricing.ventilation_electricity_min')
+                                            ->label('الكهرباء والكنترول والإنارة — من')
+                                            ->numeric()
+                                            ->minValue(0)
+                                            ->default(750000)
+                                            ->suffix('EGP'),
+                                        TextInput::make('poultry_pricing.ventilation_electricity_max')
+                                            ->label('الكهرباء والكنترول والإنارة — إلى')
+                                            ->numeric()
+                                            ->minValue(0)
+                                            ->default(1000000)
+                                            ->suffix('EGP'),
+                                        TextInput::make('poultry_pricing.ventilation_monitor_price')
+                                            ->label('جهاز المونيتور')
+                                            ->numeric()
+                                            ->minValue(0)
+                                            ->default(250000)
+                                            ->suffix('EGP'),
+                                    ])->columns(2),
                             ]),
 
                         Tabs\Tab::make('الافتراضيات')

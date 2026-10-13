@@ -282,6 +282,11 @@ trait HasLivePoultryPricing
         return PoultryProjectType::tryFrom(static::resolveProjectTypeFromForm($get))?->isBroiler() ?? false;
     }
 
+    protected static function isAutoExitProject(Get $get): bool
+    {
+        return static::resolveProjectTypeFromForm($get) === PoultryProjectType::BroilerAutoExit->value;
+    }
+
     protected static function syncBroilerSilo(Set $set, Get $get, int $totalBirds): void
     {
         $tons = SiloCapacity::tonsForBirdCount($totalBirds);
@@ -388,15 +393,7 @@ trait HasLivePoultryPricing
                         return new HtmlString('<p style="color:#64748b;font-size:13px;">لا توجد مشتملات اختيارية مفعّلة حالياً.</p>');
                     }
 
-                    $html = '<table style="width:100%;font-size:13px;border-collapse:collapse;background:#f8fafc;border-radius:8px;">';
-                    $html .= '<thead><tr style="background:#e2e8f0;"><th style="padding:8px;text-align:right;">البند</th><th style="padding:8px;text-align:left;">المبلغ</th></tr></thead><tbody>';
-                    foreach ($rows as [$label, $val, $isHtml]) {
-                        $cell = $isHtml ? $val : e((string) $val);
-                        $html .= '<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:8px;color:#475569;">'.e($label).'</td><td style="padding:8px;font-weight:700;text-align:left;direction:ltr;">'.$cell.'</td></tr>';
-                    }
-                    $html .= '</tbody></table>';
-
-                    return new HtmlString($html);
+                    return static::summaryRowsHtml('', $rows);
                 })
                 ->visible(fn (Get $get) => static::showsAccessoriesPreview($get)),
         ];
@@ -482,17 +479,35 @@ trait HasLivePoultryPricing
                         default => 'ملخص المشروع',
                     };
 
-                    $html = '<p style="font-weight:700;margin:0 0 8px;color:#334155;">'.e($title).'</p>';
-                    $html .= '<table style="width:100%;font-size:13px;border-collapse:collapse;">';
-                    foreach ($rows as [$label, $val, $isHtml]) {
-                        $cell = $isHtml ? $val : e((string) $val);
-                        $html .= '<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:6px 8px;color:#64748b;">'.e($label).'</td><td style="padding:6px 8px;font-weight:700;text-align:left;direction:ltr;">'.$cell.'</td></tr>';
-                    }
-                    $html .= '</table>';
-
-                    return new HtmlString($html);
+                    return static::summaryRowsHtml($title, $rows);
                 }),
         ];
+    }
+
+    /**
+     * القيم كانت تختفي على بعض الموبايلات: عمود الجدول باتجاه LTR يخرج برّه الشاشة،
+     * والرقم بلا لون صريح يورث أبيض فوق البطاقة البيضاء. الإجمالي الأحمر فقط كان يبان.
+     *
+     * @param  list<array{0: string, 1: string, 2: bool}>  $rows
+     */
+    private static function summaryRowsHtml(string $title, array $rows): HtmlString
+    {
+        $html = '<div style="background:#ffffff;color:#0f172a;color-scheme:light;max-width:100%;">';
+        if ($title !== '') {
+            $html .= '<p style="font-weight:700;margin:0 0 8px;color:#334155;">'.e($title).'</p>';
+        }
+
+        foreach ($rows as [$label, $val, $isHtml]) {
+            $cell = $isHtml ? $val : e((string) $val);
+            $html .= '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border-bottom:1px solid #e2e8f0;padding:8px 0;">';
+            $html .= '<span style="color:#64748b;flex:1 1 auto;min-width:0;text-align:right;">'.e($label).'</span>';
+            $html .= '<span dir="ltr" style="color:#0f172a;font-weight:700;flex:0 1 auto;max-width:58%;text-align:left;overflow-wrap:anywhere;">'.$cell.'</span>';
+            $html .= '</div>';
+        }
+
+        $html .= '</div>';
+
+        return new HtmlString($html);
     }
 
     public static function poultryDimensionFieldsLive(bool $applyItemsOnChange = false): array
