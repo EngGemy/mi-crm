@@ -53,7 +53,16 @@ class SettingsService
     {
         $setting = Setting::where('key', $key)->first();
         if (! $setting) {
-            throw new \Exception("Setting [$key] not found");
+            $setting = Setting::create([
+                'key' => $key,
+                'value' => null,
+                'type' => $this->inferType($value),
+                'category' => str_contains($key, '.') ? strstr($key, '.', true) : 'general',
+                'label_ar' => $key,
+                'is_public' => false,
+                'is_required' => false,
+                'sort_order' => 0,
+            ]);
         }
 
         $oldValue = $setting->value;
@@ -77,6 +86,37 @@ class SettingsService
         ]);
 
         $this->clearCache();
+    }
+
+    protected function inferType(mixed $value): string
+    {
+        if (is_bool($value)) {
+            return 'boolean';
+        }
+
+        if (is_array($value)) {
+            return 'json';
+        }
+
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            if ($trimmed !== '' && ($trimmed[0] === '{' || $trimmed[0] === '[')) {
+                json_decode($trimmed, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    return 'json';
+                }
+            }
+        }
+
+        if (is_int($value)) {
+            return 'integer';
+        }
+
+        if (is_numeric($value)) {
+            return 'decimal';
+        }
+
+        return 'string';
     }
 
     /**
