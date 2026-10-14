@@ -524,8 +524,13 @@ class BroilerAutoExitPages
 
     private function exportPdf(string $docxPath): string
     {
+        $libre = $this->viaLibreOffice($docxPath);
+        if ($libre !== null) {
+            return $libre;
+        }
+
         if (PHP_OS_FAMILY !== 'Windows') {
-            throw new RuntimeException('تعذر تصدير عرض التسمين. Word غير متاح على السيرفر.');
+            throw new RuntimeException('تعذر تصدير عرض التسمين. LibreOffice غير متاح على السيرفر.');
         }
 
         $pdfPath = $docxPath.'.pdf';
@@ -578,6 +583,45 @@ PS1);
         }
 
         return $bytes;
+    }
+
+    private function viaLibreOffice(string $docxPath): ?string
+    {
+        $binary = PHP_OS_FAMILY === 'Windows'
+            ? (is_file('C:\\Program Files\\LibreOffice\\program\\soffice.exe')
+                ? 'C:\\Program Files\\LibreOffice\\program\\soffice.exe'
+                : (is_file('C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe')
+                    ? 'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe'
+                    : null))
+            : null;
+
+        if ($binary === null && PHP_OS_FAMILY !== 'Windows') {
+            exec('command -v soffice', $output, $code);
+            $binary = $code === 0 && isset($output[0]) && $output[0] !== '' ? trim($output[0]) : null;
+        }
+
+        if ($binary === null) {
+            return null;
+        }
+
+        $outDir = dirname($docxPath);
+        exec(
+            escapeshellarg($binary).' --headless --norestore --convert-to pdf --outdir '.escapeshellarg($outDir).' '.escapeshellarg($docxPath),
+            $converted,
+            $status
+        );
+
+        $pdfPath = $outDir.DIRECTORY_SEPARATOR.pathinfo($docxPath, PATHINFO_FILENAME).'.pdf';
+        if ($status !== 0 || ! is_file($pdfPath)) {
+            @unlink($pdfPath);
+
+            return null;
+        }
+
+        $bytes = file_get_contents($pdfPath);
+        @unlink($pdfPath);
+
+        return is_string($bytes) && str_starts_with($bytes, '%PDF') ? $bytes : null;
     }
 
     private function meters(mixed $value): string

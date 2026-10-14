@@ -54,10 +54,17 @@ class BroilerQuotationTemplate implements QuotationTemplate
         if ((string) $q->project_type === PoultryProjectType::BroilerAutoExit->value) {
             $number = $q->quote_number ?: 'quotation';
 
-            return response((new BroilerAutoExitPages)->pdfBytes($q), 200, [
-                'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'attachment; filename="MI-Broiler-Auto-'.$number.'.pdf"',
-            ]);
+            try {
+                $bytes = (new BroilerAutoExitPages)->pdfBytes($q);
+                if (str_starts_with($bytes, '%PDF')) {
+                    return response($bytes, 200, [
+                        'Content-Type' => 'application/pdf',
+                        'Content-Disposition' => 'attachment; filename="MI-Broiler-Auto-'.$number.'.pdf"',
+                    ]);
+                }
+            } catch (\Throwable $error) {
+                report($error);
+            }
         }
 
         return app(MiProposalPdfGenerator::class)->download($q);

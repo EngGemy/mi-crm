@@ -203,6 +203,13 @@ class ViewPoultryQuotation extends ViewRecord
                         ->openUrlInNewTab(),
                 ]),
 
+            Actions\Action::make('downloadPdf')
+                ->label(fn (): string => PoultryQuotationResource::quoteDownloadLabel($this->record))
+                ->icon('heroicon-o-document-arrow-down')
+                ->color('primary')
+                ->url(fn () => route('poultry-quotations.pdf', $this->record))
+                ->openUrlInNewTab(),
+
             Actions\Action::make('changeBirdWeight')
                 ->label('تغيير وزن الطائر')
                 ->icon('heroicon-o-scale')
