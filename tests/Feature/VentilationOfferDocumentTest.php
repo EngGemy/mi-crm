@@ -89,6 +89,7 @@ class VentilationOfferDocumentTest extends TestCase
             'width' => 12,
             'height' => 4,
             'construction_choice' => 'sandwich',
+            'construction_price' => 2450,
         ]);
         $cells = $this->cells((new ConstructionOfferPages)->fill($quote));
 
@@ -101,7 +102,8 @@ class VentilationOfferDocumentTest extends TestCase
         $this->assertStringContainsString('2,381,400', $this->row($cells, 'المبنى الاستيل'));
         $this->assertStringContainsString('648', $this->row($cells, 'الحوائط عبارة'));
         $this->assertStringContainsString('777,600', $this->row($cells, 'الحوائط عبارة'));
-        $this->assertStringContainsString('4,805,400', $this->row($cells, 'TOTAL'));
+        $this->assertStringContainsString('4,725,400', $this->row($cells, 'TOTAL'));
+        $this->assertStringNotContainsString('2,450', $this->row($cells, 'TOTAL'));
     }
 
     public function test_construction_pdf_keeps_the_brochure_when_word_conversion_fails(): void

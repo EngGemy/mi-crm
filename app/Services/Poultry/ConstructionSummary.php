@@ -73,7 +73,7 @@ class ConstructionSummary
 
     /**
      * بنود جدول عرض الإنشاءات: المساحات من أبعاد العنبر، والأسعار من الإعدادات.
-     * لو المندوب كتب رقماً داخل العرض يبقى هو الإجمالي، وفرق السعر يتسجل على بند الاستيل.
+     * الإجمالي مجموع الخرسانة والاستيل والحوائط والخزانات.
      *
      * @return array{
      *     concrete: array{qty: string, unit: string, amount: string},
@@ -97,7 +97,6 @@ class ConstructionSummary
                 'wall' => $this->wallRate($choice),
                 'tanks' => (float) settings('poultry_pricing.tanks_fixed_cost', 480000),
             ],
-            $quotation->construction_price,
         );
     }
 
@@ -111,7 +110,7 @@ class ConstructionSummary
      *     total: string
      * }
      */
-    public function lines(float $length, float $width, float $height, array $rates, mixed $override = null): array
+    public function lines(float $length, float $width, float $height, array $rates): array
     {
         $floor = max(0, (int) round($length * $width));
         $wallsQty = max(0, (int) round($length * $height * 2));
@@ -120,16 +119,13 @@ class ConstructionSummary
         $wallsAmount = $wallsQty * (float) $rates['wall'];
         $tanks = (float) $rates['tanks'];
         $sum = $concreteAmount + $steelAmount + $wallsAmount + $tanks;
-        $target = ($override === null || $override === '' || (float) $override <= 0) ? $sum : (float) $override;
-        $steelAmount += $target - $sum;
-        $steelRate = $floor > 0 ? $steelAmount / $floor : $steelAmount;
 
         return [
             'concrete' => $this->moneyLine((string) $floor, (float) $rates['concrete'], $concreteAmount),
-            'steel' => $this->moneyLine((string) $floor, $steelRate, $steelAmount),
+            'steel' => $this->moneyLine((string) $floor, (float) $rates['steel'], $steelAmount),
             'walls' => $this->moneyLine((string) $wallsQty, (float) $rates['wall'], $wallsAmount),
             'tanks' => $this->moneyLine('7', $tanks, $tanks),
-            'total' => VentilationOffer::money($target),
+            'total' => VentilationOffer::money($sum),
         ];
     }
 
