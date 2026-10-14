@@ -37,16 +37,36 @@ class VentilationOffer
             'cooling_m2' => (float) settings('poultry_pricing.ventilation_cooling_m2_price', 4800),
             'circulation_unit' => (float) settings('poultry_pricing.ventilation_circulation_unit_price', 18500),
             'inlet_unit' => (float) settings('poultry_pricing.ventilation_inlet_unit_price', 2300),
-            'heating_min' => (float) settings('poultry_pricing.ventilation_heating_min', 750000),
-            'heating_max' => (float) settings('poultry_pricing.ventilation_heating_max', 1100000),
-            'electricity_min' => (float) settings('poultry_pricing.ventilation_electricity_min', 750000),
-            'electricity_max' => (float) settings('poultry_pricing.ventilation_electricity_max', 1000000),
-            'monitor' => (float) settings('poultry_pricing.ventilation_monitor_price', 250000),
+            'heating' => self::baseHeating(),
+            'electricity' => self::baseElectricity(),
+            'monitor' => self::baseMonitor(),
         ];
+    }
+
+    public static function baseHeating(): float
+    {
+        return (float) settings(
+            'poultry_pricing.ventilation_heating_price',
+            settings('poultry_pricing.ventilation_heating_min', 750000),
+        );
+    }
+
+    public static function baseElectricity(): float
+    {
+        return (float) settings(
+            'poultry_pricing.ventilation_electricity_price',
+            settings('poultry_pricing.ventilation_electricity_min', 750000),
+        );
+    }
+
+    public static function baseMonitor(): float
+    {
+        return (float) settings('poultry_pricing.ventilation_monitor_price', 250000);
     }
 
     /**
      * @param  array<string, float>|null  $prices
+     * @param  array{heating?: float|int|string|null, electricity?: float|int|string|null, monitor?: float|int|string|null}|null  $overrides
      * @return array{
      *     fans: int,
      *     cooling_m2: float,
@@ -55,7 +75,7 @@ class VentilationOffer
      *     document: array<string, array{qty: string, unit: string, amount: string}|string|null>
      * }
      */
-    public function calculate(int $birds, int $barnLength, bool $broiler, ?int $sideFans, ?array $prices = null): array
+    public function calculate(int $birds, int $barnLength, bool $broiler, ?int $sideFans, ?array $prices = null, ?array $overrides = null): array
     {
         $prices ??= self::prices();
         $weight = $broiler ? (float) $prices['broiler_weight'] : (float) $prices['layer_weight'];
@@ -65,21 +85,18 @@ class VentilationOffer
         $cooling = round($fans * $perFan, 2);
         $inlets = $this->calculator->ventilationAirInlets($barnLength);
         $sideFans = $broiler ? self::sideFanChoice($sideFans) : null;
+        $overrides ??= [];
 
-        $heatingMin = min((float) $prices['heating_min'], (float) $prices['heating_max']);
-        $heatingMax = max((float) $prices['heating_min'], (float) $prices['heating_max']);
-        $electricMin = min((float) $prices['electricity_min'], (float) $prices['electricity_max']);
-        $electricMax = max((float) $prices['electricity_min'], (float) $prices['electricity_max']);
+        $heating = self::picked($overrides['heating'] ?? null, (float) ($prices['heating'] ?? $prices['heating_min'] ?? 0));
+        $electricity = self::picked($overrides['electricity'] ?? null, (float) ($prices['electricity'] ?? $prices['electricity_min'] ?? 0));
+        $monitor = self::picked($overrides['monitor'] ?? null, (float) ($prices['monitor'] ?? 0));
 
         $fanAmount = $fans * (float) $prices['fan_unit'];
         $coolingAmount = $cooling * (float) $prices['cooling_m2'];
         $inletAmount = $inlets * (float) $prices['inlet_unit'];
-        $monitor = (float) $prices['monitor'];
         $circulationAmount = $sideFans === null ? 0.0 : $sideFans * (float) $prices['circulation_unit'];
-
-        $fixed = $fanAmount + $coolingAmount + $inletAmount + $monitor + $circulationAmount;
-        $totalMin = $fixed + $electricMin + ($broiler ? $heatingMin : 0);
-        $totalMax = $fixed + $electricMax + ($broiler ? $heatingMax : 0);
+        $heatingAmount = $broiler ? $heating : 0.0;
+        $total = $fanAmount + $coolingAmount + $inletAmount + $circulationAmount + $heatingAmount + $electricity + $monitor;
 
         $weightText = self::plain($weight);
         $odd = $barnLength % 2 === 1;
@@ -92,29 +109,26 @@ class VentilationOffer
 
         if ($broiler) {
             $rows[] = ['الشفاطات الجانبية', $sideFans === null ? 'اختار 4 أو 6 أو 8 أو 10' : $sideFans.' شفاط', false];
-            $rows[] = ['منظومة التدفئة بالمياه الساخنة', self::range($heatingMin, $heatingMax), false];
+            $rows[] = ['منظومة التدفئة بالمياه الساخنة', self::money($heating), false];
         }
 
-        $rows[] = ['الكهرباء والكنترول والإنارة', self::range($electricMin, $electricMax), false];
+        $rows[] = ['الكهرباء والكنترول والإنارة', self::money($electricity), false];
         $rows[] = ['جهاز المونيتور', self::money($monitor), false];
-        $rows[] = ['إجمالي عرض التهوية', self::range($totalMin, $totalMax), false];
+        $rows[] = ['إجمالي المشتملات', self::money($total), false];
 
-        $ventilationLines = [
+        $lines = [
             ['شفاطات طرد 140×140', (string) $fans, self::money((float) $prices['fan_unit']), self::money($fanAmount)],
             ['التبريد', self::plain($cooling).' م²', self::money((float) $prices['cooling_m2']), self::money($coolingAmount)],
             ['شبابيك الأير إنلت', (string) $inlets, self::money((float) $prices['inlet_unit']), self::money($inletAmount)],
         ];
-        $accessoryLines = [];
-        $accessoryFixed = $monitor;
         if ($sideFans !== null) {
-            $accessoryLines[] = ['الشفاطات الجانبية', (string) $sideFans, self::money((float) $prices['circulation_unit']), self::money($circulationAmount)];
-            $accessoryFixed += $circulationAmount;
+            $lines[] = ['الشفاطات الجانبية', (string) $sideFans, self::money((float) $prices['circulation_unit']), self::money($circulationAmount)];
         }
         if ($broiler) {
-            $accessoryLines[] = ['منظومة التدفئة بالمياه الساخنة', '1', self::range($heatingMin, $heatingMax), self::range($heatingMin, $heatingMax)];
+            $lines[] = ['منظومة التدفئة بالمياه الساخنة', '1', self::money($heating), self::money($heating)];
         }
-        $accessoryLines[] = ['الكهرباء والكنترول والإنارة', '1', self::range($electricMin, $electricMax), self::range($electricMin, $electricMax)];
-        $accessoryLines[] = ['جهاز المونيتور', '1', self::money($monitor), self::money($monitor)];
+        $lines[] = ['الكهرباء والكنترول والإنارة', '1', self::money($electricity), self::money($electricity)];
+        $lines[] = ['جهاز المونيتور', '1', self::money($monitor), self::money($monitor)];
 
         return [
             'fans' => $fans,
@@ -134,8 +148,8 @@ class VentilationOffer
                 ],
                 'heating' => $broiler ? [
                     'qty' => '1',
-                    'unit' => self::range($heatingMin, $heatingMax),
-                    'amount' => self::range($heatingMin, $heatingMax),
+                    'unit' => self::money($heating),
+                    'amount' => self::money($heating),
                 ] : null,
                 'circulation' => $sideFans === null ? null : [
                     'qty' => (string) $sideFans,
@@ -154,23 +168,29 @@ class VentilationOffer
                 ],
                 'electricity' => [
                     'qty' => '1',
-                    'unit' => self::range($electricMin, $electricMax),
-                    'amount' => self::range($electricMin, $electricMax),
+                    'unit' => self::money($electricity),
+                    'amount' => self::money($electricity),
                 ],
-                'total' => self::range($totalMin, $totalMax),
+                'total' => self::money($total),
             ],
             'ventilation_pdf' => [
-                'lines' => $ventilationLines,
-                'total' => self::money($fanAmount + $coolingAmount + $inletAmount),
+                'lines' => $lines,
+                'total' => self::money($total),
             ],
             'accessories_pdf' => [
-                'lines' => $accessoryLines,
-                'total' => self::range(
-                    $accessoryFixed + $electricMin + ($broiler ? $heatingMin : 0),
-                    $accessoryFixed + $electricMax + ($broiler ? $heatingMax : 0),
-                ),
+                'lines' => $lines,
+                'total' => self::money($total),
             ],
         ];
+    }
+
+    public static function picked(mixed $override, float $base): float
+    {
+        if ($override === null || $override === '') {
+            return $base;
+        }
+
+        return (float) $override;
     }
 
     /**
@@ -185,6 +205,12 @@ class VentilationOffer
             (int) round((float) $quotation->length),
             $broiler,
             $quotation->ventilation_side_fans,
+            null,
+            [
+                'heating' => $quotation->ventilation_heating_price,
+                'electricity' => $quotation->ventilation_electricity_price,
+                'monitor' => $quotation->ventilation_monitor_price,
+            ],
         );
 
         return [$this->barnLabel($type), $offer];

@@ -497,13 +497,13 @@ class PoultryQuotationResource extends Resource
     protected static function extrasStepSchema(): array
     {
         return [
-            Forms\Components\Section::make('⑤ التبريد والإنشاءات')
-                ->description('التبريد يطلع عرض تهوية مستقل. الإنشاءات تتحسب من أبعاد العنبر وتتغير معاه.')
+            Forms\Components\Section::make('⑤ المشتملات والإنشاءات')
+                ->description('المشتملات عرض واحد يجمع التهوية والتبريد. الإنشاءات عرض واحد. الرقم الأساسي من الإعدادات، والمندوب يقدر يغيّره داخل العرض.')
                 ->icon('heroicon-o-sparkles')
                 ->schema([
                     Forms\Components\Toggle::make('include_ventilation')
-                        ->label('العميل عاوز التبريد')
-                        ->helperText('بعد الحفظ يظهر زر عرض التهوية، ورابط الملف يتبعت في واتساب مع عرض البطاريات.')
+                        ->label('العميل عاوز المشتملات')
+                        ->helperText('عرض واحد للتهوية والتبريد. بعد الحفظ يظهر زر تحميل عرض سعر المشتملات.')
                         ->live()
                         ->columnSpanFull(),
 
@@ -516,13 +516,49 @@ class PoultryQuotationResource extends Resource
                             10 => '10',
                         ])
                         ->placeholder('اختار 4 أو 6 أو 8 أو 10')
-                        ->helperText('للتسمين فقط. المعادلة لسه، والعدد اختيار من الأربعة دول.')
+                        ->helperText('للتسمين فقط. العدد اختيار من الأربعة دول.')
                         ->native(false)
                         ->live()
                         ->visible(fn (Get $get): bool => (bool) $get('include_ventilation') && static::isBroilerProject($get)),
 
+                    Forms\Components\TextInput::make('ventilation_heating_price')
+                        ->label('سعر منظومة التدفئة')
+                        ->numeric()
+                        ->minValue(0)
+                        ->suffix('ج.م')
+                        ->helperText('الرقم الأساسي من الإعدادات، وتقدر تغيّره لهذا العرض.')
+                        ->live()
+                        ->visible(fn (Get $get): bool => (bool) $get('include_ventilation') && static::isBroilerProject($get))
+                        ->afterStateHydrated(function (Forms\Components\TextInput $component, mixed $state): void {
+                            static::fillOfferBase($component, $state, VentilationOffer::baseHeating());
+                        }),
+
+                    Forms\Components\TextInput::make('ventilation_electricity_price')
+                        ->label('سعر الكهرباء والكنترول والإنارة')
+                        ->numeric()
+                        ->minValue(0)
+                        ->suffix('ج.م')
+                        ->helperText('الرقم الأساسي من الإعدادات، وتقدر تغيّره لهذا العرض.')
+                        ->live()
+                        ->visible(fn (Get $get): bool => (bool) $get('include_ventilation'))
+                        ->afterStateHydrated(function (Forms\Components\TextInput $component, mixed $state): void {
+                            static::fillOfferBase($component, $state, VentilationOffer::baseElectricity());
+                        }),
+
+                    Forms\Components\TextInput::make('ventilation_monitor_price')
+                        ->label('سعر جهاز المونيتور')
+                        ->numeric()
+                        ->minValue(0)
+                        ->suffix('ج.م')
+                        ->helperText('الرقم الأساسي من الإعدادات، وتقدر تغيّره لهذا العرض.')
+                        ->live()
+                        ->visible(fn (Get $get): bool => (bool) $get('include_ventilation'))
+                        ->afterStateHydrated(function (Forms\Components\TextInput $component, mixed $state): void {
+                            static::fillOfferBase($component, $state, VentilationOffer::baseMonitor());
+                        }),
+
                     Forms\Components\Placeholder::make('ventilation_preview')
-                        ->label('ملخص عرض التهوية')
+                        ->label('ملخص المشتملات')
                         ->columnSpanFull()
                         ->visible(fn (Get $get): bool => (bool) $get('include_ventilation'))
                         ->content(function (Get $get) {
@@ -533,7 +569,7 @@ class PoultryQuotationResource extends Resource
                             }
                             $length = (int) round((float) ($get('length') ?? 0));
                             if ($birds <= 0 || $length <= 0) {
-                                return 'أدخل طول العنبر وخلّي عدد الطيور يتحسب، وبعدين يظهر عرض التهوية هنا.';
+                                return 'أدخل طول العنبر وخلّي عدد الطيور يتحسب، وبعدين يظهر عرض المشتملات هنا.';
                             }
 
                             $broiler = static::isBroilerProject($get);
@@ -542,6 +578,12 @@ class PoultryQuotationResource extends Resource
                                 $length,
                                 $broiler,
                                 $broiler ? $get('ventilation_side_fans') : null,
+                                null,
+                                [
+                                    'heating' => $get('ventilation_heating_price'),
+                                    'electricity' => $get('ventilation_electricity_price'),
+                                    'monitor' => $get('ventilation_monitor_price'),
+                                ],
                             );
 
                             return static::summaryRowsHtml('', $offer['rows']);
@@ -549,7 +591,7 @@ class PoultryQuotationResource extends Resource
 
                     Forms\Components\Toggle::make('include_construction')
                         ->label('العميل عاوز الإنشاءات')
-                        ->helperText('المبلغ ثابت من الإعدادات. الاختيار يحدد رقم الساندوتش بانل أو رقم الخرسانة.')
+                        ->helperText('عرض واحد. الرقم الأساسي من الإعدادات حسب ساندوتش بانل أو خرسانة، وتقدر تغيّره لهذا العرض.')
                         ->live()
                         ->columnSpanFull(),
 
@@ -560,14 +602,36 @@ class PoultryQuotationResource extends Resource
                         ->native(false)
                         ->live()
                         ->required(fn (Get $get): bool => (bool) $get('include_construction'))
-                        ->visible(fn (Get $get): bool => (bool) $get('include_construction')),
+                        ->visible(fn (Get $get): bool => (bool) $get('include_construction'))
+                        ->afterStateUpdated(function (?string $state, Set $set): void {
+                            $prices = ConstructionSummary::prices();
+                            $set('construction_price', $prices[$state === 'cement' ? 'cement' : 'sandwich']);
+                        }),
+
+                    Forms\Components\TextInput::make('construction_price')
+                        ->label('مبلغ الإنشاءات')
+                        ->numeric()
+                        ->minValue(0)
+                        ->suffix('ج.م')
+                        ->helperText('الرقم الأساسي من الإعدادات، وتقدر تغيّره لهذا العرض.')
+                        ->live()
+                        ->visible(fn (Get $get): bool => (bool) $get('include_construction'))
+                        ->afterStateHydrated(function (Forms\Components\TextInput $component, mixed $state, Get $get): void {
+                            $prices = ConstructionSummary::prices();
+                            $base = $prices[($get('construction_choice') === 'cement') ? 'cement' : 'sandwich'];
+                            static::fillOfferBase($component, $state, $base);
+                        }),
 
                     Forms\Components\Placeholder::make('construction_preview')
                         ->label('ملخص الإنشاءات')
                         ->columnSpanFull()
                         ->visible(fn (Get $get): bool => (bool) $get('include_construction'))
                         ->content(function (Get $get) {
-                            $summary = app(ConstructionSummary::class)->chosen((string) ($get('construction_choice') ?: 'sandwich'));
+                            $summary = app(ConstructionSummary::class)->chosen(
+                                (string) ($get('construction_choice') ?: 'sandwich'),
+                                null,
+                                $get('construction_price'),
+                            );
 
                             return static::summaryRowsHtml('', $summary['rows']);
                         }),
@@ -671,6 +735,13 @@ class PoultryQuotationResource extends Resource
         ];
     }
 
+    protected static function fillOfferBase(Forms\Components\TextInput $component, mixed $state, float $base): void
+    {
+        if ($state === null || $state === '') {
+            $component->state($base);
+        }
+    }
+
     public static function offerActionsHtml(?PoultryQuotation $record): HtmlString
     {
         if ($record === null) {
@@ -679,14 +750,12 @@ class PoultryQuotationResource extends Resource
 
         $buttons = [
             [static::quoteDownloadLabel($record), route('poultry-quotations.pdf', $record), 'price'],
-            ['تحميل عرض سعر المشتملات', route('poultry-quotations.accessories', $record), 'accessories'],
         ];
         if ($record->include_ventilation) {
-            array_splice($buttons, 1, 0, [[
-                'تحميل عرض سعر التهوية',
-                route('poultry-quotations.ventilation', $record),
-                'ventilation',
-            ]]);
+            $buttons[] = ['تحميل عرض سعر المشتملات', route('poultry-quotations.accessories', $record), 'accessories'];
+        }
+        if ($record->include_construction) {
+            $buttons[] = ['تحميل عرض سعر الإنشاءات', route('poultry-quotations.construction', $record), 'construction'];
         }
 
         $html = '<div class="pq-offer-actions">';
@@ -791,19 +860,20 @@ class PoultryQuotationResource extends Resource
                     ->url(fn (PoultryQuotation $record) => route('poultry-quotations.pdf', $record))
                     ->openUrlInNewTab(),
 
-                Tables\Actions\Action::make('downloadVentilation')
-                    ->label('تحميل عرض سعر التهوية')
-                    ->icon('heroicon-o-cloud')
-                    ->color('info')
-                    ->visible(fn (PoultryQuotation $record): bool => (bool) $record->include_ventilation)
-                    ->url(fn (PoultryQuotation $record) => route('poultry-quotations.ventilation', $record))
-                    ->openUrlInNewTab(),
-
                 Tables\Actions\Action::make('downloadAccessories')
                     ->label('تحميل عرض سعر المشتملات')
                     ->icon('heroicon-o-document-text')
                     ->color('warning')
+                    ->visible(fn (PoultryQuotation $record): bool => (bool) $record->include_ventilation)
                     ->url(fn (PoultryQuotation $record) => route('poultry-quotations.accessories', $record))
+                    ->openUrlInNewTab(),
+
+                Tables\Actions\Action::make('downloadConstruction')
+                    ->label('تحميل عرض سعر الإنشاءات')
+                    ->icon('heroicon-o-building-office-2')
+                    ->color('gray')
+                    ->visible(fn (PoultryQuotation $record): bool => (bool) $record->include_construction)
+                    ->url(fn (PoultryQuotation $record) => route('poultry-quotations.construction', $record))
                     ->openUrlInNewTab(),
 
                 Tables\Actions\Action::make('generateCard')

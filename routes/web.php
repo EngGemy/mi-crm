@@ -7,6 +7,7 @@ use App\Http\Controllers\PublicQuotationController;
 use App\Http\Controllers\QuotationController;
 use App\Quotations\Exceptions\LayerRearingDisabledException;
 use App\Quotations\QuotationTemplateResolver;
+use App\Quotations\Construction\ConstructionOfferPages;
 use App\Quotations\Ventilation\VentilationOfferPages;
 use Illuminate\Support\Facades\Route;
 
@@ -38,6 +39,19 @@ Route::get('/poultry-quotations/{record}/ventilation.pdf', function (App\Models\
         abort(500, 'تعذر إنشاء عرض التهوية.');
     }
 })->middleware('signed')->name('poultry-quotations.ventilation-pdf');
+
+Route::get('/poultry-quotations/{record}/construction.pdf', function (App\Models\PoultryQuotation $record) {
+    if (! $record->include_construction) {
+        abort(404);
+    }
+
+    try {
+        return app(ConstructionOfferPages::class)->httpResponse($record);
+    } catch (\Throwable $e) {
+        report($e);
+        abort(500, 'تعذر إنشاء عرض الإنشاءات.');
+    }
+})->middleware('signed')->name('poultry-quotations.construction-pdf');
 
 // صفحة المشاركة: صورتها تظهر داخل واتساب، ومنها يُفتح ملف العرض.
 Route::get('/p/{record}/share', [PoultryShareCardController::class, 'show'])
@@ -90,6 +104,9 @@ Route::middleware(['auth'])->group(function () {
         if (\App\Services\Poultry\PoultryQuoteAccess::seesOwnQuotesOnly($user) && $record->created_by !== $user->id) {
             abort(403);
         }
+        if (! $record->include_ventilation) {
+            abort(404);
+        }
 
         try {
             return app(VentilationOfferPages::class)->accessoriesResponse($record);
@@ -98,6 +115,23 @@ Route::middleware(['auth'])->group(function () {
             abort(500, 'تعذر إنشاء عرض المشتملات.');
         }
     })->name('poultry-quotations.accessories');
+
+    Route::get('/poultry-quotations/{record}/construction', function (App\Models\PoultryQuotation $record) {
+        $user = auth()->user();
+        if (\App\Services\Poultry\PoultryQuoteAccess::seesOwnQuotesOnly($user) && $record->created_by !== $user->id) {
+            abort(403);
+        }
+        if (! $record->include_construction) {
+            abort(404);
+        }
+
+        try {
+            return app(ConstructionOfferPages::class)->httpResponse($record);
+        } catch (\Throwable $e) {
+            report($e);
+            abort(500, 'تعذر إنشاء عرض الإنشاءات.');
+        }
+    })->name('poultry-quotations.construction');
 });
 
 // مسارات العقود (محمية بالمصادقة)

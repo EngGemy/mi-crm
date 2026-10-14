@@ -20,14 +20,26 @@ class VentilationOfferTest extends TestCase
         $this->assertSame('187', $offer['document']['cooling']['qty']);
         $this->assertSame('6', $offer['document']['circulation']['qty']);
         $this->assertSame('110', $offer['document']['inlets']['qty']);
-        $this->assertSame('من 750,000 إلى 1,100,000 ج.م', $offer['document']['heating']['amount']);
-        $this->assertSame('من 750,000 إلى 1,000,000 ج.م', $offer['document']['electricity']['amount']);
+        $this->assertSame('750,000 ج.م', $offer['document']['heating']['amount']);
+        $this->assertSame('750,000 ج.م', $offer['document']['electricity']['amount']);
         $this->assertSame('250,000 ج.م', $offer['document']['monitor']['amount']);
-        $this->assertSame('من 4,167,600 إلى 4,767,600 ج.م', $offer['document']['total']);
-        $this->assertSame('2,306,600 ج.م', $offer['ventilation_pdf']['total']);
-        $this->assertCount(3, $offer['ventilation_pdf']['lines']);
-        $this->assertSame('من 1,861,000 إلى 2,461,000 ج.م', $offer['accessories_pdf']['total']);
-        $this->assertSame('الشفاطات الجانبية', $offer['accessories_pdf']['lines'][0][0]);
+        $this->assertSame('4,167,600 ج.م', $offer['document']['total']);
+        $this->assertSame('4,167,600 ج.م', $offer['accessories_pdf']['total']);
+        $this->assertSame('شفاطات طرد 140×140', $offer['accessories_pdf']['lines'][0][0]);
+        $this->assertSame('التبريد', $offer['accessories_pdf']['lines'][1][0]);
+        $this->assertSame('الشفاطات الجانبية', $offer['accessories_pdf']['lines'][3][0]);
+    }
+
+    public function test_salesperson_override_replaces_the_base_price(): void
+    {
+        $offer = (new VentilationOffer(new PoultryTechnicalCalculator))->calculate(80952, 114, true, 6, $this->prices(), [
+            'heating' => 900000,
+            'electricity' => 800000,
+        ]);
+
+        $this->assertSame('900,000 ج.م', $offer['document']['heating']['amount']);
+        $this->assertSame('800,000 ج.م', $offer['document']['electricity']['amount']);
+        $this->assertSame('4,367,600 ج.م', $offer['accessories_pdf']['total']);
     }
 
     public function test_layers_drop_heating_and_side_fans(): void
@@ -39,8 +51,12 @@ class VentilationOfferTest extends TestCase
         $this->assertSame(78, $offer['inlets']);
         $this->assertNull($offer['document']['heating']);
         $this->assertNull($offer['document']['circulation']);
-        $this->assertSame('من 2,870,600 إلى 3,120,600 ج.م', $offer['document']['total']);
-        $this->assertSame('الكهرباء والكنترول والإنارة', $offer['accessories_pdf']['lines'][0][0]);
+        $this->assertSame('2,870,600 ج.م', $offer['document']['total']);
+        $this->assertSame('شفاطات طرد 140×140', $offer['accessories_pdf']['lines'][0][0]);
+        $this->assertSame('التبريد', $offer['accessories_pdf']['lines'][1][0]);
+        $labels = array_column($offer['accessories_pdf']['lines'], 0);
+        $this->assertNotContains('منظومة التدفئة بالمياه الساخنة', $labels);
+        $this->assertNotContains('الشفاطات الجانبية', $labels);
     }
 
     public function test_side_fan_choice_accepts_only_the_four_options(): void
@@ -48,6 +64,26 @@ class VentilationOfferTest extends TestCase
         $this->assertSame(8, VentilationOffer::sideFanChoice('8'));
         $this->assertNull(VentilationOffer::sideFanChoice(12));
         $this->assertNull(VentilationOffer::sideFanChoice(null));
+    }
+
+    public function test_construction_brochure_uses_barn_area_and_a_single_edited_total(): void
+    {
+        $rates = ['concrete' => 1200, 'steel' => 2450, 'wall' => 1200, 'tanks' => 480000];
+        $summary = new ConstructionSummary;
+
+        $base = $summary->lines(81, 12, 4, $rates);
+        $this->assertSame('972', $base['concrete']['qty']);
+        $this->assertSame('648', $base['walls']['qty']);
+        $this->assertSame('1,166,400 ج.م', $base['concrete']['amount']);
+        $this->assertSame('2,381,400 ج.م', $base['steel']['amount']);
+        $this->assertSame('777,600 ج.م', $base['walls']['amount']);
+        $this->assertSame('480,000 ج.م', $base['tanks']['amount']);
+        $this->assertSame('4,805,400 ج.م', $base['total']);
+
+        $edited = $summary->lines(81, 12, 4, $rates, 4000000);
+        $this->assertSame('4,000,000 ج.م', $edited['total']);
+        $this->assertSame('972', $edited['concrete']['qty']);
+        $this->assertSame('1,166,400 ج.م', $edited['concrete']['amount']);
     }
 
     public function test_construction_uses_the_fixed_price_of_the_chosen_type(): void
@@ -77,10 +113,8 @@ class VentilationOfferTest extends TestCase
             'cooling_m2' => 4800,
             'circulation_unit' => 18500,
             'inlet_unit' => 2300,
-            'heating_min' => 750000,
-            'heating_max' => 1100000,
-            'electricity_min' => 750000,
-            'electricity_max' => 1000000,
+            'heating' => 750000,
+            'electricity' => 750000,
             'monitor' => 250000,
         ];
     }

@@ -102,4 +102,5 @@ yarn-error.log
 
 docs/quotations/**/*.docx
 !docs/quotations/ventilation/ventilation_offer.docx
+!docs/quotations/construction/construction_offer.docx
 !docs/quotations/broiler/broiler_auto_exit.docx

@@ -54,7 +54,7 @@ TXT;
         if ($quotation->include_ventilation) {
             $ventilation = $this->ventilationPdfUrl($quotation);
             if ($ventilation !== '' && ! str_contains($text, $ventilation)) {
-                $text .= "\n\nعرض التهوية والتبريد:\n".$ventilation;
+                $text .= "\n\nعرض المشتملات (التهوية والتبريد):\n".$ventilation;
             }
         }
 
@@ -62,6 +62,10 @@ TXT;
             $construction = app(ConstructionSummary::class)->forQuotation($quotation);
             if ($construction !== null && ! str_contains($text, 'عرض الإنشاءات')) {
                 $text .= "\n\n".$construction['message'];
+            }
+            $constructionPdf = $this->constructionPdfUrl($quotation);
+            if ($constructionPdf !== '' && ! str_contains($text, $constructionPdf)) {
+                $text .= "\n".$constructionPdf;
             }
         }
 
@@ -166,6 +170,19 @@ TXT;
         try {
             return URL::temporarySignedRoute(
                 'poultry-quotations.ventilation-pdf',
+                now()->addDays(45),
+                ['record' => $quotation->getKey()]
+            );
+        } catch (\Throwable) {
+            return '';
+        }
+    }
+
+    private function constructionPdfUrl(PoultryQuotation $quotation): string
+    {
+        try {
+            return URL::temporarySignedRoute(
+                'poultry-quotations.construction-pdf',
                 now()->addDays(45),
                 ['record' => $quotation->getKey()]
             );

@@ -313,14 +313,14 @@ class CompanySettings extends Page implements HasForms
                                             ->minValue(0)
                                             ->default(0)
                                             ->suffix('EGP')
-                                            ->helperText('الرقم ده هو اللي يتكتب في العرض لو الاختيار ساندوتش بانل'),
+                                            ->helperText('الرقم الأساسي لعرض الإنشاءات لو الاختيار ساندوتش بانل. المندوب يقدر يغيّره داخل العرض.'),
                                         TextInput::make('poultry_pricing.construction_cement_price')
                                             ->label('إنشاءات خرسانة (مبلغ ثابت)')
                                             ->numeric()
                                             ->minValue(0)
                                             ->default(0)
                                             ->suffix('EGP')
-                                            ->helperText('الرقم ده هو اللي يتكتب في العرض لو الاختيار خرسانة'),
+                                            ->helperText('الرقم الأساسي لعرض الإنشاءات لو الاختيار خرسانة. المندوب يقدر يغيّره داخل العرض.'),
                                         TextInput::make('poultry_pricing.tanks_fixed_cost')
                                             ->label('تكلفة الخزانات الثابتة (جنيه)')
                                             ->numeric()
@@ -385,8 +385,8 @@ class CompanySettings extends Page implements HasForms
                                             ->columnSpanFull(),
                                     ])->columns(2),
 
-                                Section::make('عرض التهوية والمشتملات')
-                                    ->description('الأرقام دي بتفضل ثابتة في عروض التهوية لحد ما تتغير من هنا. التدفئة والشفاطات الجانبية للتسمين فقط، والكهرباء والمونيتور للتسمين والبياض.')
+                                Section::make('عرض المشتملات')
+                                    ->description('المشتملات تجمع التهوية والتبريد. كل بند رقم واحد أساسي، والمندوب يقدر يغيّره داخل العرض. التدفئة والشفاطات الجانبية للتسمين فقط.')
                                     ->schema([
                                         TextInput::make('poultry_pricing.ventilation_broiler_max_weight_kg')
                                             ->label('أقصى وزن لحساب شفاطات التسمين')
@@ -419,29 +419,19 @@ class CompanySettings extends Page implements HasForms
                                             ->minValue(0)
                                             ->default(18500)
                                             ->suffix('EGP'),
-                                        TextInput::make('poultry_pricing.ventilation_heating_min')
-                                            ->label('تدفئة المياه الساخنة — من')
+                                        TextInput::make('poultry_pricing.ventilation_heating_price')
+                                            ->label('سعر منظومة التدفئة')
+                                            ->helperText('رقم واحد أساسي. المندوب يقدر يغيّره داخل العرض.')
                                             ->numeric()
                                             ->minValue(0)
                                             ->default(750000)
                                             ->suffix('EGP'),
-                                        TextInput::make('poultry_pricing.ventilation_heating_max')
-                                            ->label('تدفئة المياه الساخنة — إلى')
-                                            ->numeric()
-                                            ->minValue(0)
-                                            ->default(1100000)
-                                            ->suffix('EGP'),
-                                        TextInput::make('poultry_pricing.ventilation_electricity_min')
-                                            ->label('الكهرباء والكنترول والإنارة — من')
+                                        TextInput::make('poultry_pricing.ventilation_electricity_price')
+                                            ->label('سعر الكهرباء والكنترول والإنارة')
+                                            ->helperText('رقم واحد أساسي. المندوب يقدر يغيّره داخل العرض.')
                                             ->numeric()
                                             ->minValue(0)
                                             ->default(750000)
-                                            ->suffix('EGP'),
-                                        TextInput::make('poultry_pricing.ventilation_electricity_max')
-                                            ->label('الكهرباء والكنترول والإنارة — إلى')
-                                            ->numeric()
-                                            ->minValue(0)
-                                            ->default(1000000)
                                             ->suffix('EGP'),
                                         TextInput::make('poultry_pricing.ventilation_monitor_price')
                                             ->label('جهاز المونيتور')

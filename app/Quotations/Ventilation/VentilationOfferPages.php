@@ -3,7 +3,7 @@
 namespace App\Quotations\Ventilation;
 
 use App\Models\PoultryQuotation;
-use App\Quotations\Pdf\OfferPdf;
+use App\Quotations\Pdf\DocxToPdf;
 use App\Services\Poultry\VentilationOffer;
 use DOMDocument;
 use DOMElement;
@@ -33,15 +33,25 @@ class VentilationOfferPages
     {
         $name = 'accessories-'.($quotation->quote_number ?: $quotation->getKey()).'.pdf';
 
-        return response(app(OfferPdf::class)->accessories($quotation), 200, [
+        return response($this->pdfBytes($quotation), 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="'.$name.'"',
         ]);
     }
 
+    public function constructionResponse(PoultryQuotation $quotation): Response
+    {
+        return app(\App\Quotations\Construction\ConstructionOfferPages::class)->httpResponse($quotation);
+    }
+
     public function pdfBytes(PoultryQuotation $quotation): string
     {
-        return app(OfferPdf::class)->ventilation($quotation);
+        $docx = $this->fill($quotation);
+        try {
+            return app(DocxToPdf::class)->convert($docx);
+        } finally {
+            @unlink($docx);
+        }
     }
 
     public function fill(PoultryQuotation $quotation): string

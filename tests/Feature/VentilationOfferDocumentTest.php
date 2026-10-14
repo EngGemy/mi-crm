@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\PoultryQuotation;
+use App\Quotations\Construction\ConstructionOfferPages;
 use App\Quotations\Ventilation\VentilationOfferPages;
 use DOMDocument;
 use DOMElement;
@@ -28,15 +29,17 @@ class VentilationOfferDocumentTest extends TestCase
         $this->assertStringContainsString('1,156,000', $this->row($cells, 'شفاطات طرد'));
         $this->assertStringContainsString('187', $this->row($cells, 'التبريد الخاص'));
         $this->assertStringContainsString('897,600', $this->row($cells, 'التبريد الخاص'));
-        $this->assertStringContainsString('من 750,000 إلى 1,100,000', $this->row($cells, 'التدفئة المركزية'));
+        $this->assertStringContainsString('750,000', $this->row($cells, 'التدفئة المركزية'));
+        $this->assertStringNotContainsString('إلى', $this->row($cells, 'التدفئة المركزية'));
         $this->assertStringContainsString('6', $this->row($cells, 'مراوح تقليب'));
         $this->assertStringContainsString('111,000', $this->row($cells, 'مراوح تقليب'));
         $this->assertStringContainsString('110', $this->row($cells, 'شبابيك تهوية'));
         $this->assertStringContainsString('253,000', $this->row($cells, 'شبابيك تهوية'));
         $this->assertStringContainsString('250,000', $this->row($cells, 'MUNTER TRIO'));
         $this->assertStringNotContainsString('260,000', $this->row($cells, 'MUNTER TRIO'));
-        $this->assertStringContainsString('من 750,000 إلى 1,000,000', $this->row($cells, 'لوح الكنترول'));
-        $this->assertStringContainsString('من 4,167,600 إلى 4,767,600', $this->row($cells, 'TOTAL'));
+        $this->assertStringContainsString('750,000', $this->row($cells, 'لوح الكنترول'));
+        $this->assertStringContainsString('4,167,600', $this->row($cells, 'TOTAL'));
+        $this->assertStringNotContainsString('إلى', $this->row($cells, 'TOTAL'));
     }
 
     public function test_layer_ventilation_document_omits_heating_and_side_fans(): void
@@ -52,7 +55,31 @@ class VentilationOfferDocumentTest extends TestCase
         $this->assertStringContainsString('78', $this->row($cells, 'شبابيك تهوية'));
         $this->assertStringNotContainsString('التدفئة المركزية', $flat);
         $this->assertStringNotContainsString('مراوح تقليب', $flat);
-        $this->assertStringContainsString('من 2,870,600 إلى 3,120,600', $this->row($cells, 'TOTAL'));
+        $this->assertStringContainsString('2,870,600', $this->row($cells, 'TOTAL'));
+        $this->assertStringNotContainsString('إلى', $this->row($cells, 'TOTAL'));
+    }
+
+    public function test_construction_document_keeps_the_brochure_and_fills_the_barn(): void
+    {
+        $quote = new PoultryQuotation([
+            'project_type' => 'broiler',
+            'length' => 81,
+            'width' => 12,
+            'height' => 4,
+            'construction_choice' => 'sandwich',
+        ]);
+        $cells = $this->cells((new ConstructionOfferPages)->fill($quote));
+
+        $this->assertSame('تسمين', $this->valueBeside($cells, 'نوع العنبر'));
+        $this->assertSame('81 متر', $this->valueBeside($cells, 'طول العنبر'));
+        $this->assertSame('12 متر', $this->valueBeside($cells, 'عرض العنبر'));
+        $this->assertSame('4 متر', $this->valueBeside($cells, 'ارتفاع العنبر'));
+        $this->assertStringContainsString('972', $this->row($cells, 'اعمال الخرسانة'));
+        $this->assertStringContainsString('1,166,400', $this->row($cells, 'اعمال الخرسانة'));
+        $this->assertStringContainsString('2,381,400', $this->row($cells, 'المبنى الاستيل'));
+        $this->assertStringContainsString('648', $this->row($cells, 'الحوائط عبارة'));
+        $this->assertStringContainsString('777,600', $this->row($cells, 'الحوائط عبارة'));
+        $this->assertStringContainsString('4,805,400', $this->row($cells, 'TOTAL'));
     }
 
     private function quote(string $type, float $length, float $width, float $height, int $sideFans): PoultryQuotation

@@ -3,6 +3,7 @@
 namespace App\Quotations\Pdf;
 
 use App\Models\PoultryQuotation;
+use App\Services\Poultry\ConstructionSummary;
 use App\Services\Poultry\VentilationOffer;
 use Mccarlosen\LaravelMpdf\Facades\LaravelMpdf as PDF;
 
@@ -12,14 +13,19 @@ class OfferPdf
     {
         [, $offer] = app(VentilationOffer::class)->forQuotation($quotation);
 
-        return $this->render($quotation, 'عرض سعر التهوية', $offer['ventilation_pdf']['lines'], $offer['ventilation_pdf']['total']);
+        return $this->render($quotation, 'عرض سعر المشتملات', $offer['accessories_pdf']['lines'], $offer['accessories_pdf']['total']);
     }
 
     public function accessories(PoultryQuotation $quotation): string
     {
-        [, $offer] = app(VentilationOffer::class)->forQuotation($quotation);
+        return $this->ventilation($quotation);
+    }
 
-        return $this->render($quotation, 'عرض سعر المشتملات', $offer['accessories_pdf']['lines'], $offer['accessories_pdf']['total']);
+    public function construction(PoultryQuotation $quotation): string
+    {
+        $summary = app(ConstructionSummary::class)->forQuotation($quotation);
+
+        return $this->render($quotation, 'عرض سعر الإنشاءات', $summary['lines'], VentilationOffer::money($summary['total']));
     }
 
     /**
