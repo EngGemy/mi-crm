@@ -73,9 +73,12 @@ class VentilationOfferDocumentTest extends TestCase
 
         $quote = $this->quote('broiler', 81, 12, 4, 4);
         $response = (new VentilationOfferPages)->accessoriesResponse($quote);
+        $bytes = $response->getContent();
 
         $this->assertSame(200, $response->getStatusCode());
-        $this->assertStringStartsWith('%PDF', $response->getContent());
+        $this->assertStringStartsWith('%PDF', $bytes);
+        $this->assertGreaterThan(500000, strlen($bytes));
+        $this->assertSame(7, preg_match_all('/\/Type\s*\/Page(?![s])/', $bytes));
     }
 
     public function test_construction_document_keeps_the_brochure_and_fills_the_barn(): void
