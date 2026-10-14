@@ -310,37 +310,49 @@ class PoultryQuotationResource extends Resource
 
                     Forms\Components\TextInput::make('height')
                         ->label('الارتفاع')
-                        ->required()->numeric()->step(0.1)
+                        ->required()->numeric()->step(0.01)
                         ->default('4')
                         ->minValue(0.1)->suffix('م')
                         ->live(onBlur: true)
                         ->afterStateUpdated($live)
-                        ->helperText(fn (Get $get): ?string => static::isBroilerProject($get)
-                            ? 'سقف مستوي: أقل من 2.9 م مرفوض، ومن 3 إلى 3.5 م يختار 3 أدوار، ومن 3.7 إلى 4.5 م يختار 4 أدوار. السقف المائل أقل بـ 30 سم.'
-                            : null)
-                        ->hint(function (Get $get): ?string {
-                            if (! static::isBroilerProject($get)) {
-                                return null;
+                        ->helperText(function (Get $get): ?string {
+                            if (static::isAutoExitProject($get)) {
+                                return '3 أدوار من 3.60 م، و4 أدوار من 4.40 م. يمكن كتابة الارتفاع بكسر مثل 3.65.';
                             }
 
-                            return (new PoultryTechnicalCalculator)->broilerTierRule(
-                                (float) ($get('height') ?: 0),
-                                (string) ($get('roof_type') ?: 'flat'),
-                            )['message'];
+                            return static::isBroilerProject($get)
+                                ? 'سقف مستوي: أقل من 2.9 م مرفوض، ومن 3 إلى 3.5 م يختار 3 أدوار، ومن 3.7 إلى 4.5 م يختار 4 أدوار. السقف المائل أقل بـ 30 سم.'
+                                : null;
                         })
+                        ->hint(fn (Get $get): ?string => static::barnTierRule($get, (float) ($get('height') ?: 0))['message'])
                         ->hintColor('danger')
                         ->rules([
                             fn (Get $get): \Closure => function (string $attribute, mixed $value, \Closure $fail) use ($get): void {
-                                if (! static::isBroilerProject($get)) {
+                                $message = static::barnTierRule($get, (float) $value)['message'];
+                                if ($message !== null) {
+                                    $fail($message);
+                                }
+                            },
+                        ]),
+
+                    Forms\Components\TextInput::make('battery_height_m')
+                        ->label('ارتفاع التخريج الآلي')
+                        ->numeric()
+                        ->step(0.01)
+                        ->suffix('م')
+                        ->visible(fn (Get $get): bool => static::isAutoExitProject($get))
+                        ->dehydrated(fn (Get $get): bool => static::isAutoExitProject($get))
+                        ->helperText('يبدأ من 3.60 م لثلاث أدوار، ومن 4.40 م لأربع أدوار. يمكن رفع الرقم بكسر.')
+                        ->live(onBlur: true)
+                        ->rules([
+                            fn (Get $get): \Closure => function (string $attribute, mixed $value, \Closure $fail) use ($get): void {
+                                if (! static::isAutoExitProject($get) || $value === null || $value === '') {
                                     return;
                                 }
 
-                                $message = (new PoultryTechnicalCalculator)->broilerTierRule(
-                                    (float) $value,
-                                    (string) ($get('roof_type') ?: 'flat'),
-                                )['message'];
-                                if ($message !== null) {
-                                    $fail($message);
+                                $start = (new PoultryTechnicalCalculator)->autoExitHeightStart((int) ($get('tiers') ?: 3));
+                                if ((float) $value + 0.0001 < $start) {
+                                    $fail('ارتفاع التخريج الآلي يبدأ من '.number_format($start, 2, '.', '').' م');
                                 }
                             },
                         ]),
@@ -371,10 +383,7 @@ class PoultryQuotationResource extends Resource
 
                             $height = (float) ($get('height') ?: 0);
 
-                            return $height > 0 && (new PoultryTechnicalCalculator)->broilerTierRule(
-                                $height,
-                                (string) ($get('roof_type') ?: 'flat'),
-                            )['tiers'] !== null;
+                            return $height > 0 && static::barnTierRule($get, $height)['tiers'] !== null;
                         })
                         ->dehydrated()
                         ->helperText(fn (Get $get): ?string => static::isBroilerProject($get)
@@ -655,7 +664,7 @@ class PoultryQuotationResource extends Resource
                         ->content(function (Get $get): string {
                             $tiers = (int) ($get('tiers') ?: 0);
 
-                            return $tiers > 0 ? $tiers.' ماتور، و'.$tiers.' سيور' : '—';
+                            return $tiers > 0 ? $tiers.' ماتور = '.$tiers.' سيور' : '—';
                         }),
 
                     Forms\Components\Select::make('manure_motor_count_id')

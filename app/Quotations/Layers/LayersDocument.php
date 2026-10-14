@@ -2,6 +2,8 @@
 
 namespace App\Quotations\Layers;
 
+use App\Enums\PoultryProjectType;
+
 class LayersDocument
 {
     /** @param  array<string, mixed>  $data */
@@ -54,7 +56,6 @@ class LayersDocument
             'warranty' => $this->warranty($data),
             'installation' => [
                 'سعر البطاريات شامل التركيب والنقل.',
-                'الإقامة (على العميل) شاملة توفير سكن ملائم لظروف العمل لأفراد التركيبات.',
             ],
             'spare_parts_notes' => [
                 'تلتزم شركة MI بضمان توفير قطع الغيار لمدة '.$this->count(config('quotations.layers.spare_parts_years')).' سنة من تاريخ التصنيع.',
@@ -225,9 +226,17 @@ class LayersDocument
         $zinc = $this->count(config('quotations.layers.zinc_g_m2'));
         $years = $this->count(config('quotations.layers.warranty_years'));
 
-        return [
+        $items = [
             'النقل.',
             'التركيب.',
+        ];
+
+        if (($data['project_type'] ?? '') === PoultryProjectType::LayerAutoCollect->value) {
+            $items[] = 'منظومة الجمع الآلي.';
+        }
+
+        return [
+            ...$items,
             'منظومة تعليف أوتوماتيك مع سايلو.',
             'أعمال السباكة لمنظومة الشرب.',
             'منظومة خروج الفضلات وتحميلها آلي.',

@@ -44,11 +44,15 @@ trait HasLivePoultryPricing
 
         try {
             $projectType = static::resolveProjectTypeFromForm($get);
-            $isBroiler = PoultryProjectType::tryFrom($projectType)?->isBroiler() ?? false;
+            $type = PoultryProjectType::tryFrom($projectType);
+            $isBroiler = $type?->isBroiler() ?? false;
+            $isAutoExit = $type === PoultryProjectType::BroilerAutoExit;
             $calc = new PoultryTechnicalCalculator;
 
-            if ($isBroiler && $height > 0) {
-                $rule = $calc->broilerTierRule($height, (string) ($get('roof_type') ?: 'flat'));
+            if (($isBroiler || $isAutoExit) && $height > 0) {
+                $rule = $isAutoExit
+                    ? $calc->autoExitTierRule($height)
+                    : $calc->broilerTierRule($height, (string) ($get('roof_type') ?: 'flat'));
                 if ($rule['message'] !== null) {
                     $set('pricing_preview', ['error' => $rule['message']]);
 
@@ -58,6 +62,10 @@ trait HasLivePoultryPricing
                     $tiers = $rule['tiers'];
                     $set('tiers', $tiers);
                 }
+            }
+
+            if ($isAutoExit && $tiers > 0) {
+                static::syncAutoExitHeight($set, $get, $calc, $tiers);
             }
 
             if ($get('auto_lines_from_width') && $width > 0) {
@@ -285,6 +293,31 @@ trait HasLivePoultryPricing
     protected static function isAutoExitProject(Get $get): bool
     {
         return static::resolveProjectTypeFromForm($get) === PoultryProjectType::BroilerAutoExit->value;
+    }
+
+    /** @return array{tiers: int|null, message: string|null} */
+    protected static function barnTierRule(Get $get, float $height): array
+    {
+        $calc = new PoultryTechnicalCalculator;
+        if (static::isAutoExitProject($get)) {
+            return $calc->autoExitTierRule($height);
+        }
+
+        if (static::isBroilerProject($get)) {
+            return $calc->broilerTierRule($height, (string) ($get('roof_type') ?: 'flat'));
+        }
+
+        return ['tiers' => null, 'message' => null];
+    }
+
+    protected static function syncAutoExitHeight(Set $set, Get $get, PoultryTechnicalCalculator $calc, int $tiers): void
+    {
+        $start = $calc->autoExitHeightStart($tiers);
+        $current = (float) ($get('battery_height_m') ?: 0);
+        $otherStart = $calc->autoExitHeightStart($tiers >= 4 ? 3 : 4);
+        if ($current <= 0 || $current + 0.0001 < $start || abs($current - $otherStart) < 0.001) {
+            $set('battery_height_m', number_format($start, 2, '.', ''));
+        }
     }
 
     protected static function syncBroilerSilo(Set $set, Get $get, int $totalBirds): void

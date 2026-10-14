@@ -56,14 +56,28 @@ CSS;
 
         $cageLength = (float) ($specs['cage_length_cm'] ?? 100);
         $cageArea = (float) ($specs['cage_area_cm2'] ?? 6500);
+        $project = PoultryProjectType::tryFrom((string) ($quotation->project_type ?? ''));
+        $calc = new PoultryTechnicalCalculator;
+        $aisle = $calc->transferDistanceCm((float) ($quotation->width ?? 0), $lines, (bool) $project?->isLayer());
+        if ($aisle <= 0) {
+            $aisle = (int) ($specs['transfer_distance_cm'] ?? 102);
+        }
+        $batteryHeight = $project?->isLayer()
+            ? $calc->layerBatteryHeightM($tiers)
+            : (float) ($specs['battery_height_m'] ?? 3.4);
+        if ($project === PoultryProjectType::BroilerAutoExit) {
+            $typed = $quotation->battery_height_m;
+            $start = $calc->autoExitHeightStart($tiers > 0 ? $tiers : 3);
+            $batteryHeight = is_numeric($typed) && (float) $typed + 0.0001 >= $start ? (float) $typed : $start;
+        }
 
         $sections = [
             $this->section('المواصفات الفنية للبطاريات', [
                 ['الطول الفعال للبطارية', $this->amount($effectiveLength, 'متر')],
                 ['عدد الأدوار', $this->count($tiers, 'أدوار')],
                 ['عدد الخطوط', $this->count($lines, 'خطوط')],
-                ['مسافة الانتقال بين الخطوط', $this->count((int) ($specs['transfer_distance_cm'] ?? 102), 'سم')],
-                ['ارتفاع البطارية', $this->fixed((float) ($specs['battery_height_m'] ?? 3.4), 2, 'متر')],
+                ['مسافة الانتقال بين الخطوط', $this->count($aisle, 'سم')],
+                ['ارتفاع البطارية', $this->fixed($batteryHeight, 2, 'متر')],
                 ['عدد الأقفاص بالصف الواحد', $this->count($cagesPerRow, 'قفص')],
                 ['عدد الأقفاص بالعنبر', $this->count($cagesTotal, 'قفص')],
             ], 'battery'),

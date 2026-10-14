@@ -203,6 +203,28 @@ class PoultryTechnicalCalculatorTest extends TestCase
     }
 
     /** @test */
+    public function auto_exit_height_starts_at_3_60_for_three_tiers_and_4_40_for_four(): void
+    {
+        $this->assertSame('التخريج الآلي لا يقبل ارتفاعاً أقل من 3.60 م', $this->calc->autoExitTierRule(3.59)['message']);
+        $this->assertSame(3, $this->calc->autoExitTierRule(3.60)['tiers']);
+        $this->assertSame(3, $this->calc->autoExitTierRule(4.39)['tiers']);
+        $this->assertSame(4, $this->calc->autoExitTierRule(4.40)['tiers']);
+        $this->assertSame(4, $this->calc->autoExitTierRule(4.85)['tiers']);
+        $this->assertSame(3.60, $this->calc->autoExitHeightStart(3));
+        $this->assertSame(4.40, $this->calc->autoExitHeightStart(4));
+    }
+
+    /** @test */
+    public function transfer_distance_follows_width_and_lines(): void
+    {
+        $this->assertSame(102, $this->calc->transferDistanceCm(12, 4));
+        $this->assertSame(102, $this->calc->transferDistanceCm(15, 5));
+        $this->assertSame(100, $this->calc->transferDistanceCm(11.5, 4, true));
+        $this->assertSame(3.20, $this->calc->layerBatteryHeightM(4));
+        $this->assertSame(2.40, $this->calc->layerBatteryHeightM(3));
+    }
+
+    /** @test */
     public function broiler_lines_follow_width_and_skip_five_and_six_when_columns_exist(): void
     {
         $this->assertSame(4, $this->calc->broilerLinesForWidth(11, 2));

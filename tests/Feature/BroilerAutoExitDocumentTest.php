@@ -102,7 +102,8 @@ class BroilerAutoExitDocumentTest extends TestCase
         $this->assertStringContainsString('داخلىبطول16متر', $compact);
         $this->assertStringContainsString('خارجىبطول9متر', $compact);
         $this->assertStringContainsString('102 سم', $xml);
-        $this->assertStringContainsString('3.73 متر', $xml);
+        $this->assertStringContainsString('3.60 متر', $xml);
+        $this->assertStringNotContainsString('3.73 متر', $xml);
         $this->assertStringContainsString('10متر', $compact);
         $this->assertStringContainsString('منظومة التخريج الالى للقطيع', $xml);
         $this->assertStringContainsString('دليل تطهير عنابر بطاريات الدواجن الأوتوماتيك', $xml);

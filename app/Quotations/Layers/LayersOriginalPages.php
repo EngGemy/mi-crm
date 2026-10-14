@@ -177,7 +177,8 @@ PS1);
         $xpath = new DOMXPath($dom);
         $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
 
-        if (($data['project_type'] ?? '') !== PoultryProjectType::LayerAutoCollect->value) {
+        $autoCollect = ($data['project_type'] ?? '') === PoultryProjectType::LayerAutoCollect->value;
+        if (! $autoCollect) {
             $this->dropEggCollectionPage($xpath);
         }
 
@@ -221,13 +222,12 @@ PS1);
             $this->patchWords($nodes, ['4', 'سيور'], [0 => $beltTiers]);
         }
 
-        $this->patchSlots($nodes, ['متر', '7', '2'], [
-            1 => $this->optionalComma($data['effective_length'] ?? null),
-            2 => $this->hasNumber($data['effective_length'] ?? null) ? '' : null,
-        ]);
-        $this->patchSlots($nodes, ['4', 'أدوار'], [0 => $this->optionalComma($data['tiers'] ?? null)]);
-        $this->patchSlots($nodes, ['4', 'خطوط'], [0 => $this->optionalComma($data['lines'] ?? null)]);
-        $this->patchSlots($nodes, ['120', 'قفص'], [0 => $this->optionalGrouped($data['nests_one_side'] ?? null)]);
+        $this->blankStaySentence($nodes);
+        if ($autoCollect) {
+            $this->replaceExact($nodes, 'ارضيات بلاستيك', 'ارضيات');
+            $this->insertAfterExact($nodes, 'التركيب.', 'منظومة الجمع الآلي.');
+        }
+        $this->patchBatteryTable($nodes, $data);
         $this->patchSlots($nodes, ['10', 'طائر'], [0 => $this->optionalComma($data['birds_per_nest'] ?? null)]);
         $this->patchSlots($nodes, ['10', 'طيور في العش'], [0 => $this->optionalComma($data['birds_per_nest'] ?? null)]);
         $power = $this->horsepowerParts($data['motor_power'] ?? null);
@@ -240,6 +240,111 @@ PS1);
         $zip->deleteName('word/document.xml');
         $zip->addFromString('word/document.xml', $saved === false ? $xml : $saved);
         $zip->close();
+    }
+
+    /** @param  list<DOMElement>  $nodes
+     * @param  array<string, mixed>  $data
+     */
+    private function patchBatteryTable(array $nodes, array $data): void
+    {
+        $length = $this->optionalComma($data['effective_length'] ?? null);
+        if ($length !== null) {
+            $this->patchWords($nodes, ['متر', '7', '2'], [0 => $length.' متر', 1 => '', 2 => '']);
+        }
+
+        $tiers = $this->optionalComma($data['tiers'] ?? null);
+        if ($tiers !== null) {
+            $this->patchWords($nodes, ['4', 'أدوار'], [0 => $tiers]);
+        }
+
+        $lines = $this->optionalComma($data['lines'] ?? null);
+        if ($lines !== null) {
+            $this->patchWords($nodes, ['4', 'خطوط'], [0 => $lines]);
+        }
+
+        $aisle = $this->optionalComma($data['aisle_cm'] ?? null);
+        if ($aisle !== null) {
+            $this->patchWords($nodes, ['100', 'سم'], [0 => $aisle]);
+        }
+
+        $height = $this->dot($data['battery_height_m'] ?? null);
+        if ($height !== null) {
+            $this->patchWords($nodes, ['3.', '2', '0', 'متر'], [0 => $height.' متر', 1 => '', 2 => '', 3 => '']);
+        }
+
+        $oneSide = $this->optionalGrouped($data['nests_one_side'] ?? null);
+        if ($oneSide !== null) {
+            $this->patchWords($nodes, ['120', 'قفص'], [0 => $oneSide]);
+        }
+    }
+
+    /** @param  list<DOMElement>  $nodes */
+    private function blankStaySentence(array $nodes): void
+    {
+        $count = count($nodes);
+        for ($index = 0; $index < $count; $index++) {
+            if (! str_contains($nodes[$index]->textContent, 'الإقامة')) {
+                continue;
+            }
+
+            $nodes[$index]->textContent = '';
+            $end = min($count, $index + 15);
+            for ($next = $index + 1; $next < $end; $next++) {
+                $text = $nodes[$next]->textContent;
+                $nodes[$next]->textContent = '';
+                if (! str_contains($text, 'توفير سكن')) {
+                    continue;
+                }
+
+                $tailEnd = min($count, $next + 3);
+                for ($tail = $next + 1; $tail < $tailEnd; $tail++) {
+                    if (trim($nodes[$tail]->textContent) !== '' && trim($nodes[$tail]->textContent) !== '.') {
+                        break;
+                    }
+                    $nodes[$tail]->textContent = '';
+                }
+                break;
+            }
+        }
+    }
+
+    /** @param  list<DOMElement>  $nodes */
+    private function insertAfterExact(array $nodes, string $exact, string $line): void
+    {
+        $ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+        foreach ($nodes as $node) {
+            if (trim($node->textContent) !== $exact || ! $node->parentNode?->parentNode) {
+                continue;
+            }
+
+            $run = $node->parentNode;
+            $doc = $node->ownerDocument;
+            if (! $run instanceof DOMElement || ! $doc instanceof DOMDocument) {
+                continue;
+            }
+
+            $breakRun = $doc->createElementNS($ns, 'w:r');
+            $breakRun->appendChild($doc->createElementNS($ns, 'w:br'));
+            $textRun = $run->cloneNode(true);
+            if (! $textRun instanceof DOMElement) {
+                continue;
+            }
+
+            $texts = $textRun->getElementsByTagNameNS($ns, 't');
+            foreach ($texts as $index => $text) {
+                $text->textContent = $index === 0 ? $line : '';
+            }
+
+            $next = $run->nextSibling;
+            $parent = $run->parentNode;
+            if ($next !== null) {
+                $parent->insertBefore($breakRun, $next);
+                $parent->insertBefore($textRun, $next);
+            } else {
+                $parent->appendChild($breakRun);
+                $parent->appendChild($textRun);
+            }
+        }
     }
 
     private function dropEggCollectionPage(DOMXPath $xpath): void
@@ -452,6 +557,15 @@ PS1);
         $text = trim((string) ($value ?? ''));
 
         return $text !== '' ? $text : $fallback;
+    }
+
+    private function dot(mixed $value): ?string
+    {
+        if (! $this->hasNumber($value)) {
+            return null;
+        }
+
+        return number_format(round((float) $value, 2), 2, '.', '');
     }
 
     private function optionalComma(mixed $value): ?string

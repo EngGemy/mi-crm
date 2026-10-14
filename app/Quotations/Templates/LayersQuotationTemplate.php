@@ -4,6 +4,7 @@ namespace App\Quotations\Templates;
 
 use App\Enums\PoultryProjectType;
 use App\Models\PoultryQuotation;
+use App\Services\Poultry\PoultryTechnicalCalculator;
 use App\Quotations\Contracts\QuotationTemplate;
 use App\Quotations\Layers\LayersDocument;
 use App\Quotations\Layers\LayersOriginalPages;
@@ -85,8 +86,8 @@ class LayersQuotationTemplate implements QuotationTemplate
             'motor_power' => $this->lookupLabel($q, 'motorPower'),
             'manure_motor_count' => $this->lookupLabel($q, 'manureMotorCount'),
             'belts_per_line' => $this->lookupLabel($q, 'beltsPerLine'),
-            'aisle_cm' => $this->optionalNumber($technical['aisle_cm'] ?? null),
-            'battery_height_m' => $this->optionalNumber($technical['battery_height_m'] ?? null),
+            'aisle_cm' => $this->layerAisle($q, $technical, $computed),
+            'battery_height_m' => $this->layerBatteryHeight($q, $technical),
             'cage_height_cm' => $this->optionalNumber($technical['cage_height_cm'] ?? null),
             'cage_area_cm2' => $this->optionalNumber($technical['cage_area_cm2'] ?? null),
             'supply_days' => $this->optionalNumber($technical['supply_days'] ?? null),
@@ -249,6 +250,37 @@ class LayersQuotationTemplate implements QuotationTemplate
             'area_formula' => 'nest_width_cm * nest_depth_cm / birds_per_nest',
             'feeding_formula' => 'nest_width_cm / birds_per_nest',
         ];
+    }
+
+    /** @param  array<string, mixed>  $technical
+     * @param  array<string, mixed>  $computed
+     */
+    private function layerAisle(PoultryQuotation $q, array $technical, array $computed): ?float
+    {
+        $stored = $this->optionalNumber($technical['aisle_cm'] ?? null);
+        if ($stored !== null) {
+            return $stored;
+        }
+
+        $lines = (int) ($technical['lines'] ?? $q->lines ?? $computed['lines'] ?? 0);
+        $width = (float) ($q->width ?? 0);
+        $aisle = (new PoultryTechnicalCalculator)->transferDistanceCm($width, $lines, true);
+
+        return $aisle > 0 ? (float) $aisle : null;
+    }
+
+    /** @param  array<string, mixed>  $technical */
+    private function layerBatteryHeight(PoultryQuotation $q, array $technical): ?float
+    {
+        $stored = $this->optionalNumber($technical['battery_height_m'] ?? null);
+        if ($stored !== null) {
+            return $stored;
+        }
+
+        $tiers = (int) ($technical['tiers'] ?? $q->tiers ?? 0);
+        $height = (new PoultryTechnicalCalculator)->layerBatteryHeightM($tiers);
+
+        return $height > 0 ? $height : null;
     }
 
     private function optionalNumber(mixed $value): ?float

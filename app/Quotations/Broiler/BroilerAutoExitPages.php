@@ -79,6 +79,8 @@ class BroilerAutoExitPages
 
         $weight = (float) ($quotation->bird_weight_kg ?? $technical['bird_weight_kg'] ?? 0);
         $birdsPerNest = (int) ($quotation->birds_per_nest ?? $technical['birds_per_nest'] ?? 0);
+        $calc = new PoultryTechnicalCalculator;
+        $batteryHeight = $this->autoExitBatteryHeight($quotation, $tiers);
 
         return [
             'client_name' => (string) ($quotation->client_name ?: '—'),
@@ -88,6 +90,8 @@ class BroilerAutoExitPages
             'height' => $this->meters($quotation->height),
             'location' => trim((string) ($quotation->client_location ?: $quotation->client_address ?: '')) ?: '—',
             'effective_length' => $this->meters($technical['effective_length'] ?? $computed['effective_length'] ?? null),
+            'battery_height' => $this->fixedMeters($batteryHeight),
+            'aisle' => $lines > 0 ? $calc->transferDistanceCm((float) $quotation->width, $lines).' سم' : '',
             'tiers' => $tiers > 0 ? $tiers.' أدوار' : null,
             'tier_count' => $tiers > 0 ? (string) $tiers : null,
             'lines' => $lines > 0 ? $lines.' خطوط' : null,
@@ -140,9 +144,14 @@ class BroilerAutoExitPages
         $this->replaceExact($this->textNodes($xpath), '4 خطوط', (string) ($data['lines'] ?: '4 خطوط'));
         $this->replaceExact($this->textNodes($xpath), '576 قفص', (string) ($data['nests_per_line'] ?: '576 قفص'));
         $this->replaceExact($this->textNodes($xpath), '2,304 قفص', (string) ($data['total_nests'] ?: '2,304 قفص'));
+        $this->replaceExact($this->textNodes($xpath), '3.73 متر', (string) ($data['battery_height'] ?: '3.73 متر'));
+        if (($data['aisle'] ?? '') !== '') {
+            $this->replaceExact($this->textNodes($xpath), '102 سم', (string) $data['aisle']);
+        }
 
         if ($data['tier_count'] !== null) {
             $this->patchManureCounts($xpath, (string) $data['tier_count']);
+            $this->replaceContaining($this->textNodes($xpath), 'عدد 3 ناقل', 'عدد '.$data['tier_count'].' ناقل');
         }
         if (is_string($data['motor_power']) && $data['motor_power'] !== '') {
             $this->patchWords($this->textNodes($xpath), ['1.5', 'حصان'], [0 => (string) $data['motor_power']]);
@@ -290,7 +299,7 @@ class BroilerAutoExitPages
     }
 
     /**
-     * عدد مواتير دولاب السبلة وعدد السيور رقم واحد، وهو عدد الأدوار.
+     * عدد سيور السبلة يساوي عدد المواتير، وكلاهما عدد الأدوار.
      */
     private function patchManureCounts(DOMXPath $xpath, string $count): void
     {
@@ -622,6 +631,22 @@ PS1);
         @unlink($pdfPath);
 
         return is_string($bytes) && str_starts_with($bytes, '%PDF') ? $bytes : null;
+    }
+
+    private function autoExitBatteryHeight(PoultryQuotation $quotation, int $tiers): float
+    {
+        $start = (new PoultryTechnicalCalculator)->autoExitHeightStart($tiers > 0 ? $tiers : 3);
+        $typed = $quotation->battery_height_m;
+        if (is_numeric($typed) && (float) $typed + 0.0001 >= $start) {
+            return (float) $typed;
+        }
+
+        return $start;
+    }
+
+    private function fixedMeters(float $value): string
+    {
+        return number_format($value, 2, '.', '').' متر';
     }
 
     private function meters(mixed $value): string

@@ -119,7 +119,7 @@ class LayersQuotationPdfTest extends TestCase
             'old_inner' => str_contains($xml, '12 متر'),
             'old_power' => str_contains($xml, '1.5 حصان'),
             'motors' => str_contains(preg_replace('/\s+/u', '', strip_tags($xml)) ?? '', 'عدد4ماتور'),
-            'belts' => str_contains(preg_replace('/\s+/u', '', strip_tags($xml)) ?? '', '3سيور'),
+            'belts' => str_contains(preg_replace('/\s+/u', '', strip_tags($xml)) ?? '', '4سيور'),
             'egg_page' => str_contains($xml, 'دولاب البيض'),
             'saved_inner' => $quote->fresh()->innerBeltLength?->label_ar,
             'saved_silo' => $quote->fresh()->siloCapacity?->label_ar,
@@ -128,8 +128,23 @@ class LayersQuotationPdfTest extends TestCase
             'saved_belts' => $quote->fresh()->beltsPerLine?->label_ar,
         ]);
         $this->assertStringNotContainsString('6,789,120', $xml);
-        $this->assertStringContainsString('دليل تطهير عنابر بطاريات الدواجن الأوتوماتيك', $xml);
-        $this->assertStringContainsString('دمياط', $xml);
+        $this->assertSame([
+            'guide' => true,
+            'location' => true,
+            'length' => true,
+            'aisle' => true,
+            'height' => true,
+            'stay' => false,
+            'plastic' => true,
+        ], [
+            'guide' => str_contains($xml, 'دليل تطهير عنابر بطاريات الدواجن الأوتوماتيك'),
+            'location' => str_contains($xml, 'دمياط'),
+            'length' => str_contains($xml, '72 متر'),
+            'aisle' => str_contains($xml, '213'),
+            'height' => str_contains($xml, '3.20 متر'),
+            'stay' => str_contains($xml, 'الإقامة'),
+            'plastic' => str_contains($xml, 'ارضيات بلاستيك'),
+        ]);
 
         $bytes = $template->pdfBytes($quote->fresh());
         $this->assertStringStartsWith('%PDF', $bytes);
@@ -145,6 +160,78 @@ class LayersQuotationPdfTest extends TestCase
                 'is_active' => true,
             ],
         )->id;
+    }
+
+    public function test_auto_collect_quote_moves_the_meter_label_and_drops_plastic_floors(): void
+    {
+        $quote = PoultryQuotation::create([
+            'client_name' => 'جمع آلي',
+            'client_location' => 'دمياط',
+            'project_type' => 'layer_auto_collect',
+            'length' => 70,
+            'width' => 12,
+            'height' => 4,
+            'tiers' => 3,
+            'lines' => 4,
+            'birds_per_nest' => 10,
+            'bird_count' => 10000,
+            'total_nests' => 2000,
+            'nests_per_line' => 500,
+            'back_fans_count' => 0,
+            'cooling_units' => 0,
+            'windows_count' => 0,
+            'side_fans_count' => 0,
+            'heaters_count' => 0,
+            'exchange_rate' => 50,
+            'barns_count' => 1,
+            'pricing_snapshot' => [
+                'technical' => [
+                    'effective_length' => 62.4,
+                    'tiers' => 3,
+                    'lines' => 4,
+                    'nests_one_side' => 104,
+                    'total_nests' => 2000,
+                ],
+                'computed' => [
+                    'effective_length' => 62.4,
+                    'total_nests' => 2000,
+                    'bird_count' => 10000,
+                ],
+                'financial' => ['subtotal' => '10.00', 'vat_amount' => '0.00', 'total' => '10.00'],
+            ],
+        ]);
+
+        $path = (new LayersOriginalPages)->fill($quote->fresh());
+        $zip = new \ZipArchive;
+        $zip->open($path);
+        $xml = (string) $zip->getFromName('word/document.xml');
+        $zip->close();
+        @unlink($path);
+
+        $compact = preg_replace('/\s+/u', '', strip_tags($xml)) ?? '';
+        $this->assertSame([
+            'meter' => true,
+            'plastic' => false,
+            'floors' => true,
+            'collect' => true,
+            'egg' => true,
+            'stay' => false,
+            'height' => true,
+            'cages' => true,
+            'tiers' => true,
+            'lines' => true,
+        ], [
+            'meter' => str_contains($xml, '62,4 متر'),
+            'plastic' => str_contains($xml, 'ارضيات بلاستيك'),
+            'floors' => str_contains($xml, 'ارضيات'),
+            'collect' => str_contains($xml, 'منظومة الجمع الآلي.'),
+            'egg' => str_contains($xml, 'دولاب البيض'),
+            'stay' => str_contains($xml, 'الإقامة'),
+            'height' => str_contains($xml, '2.40 متر'),
+            'cages' => str_contains($compact, '104قفص'),
+            'tiers' => str_contains($compact, '3أدوار'),
+            'lines' => str_contains($compact, '4خطوط'),
+        ]);
     }
 
     public function test_regular_layer_template_drops_the_egg_collection_page(): void

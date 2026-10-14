@@ -354,6 +354,65 @@ class PoultryTechnicalCalculator
     }
 
     /**
+     * تخريج آلي: أقل من 3.60 مرفوض، ومن 3.60 حتى قبل 4.40 = 3 أدوار، ومن 4.40 = 4 أدوار.
+     *
+     * @return array{tiers: int|null, message: string|null}
+     */
+    public function autoExitTierRule(float $height): array
+    {
+        if ($height <= 0) {
+            return ['tiers' => null, 'message' => null];
+        }
+
+        if ($height < 3.60 - 0.0001) {
+            return [
+                'tiers' => null,
+                'message' => 'التخريج الآلي لا يقبل ارتفاعاً أقل من 3.60 م',
+            ];
+        }
+
+        if ($height < 4.40 - 0.0001) {
+            return ['tiers' => 3, 'message' => null];
+        }
+
+        return ['tiers' => 4, 'message' => null];
+    }
+
+    /** بداية ارتفاع بطارية التخريج الآلي: 3 أدوار من 3.60، و4 أدوار من 4.40. */
+    public function autoExitHeightStart(int $tiers): float
+    {
+        return $tiers >= 4 ? 4.40 : 3.60;
+    }
+
+    /**
+     * مسافة الانتقال بين الخطوط بالسنتيمتر.
+     * (عرض العنبر ÷ عدد الخطوط − عرض البطارية) × 100
+     * التسمين: عرض البطارية 1.98 م فيبقى 102 سم عند 12 م / 4 خطوط.
+     * البياض: عرض البطارية 1.875 م فيبقى 100 سم عند 11.5 م / 4 خطوط.
+     */
+    public function transferDistanceCm(float $widthMeters, int $lines, bool $layer = false): int
+    {
+        if ($widthMeters <= 0 || $lines <= 0) {
+            return 0;
+        }
+
+        $batteryWidth = $layer ? 1.875 : 1.98;
+        $aisle = ($widthMeters / $lines) - $batteryWidth;
+
+        return (int) round(max(0, $aisle) * 100);
+    }
+
+    /** ارتفاع بطارية البياض: 0.80 م لكل دور، فالأربع أدوار = 3.20 م. */
+    public function layerBatteryHeightM(int $tiers): float
+    {
+        if ($tiers <= 0) {
+            return 0;
+        }
+
+        return round(0.80 * $tiers, 2);
+    }
+
+    /**
      * عرض 11–13.5 = 4 خطوط. عرض 13.6–16 = 5، و16.10–18 = 6، بشرط عدم وجود أعمدة.
      */
     public function broilerLinesForWidth(float $width, int $internalColumns = 0): ?int
