@@ -4,7 +4,9 @@ namespace App\Quotations\Ventilation;
 
 use App\Models\PoultryQuotation;
 use App\Quotations\Pdf\DocxToPdf;
+use App\Quotations\Pdf\OfferPdf;
 use App\Services\Poultry\VentilationOffer;
+use Throwable;
 use DOMDocument;
 use DOMElement;
 use DOMXPath;
@@ -46,11 +48,19 @@ class VentilationOfferPages
 
     public function pdfBytes(PoultryQuotation $quotation): string
     {
-        $docx = $this->fill($quotation);
+        $docx = null;
         try {
+            $docx = $this->fill($quotation);
+
             return app(DocxToPdf::class)->convert($docx);
+        } catch (Throwable $e) {
+            report($e);
+
+            return app(OfferPdf::class)->accessories($quotation);
         } finally {
-            @unlink($docx);
+            if (is_string($docx) && is_file($docx)) {
+                @unlink($docx);
+            }
         }
     }
 

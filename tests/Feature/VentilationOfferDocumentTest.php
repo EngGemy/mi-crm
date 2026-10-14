@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\PoultryQuotation;
 use App\Quotations\Construction\ConstructionOfferPages;
+use App\Quotations\Pdf\DocxToPdf;
 use App\Quotations\Ventilation\VentilationOfferPages;
+use RuntimeException;
 use DOMDocument;
 use DOMElement;
 use DOMXPath;
@@ -57,6 +59,23 @@ class VentilationOfferDocumentTest extends TestCase
         $this->assertStringNotContainsString('مراوح تقليب', $flat);
         $this->assertStringContainsString('2,870,600', $this->row($cells, 'TOTAL'));
         $this->assertStringNotContainsString('إلى', $this->row($cells, 'TOTAL'));
+    }
+
+    public function test_accessories_pdf_falls_back_when_word_conversion_fails(): void
+    {
+        $this->app->instance(DocxToPdf::class, new class extends DocxToPdf
+        {
+            public function convert(string $docxPath): string
+            {
+                throw new RuntimeException('LibreOffice غير متاح على السيرفر.');
+            }
+        });
+
+        $quote = $this->quote('broiler', 81, 12, 4, 4);
+        $response = (new VentilationOfferPages)->accessoriesResponse($quote);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertStringStartsWith('%PDF', $response->getContent());
     }
 
     public function test_construction_document_keeps_the_brochure_and_fills_the_barn(): void
