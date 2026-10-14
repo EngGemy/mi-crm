@@ -322,6 +322,24 @@ trait HasLivePoultryPricing
 
     protected static function syncBroilerSilo(Set $set, Get $get, int $totalBirds): void
     {
+        if (SiloCapacity::allowsSiloCountChoice($totalBirds)) {
+            $currentId = $get('silo_capacity_id');
+            $code = $currentId ? Lookup::query()->whereKey($currentId)->value('code') : null;
+            if (! in_array((int) $code, SiloCapacity::openChoiceTons(), true)) {
+                $siloId = SiloCapacity::lookupIdForTons(25);
+                if ($siloId !== null) {
+                    $set('silo_capacity_id', $siloId);
+                }
+            }
+
+            $count = (int) $get('silos_count');
+            if (! in_array($count, [1, 2, 3], true)) {
+                $set('silos_count', 1);
+            }
+
+            return;
+        }
+
         $tons = SiloCapacity::tonsForBirdCount($totalBirds);
         if ($tons !== null) {
             $siloId = SiloCapacity::lookupIdForTons($tons);
@@ -330,16 +348,7 @@ trait HasLivePoultryPricing
             }
         }
 
-        if (! SiloCapacity::allowsSiloCountChoice($totalBirds)) {
-            $set('silos_count', 1);
-
-            return;
-        }
-
-        $count = (int) $get('silos_count');
-        if (! in_array($count, [1, 2, 3], true)) {
-            $set('silos_count', 1);
-        }
+        $set('silos_count', 1);
     }
 
     protected static function showsWallTypeField(Get $get): bool
@@ -478,16 +487,15 @@ trait HasLivePoultryPricing
                         $rows[] = ['طيور / عش (قفص)', e(number_format($tech['birds_per_nest'] ?? ($get('birds_per_nest') ?? 0))), false];
                         $birds = (int) ($c['bird_count_total'] ?? $c['bird_count'] ?? ($get('bird_count') ?? 0));
                         $rows[] = ['سعة الطيور', e(number_format($birds)), false];
-                        $tons = SiloCapacity::tonsForBirdCount($birds);
-                        $silo = $tons !== null ? $tons.' طن' : null;
-                        if ($silo === null) {
-                            $siloId = $get('silo_capacity_id');
-                            $silo = $siloId ? Lookup::query()->whereKey($siloId)->value('label_ar') : null;
-                        }
-                        $rows[] = ['سعة السايلو', e($silo ?: '25 طن'), false];
                         if (SiloCapacity::allowsSiloCountChoice($birds)) {
+                            $siloId = $get('silo_capacity_id');
+                            $selected = $siloId ? Lookup::query()->whereKey($siloId)->value('label_ar') : null;
+                            $rows[] = ['سعة السايلو', e(SiloCapacity::labelForBirds($birds, is_string($selected) ? $selected : null)), false];
                             $count = (int) ($get('silos_count') ?: 1);
                             $rows[] = ['عدد السيلوهات', e((string) (in_array($count, [1, 2, 3], true) ? $count : 1)), false];
+                        } else {
+                            $tons = SiloCapacity::tonsForBirdCount($birds);
+                            $rows[] = ['سعة السايلو', e($tons !== null ? $tons.' طن' : '25 طن'), false];
                         }
                         $rows[] = ['مساحة الإيواء', e(number_format($c['housing_area'] ?? 0, 1).' م²'), false];
                         $rows[] = ['كثافة الأرضية', e(number_format($c['floor_density'] ?? 0, 2).' طائر/م²'), false];

@@ -323,6 +323,22 @@ class PoultryQuotation extends Model
     private function syncSiloFromBirds(): void
     {
         $birds = (int) $this->bird_count * max(1, (int) ($this->barns_count ?: 1));
+        if (SiloCapacity::allowsSiloCountChoice($birds)) {
+            $code = Lookup::query()->whereKey($this->silo_capacity_id)->value('code');
+            if (! in_array((int) $code, SiloCapacity::openChoiceTons(), true)) {
+                $id = SiloCapacity::lookupIdForTons(25);
+                if ($id !== null) {
+                    $this->silo_capacity_id = $id;
+                }
+            }
+
+            if (! in_array((int) $this->silos_count, [1, 2, 3], true)) {
+                $this->silos_count = 1;
+            }
+
+            return;
+        }
+
         $tons = SiloCapacity::tonsForBirdCount($birds);
         if ($tons === null) {
             return;
@@ -333,9 +349,7 @@ class PoultryQuotation extends Model
             $this->silo_capacity_id = $id;
         }
 
-        if (! SiloCapacity::allowsSiloCountChoice($birds)) {
-            $this->silos_count = 1;
-        }
+        $this->silos_count = 1;
     }
 
     private function syncInnerBeltFromWidth(): void

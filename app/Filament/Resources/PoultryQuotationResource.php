@@ -275,10 +275,18 @@ class PoultryQuotationResource extends Resource
 
                     Forms\Components\Select::make('silo_capacity_id')
                         ->label('سعة السايلو')
-                        ->options(fn () => Lookup::options(Lookup::TYPE_SILO_CAPACITY))
+                        ->options(function (Get $get): array {
+                            if (SiloCapacity::allowsSiloCountChoice((int) $get('bird_count'))) {
+                                return SiloCapacity::openChoiceOptions();
+                            }
+
+                            return Lookup::options(Lookup::TYPE_SILO_CAPACITY);
+                        })
                         ->default(fn () => Lookup::defaultId(Lookup::TYPE_SILO_CAPACITY))
-                        ->helperText('تتحدد من عدد الطيور: حتى 42,000 = 11 طن، فوقها حتى 52,000 = 14 طن، من 52,000 حتى 62,000 = 17 طن، وفوق 62,000 = 25 طن.')
-                        ->disabled()
+                        ->helperText(fn (Get $get): string => SiloCapacity::allowsSiloCountChoice((int) $get('bird_count'))
+                            ? 'بعد 62,000 طائر اختار سايلو 25، أو 17، أو 14 ومعاه عدد 2 من خانة العدد.'
+                            : 'تتحدد من عدد الطيور: حتى 42,000 = 11 طن، فوقها حتى 52,000 = 14 طن، ومن 52,000 حتى 62,000 = 17 طن.')
+                        ->disabled(fn (Get $get): bool => ! SiloCapacity::allowsSiloCountChoice((int) $get('bird_count')))
                         ->dehydrated()
                         ->native(false)
                         ->searchable()
@@ -292,6 +300,7 @@ class PoultryQuotationResource extends Resource
                             3 => '3',
                         ])
                         ->default(1)
+                        ->helperText('سايلو واحد 25، أو اتنين 14. الاختيار لك.')
                         ->native(false)
                         ->required(fn (Get $get): bool => SiloCapacity::allowsSiloCountChoice((int) $get('bird_count')))
                         ->hidden(fn (Get $get): bool => ! SiloCapacity::allowsSiloCountChoice((int) $get('bird_count')))
