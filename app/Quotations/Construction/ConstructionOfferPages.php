@@ -11,6 +11,7 @@ use DOMElement;
 use DOMXPath;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 use ZipArchive;
 
 /**
@@ -32,11 +33,19 @@ class ConstructionOfferPages
 
     public function pdfBytes(PoultryQuotation $quotation): string
     {
-        $docx = $this->fill($quotation);
+        $docx = null;
         try {
+            $docx = $this->fill($quotation);
+
             return app(DocxToPdf::class)->convert($docx);
+        } catch (Throwable $e) {
+            report($e);
+
+            return app(ConstructionBrochurePdf::class)->render($quotation);
         } finally {
-            @unlink($docx);
+            if (is_string($docx) && is_file($docx)) {
+                @unlink($docx);
+            }
         }
     }
 

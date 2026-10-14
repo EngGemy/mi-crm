@@ -101,6 +101,31 @@ class VentilationOfferDocumentTest extends TestCase
         $this->assertStringContainsString('4,805,400', $this->row($cells, 'TOTAL'));
     }
 
+    public function test_construction_pdf_keeps_the_brochure_when_word_conversion_fails(): void
+    {
+        $this->app->instance(DocxToPdf::class, new class extends DocxToPdf
+        {
+            public function convert(string $docxPath): string
+            {
+                throw new RuntimeException('LibreOffice غير متاح على السيرفر.');
+            }
+        });
+
+        $quote = new PoultryQuotation([
+            'project_type' => 'broiler',
+            'length' => 81,
+            'width' => 12,
+            'height' => 4,
+            'construction_choice' => 'sandwich',
+        ]);
+
+        $bytes = (new ConstructionOfferPages)->pdfBytes($quote);
+
+        $this->assertStringStartsWith('%PDF', $bytes);
+        $this->assertGreaterThan(500000, strlen($bytes));
+        $this->assertSame(5, preg_match_all('/\/Type\s*\/Page(?![s])/', $bytes));
+    }
+
     private function quote(string $type, float $length, float $width, float $height, int $sideFans): PoultryQuotation
     {
         $quote = PoultryQuotation::create([
