@@ -92,7 +92,7 @@ class ConstructionSummary
             (float) $quotation->width,
             (float) $quotation->height,
             [
-                'concrete' => (float) settings('poultry_pricing.concrete_cost_per_m2', 1200),
+                'concrete' => VentilationOffer::picked($quotation->construction_concrete_price, self::baseConcrete()),
                 'steel' => (float) settings('poultry_pricing.steel_cost_per_m2', 2450),
                 'wall' => $this->wallRate($choice),
                 'tanks' => (float) settings('poultry_pricing.tanks_fixed_cost', 480000),
@@ -127,6 +127,11 @@ class ConstructionSummary
             'tanks' => $this->moneyLine('7', $tanks, $tanks),
             'total' => VentilationOffer::money($sum),
         ];
+    }
+
+    public static function baseConcrete(): float
+    {
+        return (float) settings('poultry_pricing.concrete_cost_per_m2', 1200);
     }
 
     private function wallRate(string $choice): float

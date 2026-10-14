@@ -268,8 +268,8 @@ class PoultryQuotationResource extends Resource
                         ->default('flat')
                         ->required()
                         ->native(false)
-                        ->visible(fn (Get $get) => static::isBroilerProject($get))
-                        ->dehydrated(fn (Get $get) => static::isBroilerProject($get))
+                        ->visible(fn (Get $get) => static::isBroilerProject($get) || static::isLayerProject($get))
+                        ->dehydrated(fn (Get $get) => static::isBroilerProject($get) || static::isLayerProject($get))
                         ->live()
                         ->afterStateUpdated($live),
 
@@ -329,7 +329,7 @@ class PoultryQuotationResource extends Resource
                                 return '3 أدوار من 3.60 م، و4 أدوار من 4.40 م. يمكن كتابة الارتفاع بكسر مثل 3.65.';
                             }
 
-                            return static::isBroilerProject($get)
+                            return (static::isBroilerProject($get) || static::isLayerProject($get))
                                 ? 'سقف مستوي: أقل من 2.9 م مرفوض، ومن 3 إلى 3.5 م يختار 3 أدوار، ومن 3.7 إلى 4.5 م يختار 4 أدوار. السقف المائل أقل بـ 30 سم.'
                                 : null;
                         })
@@ -386,7 +386,7 @@ class PoultryQuotationResource extends Resource
                         ->native(false)
                         ->live()
                         ->disabled(function (Get $get): bool {
-                            if (! static::isBroilerProject($get)) {
+                            if (! static::isBroilerProject($get) && ! static::isLayerProject($get)) {
                                 return false;
                             }
 
@@ -395,7 +395,7 @@ class PoultryQuotationResource extends Resource
                             return $height > 0 && static::barnTierRule($get, $height)['tiers'] !== null;
                         })
                         ->dehydrated()
-                        ->helperText(fn (Get $get): ?string => static::isBroilerProject($get)
+                        ->helperText(fn (Get $get): ?string => (static::isBroilerProject($get) || static::isLayerProject($get))
                             ? 'يتحدد من الارتفاع ونوع السقف داخل النطاقات المعتمدة.'
                             : null)
                         ->afterStateUpdated(function (Set $set, Get $get, $state) {
@@ -539,8 +539,22 @@ class PoultryQuotationResource extends Resource
                         ->live()
                         ->visible(fn (Get $get): bool => (bool) $get('include_ventilation') && static::isBroilerProject($get)),
 
+                    Forms\Components\Select::make('ventilation_heating_type')
+                        ->label('نوع التدفئة')
+                        ->options([
+                            VentilationOffer::HEATING_HOT_WATER => 'التدفئة بالمياه الساخنة',
+                            VentilationOffer::HEATING_HEATER => 'التدفئة بالهيتر',
+                        ])
+                        ->default(VentilationOffer::HEATING_HOT_WATER)
+                        ->helperText('للتسمين. السعر تحت يتعدل لنفس الاختيار.')
+                        ->native(false)
+                        ->live()
+                        ->visible(fn (Get $get): bool => (bool) $get('include_ventilation') && static::isBroilerProject($get)),
+
                     Forms\Components\TextInput::make('ventilation_heating_price')
-                        ->label('سعر منظومة التدفئة')
+                        ->label(fn (Get $get): string => $get('ventilation_heating_type') === VentilationOffer::HEATING_HEATER
+                            ? 'سعر التدفئة بالهيتر'
+                            : 'سعر التدفئة بالمياه الساخنة')
                         ->numeric()
                         ->minValue(0)
                         ->suffix('ج.م')
@@ -599,6 +613,7 @@ class PoultryQuotationResource extends Resource
                                 null,
                                 [
                                     'heating' => $get('ventilation_heating_price'),
+                                    'heating_type' => $get('ventilation_heating_type'),
                                     'electricity' => $get('ventilation_electricity_price'),
                                     'monitor' => $get('ventilation_monitor_price'),
                                 ],
@@ -626,6 +641,18 @@ class PoultryQuotationResource extends Resource
                             $set('construction_price', $prices[$state === 'cement' ? 'cement' : 'sandwich']);
                         }),
 
+                    Forms\Components\TextInput::make('construction_concrete_price')
+                        ->label('سعر متر الخرسانة')
+                        ->numeric()
+                        ->minValue(0)
+                        ->suffix('ج.م')
+                        ->helperText('الأساس 1,200 جنيه للمتر. تقدر تغيّره لهذا العرض، والإجمالي يتحدث.')
+                        ->live()
+                        ->visible(fn (Get $get): bool => (bool) $get('include_construction'))
+                        ->afterStateHydrated(function (Forms\Components\TextInput $component, mixed $state): void {
+                            static::fillOfferBase($component, $state, ConstructionSummary::baseConcrete());
+                        }),
+
                     Forms\Components\TextInput::make('construction_price')
                         ->label('مبلغ الإنشاءات')
                         ->numeric()
@@ -645,13 +672,23 @@ class PoultryQuotationResource extends Resource
                         ->columnSpanFull()
                         ->visible(fn (Get $get): bool => (bool) $get('include_construction'))
                         ->content(function (Get $get) {
-                            $summary = app(ConstructionSummary::class)->chosen(
-                                (string) ($get('construction_choice') ?: 'sandwich'),
-                                null,
-                                $get('construction_price'),
-                            );
+                            $quote = new PoultryQuotation;
+                            $quote->forceFill([
+                                'length' => $get('length'),
+                                'width' => $get('width'),
+                                'height' => $get('height'),
+                                'construction_choice' => $get('construction_choice') ?: 'sandwich',
+                                'construction_concrete_price' => $get('construction_concrete_price'),
+                            ]);
+                            $brochure = app(ConstructionSummary::class)->brochure($quote);
 
-                            return static::summaryRowsHtml('', $summary['rows']);
+                            return static::summaryRowsHtml('', [
+                                ['خرسانات', $brochure['concrete']['unit'].' × '.$brochure['concrete']['qty'].' = '.$brochure['concrete']['amount'], false],
+                                ['استيل', $brochure['steel']['unit'].' × '.$brochure['steel']['qty'].' = '.$brochure['steel']['amount'], false],
+                                ['حوائط', $brochure['walls']['unit'].' × '.$brochure['walls']['qty'].' = '.$brochure['walls']['amount'], false],
+                                ['خزانات', $brochure['tanks']['amount'], false],
+                                ['الإجمالي', $brochure['total'], false],
+                            ]);
                         }),
                 ])
                 ->columns(['default' => 1, 'sm' => 2]),

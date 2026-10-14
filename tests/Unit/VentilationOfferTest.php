@@ -27,7 +27,15 @@ class VentilationOfferTest extends TestCase
         $this->assertSame('4,167,600 ج.م', $offer['accessories_pdf']['total']);
         $this->assertSame('شفاطات طرد 140×140', $offer['accessories_pdf']['lines'][0][0]);
         $this->assertSame('التبريد', $offer['accessories_pdf']['lines'][1][0]);
-        $this->assertSame('الشفاطات الجانبية', $offer['accessories_pdf']['lines'][3][0]);
+        $this->assertSame('التدفئة بالمياه الساخنة', $offer['accessories_pdf']['lines'][4][0]);
+
+        $heater = (new VentilationOffer(new PoultryTechnicalCalculator))->calculate(80952, 114, true, 6, $this->prices(), [
+            'heating_type' => VentilationOffer::HEATING_HEATER,
+            'heating' => 900000,
+        ]);
+        $this->assertSame('التدفئة بالهيتر', $heater['rows'][5][0]);
+        $this->assertSame('التدفئة بالهيتر', $heater['document']['heating']['label']);
+        $this->assertSame('900,000 ج.م', $heater['document']['heating']['amount']);
     }
 
     public function test_salesperson_override_replaces_the_base_price(): void

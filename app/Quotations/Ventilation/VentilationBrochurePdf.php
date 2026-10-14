@@ -110,6 +110,9 @@ class VentilationBrochurePdf
 
         foreach ($rows as $row) {
             $line = $document[$row['key']] ?? null;
+            if ($row['key'] === 'heating' && is_array($line) && filled($line['label'] ?? null)) {
+                $this->cell($mpdf, 48, $row['y'], 200, $row['h'], (string) $line['label'], $row['fill'], [120, 0, 0], 11);
+            }
             $this->paintLine($mpdf, is_array($line) ? $line : null, $row['y'], $row['h'], $row['fill']);
         }
 

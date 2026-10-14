@@ -14,6 +14,10 @@ class VentilationOffer
     /** @var list<int> */
     public const SIDE_FAN_CHOICES = [4, 6, 8, 10];
 
+    public const HEATING_HOT_WATER = 'hot_water';
+
+    public const HEATING_HEATER = 'heater';
+
     public function __construct(private PoultryTechnicalCalculator $calculator) {}
 
     public static function sideFanChoice(mixed $value): ?int
@@ -66,7 +70,7 @@ class VentilationOffer
 
     /**
      * @param  array<string, float>|null  $prices
-     * @param  array{heating?: float|int|string|null, electricity?: float|int|string|null, monitor?: float|int|string|null}|null  $overrides
+     * @param  array{heating?: float|int|string|null, electricity?: float|int|string|null, monitor?: float|int|string|null, heating_type?: string|null}|null  $overrides
      * @return array{
      *     fans: int,
      *     cooling_m2: float,
@@ -87,6 +91,7 @@ class VentilationOffer
         $sideFans = $broiler ? self::sideFanChoice($sideFans) : null;
         $overrides ??= [];
 
+        $heatingLabel = self::heatingLabel(isset($overrides['heating_type']) ? (string) $overrides['heating_type'] : null);
         $heating = self::picked($overrides['heating'] ?? null, (float) ($prices['heating'] ?? $prices['heating_min'] ?? 0));
         $electricity = self::picked($overrides['electricity'] ?? null, (float) ($prices['electricity'] ?? $prices['electricity_min'] ?? 0));
         $monitor = self::picked($overrides['monitor'] ?? null, (float) ($prices['monitor'] ?? 0));
@@ -109,7 +114,7 @@ class VentilationOffer
 
         if ($broiler) {
             $rows[] = ['الشفاطات الجانبية', $sideFans === null ? 'اختار 4 أو 6 أو 8 أو 10' : $sideFans.' شفاط', false];
-            $rows[] = ['منظومة التدفئة بالمياه الساخنة', self::money($heating), false];
+            $rows[] = [$heatingLabel, self::money($heating), false];
         }
 
         $rows[] = ['الكهرباء والكنترول والإنارة', self::money($electricity), false];
@@ -125,7 +130,7 @@ class VentilationOffer
             $lines[] = ['الشفاطات الجانبية', (string) $sideFans, self::money((float) $prices['circulation_unit']), self::money($circulationAmount)];
         }
         if ($broiler) {
-            $lines[] = ['منظومة التدفئة بالمياه الساخنة', '1', self::money($heating), self::money($heating)];
+            $lines[] = [$heatingLabel, '1', self::money($heating), self::money($heating)];
         }
         $lines[] = ['الكهرباء والكنترول والإنارة', '1', self::money($electricity), self::money($electricity)];
         $lines[] = ['جهاز المونيتور', '1', self::money($monitor), self::money($monitor)];
@@ -150,6 +155,7 @@ class VentilationOffer
                     'qty' => '1',
                     'unit' => self::money($heating),
                     'amount' => self::money($heating),
+                    'label' => ($overrides['heating_type'] ?? null) === self::HEATING_HEATER ? $heatingLabel : null,
                 ] : null,
                 'circulation' => $sideFans === null ? null : [
                     'qty' => (string) $sideFans,
@@ -193,6 +199,13 @@ class VentilationOffer
         return (float) $override;
     }
 
+    public static function heatingLabel(?string $type): string
+    {
+        return $type === self::HEATING_HEATER
+            ? 'التدفئة بالهيتر'
+            : 'التدفئة بالمياه الساخنة';
+    }
+
     /**
      * @return array{0: string, 1: array<string, mixed>}
      */
@@ -208,6 +221,7 @@ class VentilationOffer
             null,
             [
                 'heating' => $quotation->ventilation_heating_price,
+                'heating_type' => $quotation->ventilation_heating_type,
                 'electricity' => $quotation->ventilation_electricity_price,
                 'monitor' => $quotation->ventilation_monitor_price,
             ],

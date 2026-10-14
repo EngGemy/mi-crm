@@ -80,7 +80,11 @@ class ViewPoultryQuotation extends ViewRecord
                                 'gable' => 'مائل',
                                 default => '—',
                             })
-                            ->visible(fn (PoultryQuotation $record): bool => PoultryProjectType::tryFrom((string) ($record->project_type ?: 'broiler'))?->isBroiler() ?? false),
+                            ->visible(function (PoultryQuotation $record): bool {
+                                $type = PoultryProjectType::tryFrom((string) ($record->project_type ?: 'broiler'));
+
+                                return ($type?->isBroiler() ?? false) || ($type?->isLayer() ?? false);
+                            }),
                         Components\TextEntry::make('siloCapacity.label_ar')
                             ->label('سعة السايلو')
                             ->placeholder('25 طن'),

@@ -146,7 +146,7 @@ class VentilationOfferPages
     }
 
     /**
-     * @param  array{qty: string, unit: string, amount: string}|null  $line
+     * @param  array{qty: string, unit: string, amount: string, label?: string|null}|null  $line
      */
     private function writeMoneyRow(DOMXPath $xpath, string $marker, ?array $line): void
     {
@@ -159,6 +159,9 @@ class VentilationOfferPages
                 $row->parentNode?->removeChild($row);
 
                 continue;
+            }
+            if (isset($cells[0]) && filled($line['label'] ?? null)) {
+                $this->writeCell($cells[0], (string) $line['label']);
             }
             if (isset($cells[1], $cells[3], $cells[5])) {
                 $this->writeCell($cells[1], $line['unit']);

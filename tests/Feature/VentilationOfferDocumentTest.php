@@ -44,6 +44,22 @@ class VentilationOfferDocumentTest extends TestCase
         $this->assertStringNotContainsString('إلى', $this->row($cells, 'TOTAL'));
     }
 
+    public function test_heater_choice_replaces_the_hot_water_line_in_the_brochure(): void
+    {
+        $quote = $this->quote('broiler', 114, 17, 4.1, 6);
+        $quote->forceFill([
+            'ventilation_heating_type' => 'heater',
+            'ventilation_heating_price' => 900000,
+        ])->saveQuietly();
+
+        $cells = $this->cells((new VentilationOfferPages)->fill($quote->fresh()));
+        $flat = implode("\n", array_map(fn (array $row) => implode(' | ', $row), $cells));
+
+        $this->assertStringContainsString('التدفئة بالهيتر', $flat);
+        $this->assertStringContainsString('900,000', $flat);
+        $this->assertStringNotContainsString('المياه الساخنة', $flat);
+    }
+
     public function test_layer_ventilation_document_omits_heating_and_side_fans(): void
     {
         $quote = $this->quote('layer', 81, 12, 4, 6);
@@ -90,6 +106,7 @@ class VentilationOfferDocumentTest extends TestCase
             'height' => 4,
             'construction_choice' => 'sandwich',
             'construction_price' => 2450,
+            'construction_concrete_price' => 1200,
         ]);
         $cells = $this->cells((new ConstructionOfferPages)->fill($quote));
 
@@ -98,12 +115,26 @@ class VentilationOfferDocumentTest extends TestCase
         $this->assertSame('12 متر', $this->valueBeside($cells, 'عرض العنبر'));
         $this->assertSame('4 متر', $this->valueBeside($cells, 'ارتفاع العنبر'));
         $this->assertStringContainsString('972', $this->row($cells, 'اعمال الخرسانة'));
+        $this->assertStringContainsString('1,200', $this->row($cells, 'اعمال الخرسانة'));
         $this->assertStringContainsString('1,166,400', $this->row($cells, 'اعمال الخرسانة'));
         $this->assertStringContainsString('2,381,400', $this->row($cells, 'المبنى الاستيل'));
         $this->assertStringContainsString('648', $this->row($cells, 'الحوائط عبارة'));
         $this->assertStringContainsString('777,600', $this->row($cells, 'الحوائط عبارة'));
         $this->assertStringContainsString('4,725,400', $this->row($cells, 'TOTAL'));
         $this->assertStringNotContainsString('2,450', $this->row($cells, 'TOTAL'));
+
+        $edited = new PoultryQuotation([
+            'project_type' => 'broiler',
+            'length' => 81,
+            'width' => 12,
+            'height' => 4,
+            'construction_choice' => 'sandwich',
+            'construction_concrete_price' => 1500,
+        ]);
+        $editedCells = $this->cells((new ConstructionOfferPages)->fill($edited));
+        $this->assertStringContainsString('1,500', $this->row($editedCells, 'اعمال الخرسانة'));
+        $this->assertStringContainsString('1,458,000', $this->row($editedCells, 'اعمال الخرسانة'));
+        $this->assertStringContainsString('5,017,000', $this->row($editedCells, 'TOTAL'));
     }
 
     public function test_construction_pdf_keeps_the_brochure_when_word_conversion_fails(): void

@@ -43,6 +43,9 @@ class PoultryHousePricingService
         if (isset($input['price_per_bird']) && $input['price_per_bird'] !== '' && $input['price_per_bird'] !== null) {
             $pricingParams['price_per_bird'] = (float) $input['price_per_bird'];
         }
+        if (isset($input['concrete_cost_per_m2']) && $input['concrete_cost_per_m2'] !== '' && $input['concrete_cost_per_m2'] !== null) {
+            $pricingParams['concrete_cost_per_m2'] = (float) $input['concrete_cost_per_m2'];
+        }
         $technicalConfig = $this->configLoader->resolveTechnicalConfig($pricingParams);
 
         $length = (float) $input['hall_length'];

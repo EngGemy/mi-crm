@@ -46,10 +46,11 @@ trait HasLivePoultryPricing
             $projectType = static::resolveProjectTypeFromForm($get);
             $type = PoultryProjectType::tryFrom($projectType);
             $isBroiler = $type?->isBroiler() ?? false;
+            $isLayer = $type?->isLayer() ?? false;
             $isAutoExit = $type === PoultryProjectType::BroilerAutoExit;
             $calc = new PoultryTechnicalCalculator;
 
-            if (($isBroiler || $isAutoExit) && $height > 0) {
+            if (($isBroiler || $isAutoExit || $isLayer) && $height > 0) {
                 $rule = $isAutoExit
                     ? $calc->autoExitTierRule($height)
                     : $calc->broilerTierRule($height, (string) ($get('roof_type') ?: 'flat'));
@@ -90,7 +91,6 @@ trait HasLivePoultryPricing
                 $set('exchange_rate', (string) app(DailyUsdEgpRate::class)->rate());
             }
 
-            $isLayer = PoultryProjectType::tryFrom($projectType)?->isLayer() ?? false;
             $layerSpecs = $get('layer_specs');
             $layerSpecs = is_array($layerSpecs) ? $layerSpecs : [];
 
@@ -112,6 +112,7 @@ trait HasLivePoultryPricing
                 'heaters_count' => $get('heaters_count') ?: null,
                 'internal_columns' => (int) ($get('internal_columns') ?? 0),
                 'price_per_bird' => static::syncQuotedBirdPrice($set, $get, $projectType, $tiers),
+                'concrete_cost_per_m2' => $get('construction_concrete_price'),
                 'wall_type' => $get('wall_type'),
                 'include_monitor' => (bool) ($get('include_monitor') ?? false),
                 'monitor_cost' => $get('monitor_cost'),
@@ -303,7 +304,7 @@ trait HasLivePoultryPricing
             return $calc->autoExitTierRule($height);
         }
 
-        if (static::isBroilerProject($get)) {
+        if (static::isBroilerProject($get) || static::isLayerProject($get)) {
             return $calc->broilerTierRule($height, (string) ($get('roof_type') ?: 'flat'));
         }
 

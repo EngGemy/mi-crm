@@ -12,7 +12,7 @@ class PoultryPricingSettingsSeeder extends Seeder
         $settings = [
             [
                 'key' => 'poultry_pricing.concrete_cost_per_m2',
-                'value' => '850',
+                'value' => '1200',
                 'type' => 'decimal',
                 'category' => 'poultry_pricing',
                 'label_ar' => 'تكلفة المتر المربع للخرسانات',
