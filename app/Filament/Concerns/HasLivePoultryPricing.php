@@ -73,9 +73,15 @@ trait HasLivePoultryPricing
         ?float $widthOverride = null,
         ?float $heightOverride = null,
     ): void {
-        $length = $lengthOverride ?? (float) ($get('hall_length') ?? $get('length') ?? 0);
-        $width = $widthOverride ?? (float) ($get('hall_width') ?? $get('width') ?? 0);
-        $height = $heightOverride ?? (float) ($get('hall_height') ?? $get('height') ?? 0);
+        $length = ($lengthOverride !== null && $lengthOverride > 0)
+            ? $lengthOverride
+            : (float) ($get('hall_length') ?? $get('length') ?? 0);
+        $width = ($widthOverride !== null && $widthOverride > 0)
+            ? $widthOverride
+            : (float) ($get('hall_width') ?? $get('width') ?? 0);
+        $height = ($heightOverride !== null && $heightOverride > 0)
+            ? $heightOverride
+            : (float) ($get('hall_height') ?? $get('height') ?? 0);
         $tiers = $tiersOverride ?? (int) ($get('tiers') ?? 0);
         $lines = (int) ($get('lines') ?? 0);
 
@@ -163,6 +169,11 @@ trait HasLivePoultryPricing
 
             if (! $autoService) {
                 $input['service_length'] = (float) ($get('service_length') ?? $get('dead_zone_meters') ?? 10);
+            } elseif ($isLayer) {
+                // خصم الخدمات ≈ 8م؛ الحاسبة تضبط الطول الفعال على مضاعف 0.60 زوجي.
+                $input['service_length'] = LayerBaseLookups::numericOf($layerSpecs['service_id'] ?? null)
+                    ?? LayerBaseLookups::defaultNumeric(Lookup::TYPE_LAYER_SERVICE)
+                    ?? 8;
             }
 
             $result = app(PoultryHousePricingService::class)->compute($input);

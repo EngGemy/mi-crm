@@ -78,7 +78,11 @@ class LayersQuotationTemplate implements QuotationTemplate
             'nests_per_line' => $specs['nests_per_line'] ?? $q->nests_per_line ?? $technical['nests_per_line'] ?? $computed['nests_per_line'] ?? null,
             'total_nests' => $specs['total_nests'] ?? $q->total_nests ?? $technical['total_nests'] ?? $computed['total_nests'] ?? null,
             'birds_per_nest' => $specs['birds_per_nest'] ?? $q->birds_per_nest ?? $technical['birds_per_nest'] ?? null,
-            'bird_count' => $specs['total_birds'] ?? $q->bird_count ?? $technical['total_birds'] ?? $computed['bird_count'] ?? null,
+            'bird_count' => $specs['total_birds']
+                ?? $technical['total_birds']
+                ?? $computed['bird_count']
+                ?? $q->bird_count
+                ?? null,
             'barns_count' => $barns,
             'silo_capacity' => $this->lookupLabel($q, 'siloCapacity'),
             'silos_count' => max(1, (int) ($q->silos_count ?: 1)),

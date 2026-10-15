@@ -220,6 +220,9 @@ class LayersQuotationPdfTest extends TestCase
             'cages' => true,
             'tiers' => true,
             'lines' => true,
+            'birds' => true,
+            'nests' => true,
+            'stale_birds' => true,
         ], [
             'meter' => str_contains($xml, '61,2 متر'),
             'plastic' => str_contains($xml, 'ارضيات بلاستيك'),
@@ -231,6 +234,9 @@ class LayersQuotationPdfTest extends TestCase
             'cages' => str_contains($compact, '102قفص'),
             'tiers' => str_contains($compact, '3أدوار'),
             'lines' => str_contains($compact, '4خطوط'),
+            'birds' => str_contains($xml, '24,480 طائر'),
+            'nests' => str_contains($xml, '2,448'),
+            'stale_birds' => ! str_contains($xml, '38,400 طائر'),
         ]);
     }
 

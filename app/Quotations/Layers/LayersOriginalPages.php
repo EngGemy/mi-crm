@@ -276,6 +276,16 @@ PS1);
         if ($oneSide !== null) {
             $this->patchWords($nodes, ['120', 'قفص'], [0 => $oneSide]);
         }
+
+        $totalNests = $this->optionalGrouped($data['total_nests'] ?? null);
+        if ($totalNests !== null) {
+            $this->replaceExact($nodes, '3,840', $totalNests);
+        }
+
+        $birds = $this->optionalGrouped($data['bird_count'] ?? null);
+        if ($birds !== null) {
+            $this->replaceExact($nodes, '38,400 طائر', $birds.' طائر');
+        }
     }
 
     /** @param  list<DOMElement>  $nodes */

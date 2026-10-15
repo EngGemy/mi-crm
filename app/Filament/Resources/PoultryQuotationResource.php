@@ -312,7 +312,8 @@ class PoultryQuotationResource extends Resource
                         ->required()->numeric()->step(0.01)->default(81)->minValue(1)->suffix('م')
                         ->live(onBlur: true)
                         ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
-                            static::refreshLivePoultryPricing($set, $get, false, null, (float) $state);
+                            $length = is_numeric($state) ? (float) $state : null;
+                            static::refreshLivePoultryPricing($set, $get, false, null, $length);
                         }),
 
                     Forms\Components\TextInput::make('width')
@@ -320,7 +321,8 @@ class PoultryQuotationResource extends Resource
                         ->required()->numeric()->step(0.01)->default(12)->minValue(1)->suffix('م')
                         ->live(onBlur: true)
                         ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
-                            static::refreshLivePoultryPricing($set, $get, false, null, null, (float) $state);
+                            $width = is_numeric($state) ? (float) $state : null;
+                            static::refreshLivePoultryPricing($set, $get, false, null, null, $width);
                         }),
 
                     Forms\Components\TextInput::make('height')
@@ -330,7 +332,8 @@ class PoultryQuotationResource extends Resource
                         ->minValue(0.1)->suffix('م')
                         ->live(onBlur: true)
                         ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
-                            static::refreshLivePoultryPricing($set, $get, false, null, null, null, (float) $state);
+                            $height = is_numeric($state) ? (float) $state : null;
+                            static::refreshLivePoultryPricing($set, $get, false, null, null, null, $height);
                         })
                         ->helperText(function (Get $get): ?string {
                             if (static::isAutoExitProject($get)) {
