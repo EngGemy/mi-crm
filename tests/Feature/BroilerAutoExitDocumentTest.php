@@ -129,6 +129,48 @@ class BroilerAutoExitDocumentTest extends TestCase
         $this->assertStringNotContainsString('4سيور', $compact);
     }
 
+    public function test_auto_exit_four_tiers_keeps_belts_equal_to_tiers(): void
+    {
+        $quote = PoultryQuotation::create([
+            'client_name' => 'عميل الأدوار',
+            'client_location' => 'دمياط',
+            'project_type' => 'broiler_auto_exit',
+            'length' => 90,
+            'width' => 15,
+            'height' => 4.5,
+            'tiers' => 4,
+            'lines' => 5,
+            'birds_per_nest' => 16,
+            'bird_count' => 48000,
+            'total_nests' => 3000,
+            'nests_per_line' => 600,
+            'back_fans_count' => 0,
+            'cooling_units' => 0,
+            'windows_count' => 0,
+            'side_fans_count' => 0,
+            'heaters_count' => 0,
+            'barns_count' => 1,
+            'pricing_snapshot' => [
+                'technical' => ['effective_length' => 80, 'tiers' => 4, 'lines' => 5],
+                'computed' => ['effective_length' => 80, 'bird_count' => 48000],
+                'financial' => ['subtotal' => '10.00', 'vat_amount' => '0.00', 'total' => '10.00'],
+            ],
+        ]);
+
+        $path = (new BroilerAutoExitPages)->fill($quote->fresh());
+        $zip = new ZipArchive;
+        $zip->open($path);
+        $xml = (string) $zip->getFromName('word/document.xml');
+        $zip->close();
+        @unlink($path);
+
+        $compact = preg_replace('/\s+/u', '', strip_tags($xml)) ?? '';
+        $this->assertStringContainsString('عدد4ماتور', $compact);
+        $this->assertStringContainsString('4سيور', $compact);
+        $this->assertStringNotContainsString('3سيور', $compact);
+        $this->assertStringNotContainsString('لتشغيل3سيور', $compact);
+    }
+
     private function lookup(string $type, string $code, string $label, string $value): int
     {
         return (int) Lookup::query()->updateOrCreate(

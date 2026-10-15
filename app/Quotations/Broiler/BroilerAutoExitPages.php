@@ -300,6 +300,7 @@ class BroilerAutoExitPages
 
     /**
      * عدد سيور السبلة يساوي عدد المواتير، وكلاهما عدد الأدوار.
+     * القالب ممكن يكون مكتوب 3 أو 4، فنبّدل أي رقم ظاهر قبل سيور/ماتور.
      */
     private function patchManureCounts(DOMXPath $xpath, string $count): void
     {
@@ -323,18 +324,26 @@ class BroilerAutoExitPages
 
             foreach ($nodes as $node) {
                 $value = $node->textContent;
-                $updated = str_replace(
-                    ['عدد 4 ماتور', '4 سيور'],
-                    ['عدد '.$count.' ماتور', $count.' سيور'],
+                $updated = preg_replace(
+                    [
+                        '/عدد\s*[0-9]+(\s*)ماتور/u',
+                        '/[0-9]+(\s*)سيور/u',
+                    ],
+                    [
+                        'عدد '.$count.'$1ماتور',
+                        $count.'$1سيور',
+                    ],
                     $value,
                 );
-                if ($updated !== $value) {
+                if (is_string($updated) && $updated !== $value) {
                     $node->textContent = $updated;
                 }
             }
 
-            $this->patchWords($nodes, ['4', 'ماتور'], [0 => $count]);
-            $this->patchWords($nodes, ['4', 'سيور'], [0 => $count]);
+            foreach (['3', '4', '5'] as $old) {
+                $this->patchWords($nodes, [$old, 'ماتور'], [0 => $count]);
+                $this->patchWords($nodes, [$old, 'سيور'], [0 => $count]);
+            }
         }
     }
 

@@ -250,6 +250,9 @@ PS1);
         $length = $this->optionalComma($data['effective_length'] ?? null);
         if ($length !== null) {
             $this->patchWords($nodes, ['متر', '7', '2'], [0 => $length.' متر', 1 => '', 2 => '']);
+            // لو القالب اتحوّل لخانة واحدة زي «72 متر»
+            $this->replaceExact($nodes, '72 متر', $length.' متر');
+            $this->replaceContaining($nodes, '72 متر', $length.' متر');
         }
 
         $tiers = $this->optionalComma($data['tiers'] ?? null);

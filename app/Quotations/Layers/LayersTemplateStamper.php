@@ -76,8 +76,7 @@ class LayersTemplateStamper
             }
 
             if ($page === 10) {
-                $this->paintTiers($mpdf, $data);
-                $this->paintNestCount($mpdf, $data);
+                $this->paintBatterySpecs($mpdf, $data);
             }
 
             if ($page === 11) {
@@ -195,21 +194,73 @@ class LayersTemplateStamper
         $mpdf->WriteCell($w, $h - 0.9, $text, 0, 0, $align);
     }
 
-    /** @param  array<string, mixed>  $data */
-    private function paintTiers(Mpdf $mpdf, array $data): void
+    /** جدول مواصفات البطاريات + القطيع على الصفحة 10. */
+    private function paintBatterySpecs(Mpdf $mpdf, array $data): void
     {
-        $tiers = $data['tiers'] ?? null;
-        if (! is_numeric($tiers) || (int) $tiers <= 0) {
-            return;
+        $effective = $this->metersLabel($data['effective_length'] ?? null);
+        if ($effective !== '') {
+            $this->paintValue($mpdf, 41.5, 77.5, 22.0, 6.0, 11, $effective, [247, 247, 247]);
         }
 
-        $this->paintValue($mpdf, 46.2, 85.0, 8.5, 6.0, 12, (string) (int) $tiers, [247, 247, 247]);
+        $tiers = $data['tiers'] ?? null;
+        if (is_numeric($tiers) && (int) $tiers > 0) {
+            $this->paintValue($mpdf, 46.2, 85.0, 8.5, 6.0, 12, (string) (int) $tiers, [247, 247, 247]);
+        }
+
+        $lines = $data['lines'] ?? null;
+        if (is_numeric($lines) && (int) $lines > 0) {
+            $this->paintValue($mpdf, 46.2, 92.5, 8.5, 6.0, 12, (string) (int) $lines, [255, 255, 255]);
+        }
+
+        $aisle = $data['aisle_cm'] ?? null;
+        if (is_numeric($aisle) && (float) $aisle > 0) {
+            $this->paintValue($mpdf, 41.8, 100.0, 16.0, 6.0, 12, $this->grouped($aisle), [247, 247, 247]);
+        }
+
+        $height = $data['battery_height_m'] ?? null;
+        if (is_numeric($height) && (float) $height > 0) {
+            $this->paintValue($mpdf, 41.5, 107.5, 20.0, 6.0, 11, number_format((float) $height, 2, '.', '').' متر', [255, 255, 255]);
+        }
+
+        $oneSide = $data['nests_one_side'] ?? null;
+        if (is_numeric($oneSide) && (int) $oneSide > 0) {
+            $this->paintValue($mpdf, 41.8, 115.0, 16.0, 6.0, 12, $this->grouped($oneSide), [247, 247, 247]);
+        }
+
+        $this->paintValue($mpdf, 41.8, 122.4, 16.5, 6.3, 12, $this->grouped($data['total_nests'] ?? null), [255, 255, 255]);
+
+        $birdsPerNest = $data['birds_per_nest'] ?? null;
+        if (is_numeric($birdsPerNest) && (int) $birdsPerNest > 0) {
+            $this->paintValue($mpdf, 41.8, 168.0, 16.0, 6.0, 12, $this->grouped($birdsPerNest), [255, 255, 255]);
+        }
+
+        $birds = $data['bird_count'] ?? null;
+        if (! is_numeric($birds) || (int) $birds <= 0) {
+            $nests = (int) ($data['total_nests'] ?? 0);
+            $perNest = (int) ($data['birds_per_nest'] ?? 0);
+            if ($nests > 0 && $perNest > 0) {
+                $birds = $nests * $perNest;
+            }
+        }
+        if (is_numeric($birds) && (int) $birds > 0) {
+            $this->paintValue($mpdf, 41.5, 175.0, 28.0, 6.3, 11, $this->grouped($birds).' طائر', [247, 247, 247]);
+        }
     }
 
-    /** @param  array<string, mixed>  $data */
-    private function paintNestCount(Mpdf $mpdf, array $data): void
+    private function metersLabel(mixed $value): string
     {
-        $this->paintValue($mpdf, 41.8, 122.4, 16.5, 6.3, 12, $this->grouped($data['total_nests'] ?? null), [255, 255, 255]);
+        if ($value === null || $value === '' || ! is_numeric($value)) {
+            return '';
+        }
+
+        $number = round((float) $value, 2);
+        if (abs($number - round($number)) < 0.001) {
+            return ((int) round($number)).' متر';
+        }
+
+        $formatted = rtrim(rtrim(number_format($number, 2, ',', ''), '0'), ',');
+
+        return $formatted.' متر';
     }
 
     /** @param  array{0: int, 1: int, 2: int}  $fill */

@@ -116,6 +116,13 @@ class LayersQuotationTemplate implements QuotationTemplate
             'stocking' => $this->stocking($q, $technical),
         ];
 
+        // القطيع لازم يطابق الأقفاص على الورقة، حتى لو اللقطة القديمة فيها رقم ثابت.
+        $nests = (int) ($payload['total_nests'] ?? 0);
+        $perNest = (int) ($payload['birds_per_nest'] ?? 0);
+        if ($nests > 0 && $perNest > 0) {
+            $payload['bird_count'] = $nests * $perNest;
+        }
+
         if ($payload['cage_area_cm2'] === null && $payload['stocking']['width_cm'] !== null && $payload['stocking']['depth_cm'] !== null) {
             $payload['cage_area_cm2'] = round($payload['stocking']['width_cm'] * $payload['stocking']['depth_cm'], 2);
         }

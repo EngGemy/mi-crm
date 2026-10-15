@@ -251,6 +251,29 @@ class LayersQuotationPdfTest extends TestCase
         $this->assertSame(14, preg_match_all('/\/Type\s*\/Page(?!s)/', $auto));
     }
 
+    public function test_stamper_paints_effective_length_and_flock_count(): void
+    {
+        $pdf = (new LayersTemplateStamper)->pdf([
+            'project_type' => 'layer',
+            'client_name' => 'اختبار',
+            'issued_at' => '15/10/2026',
+            'effective_length' => 91.2,
+            'tiers' => 4,
+            'lines' => 4,
+            'aisle_cm' => 100,
+            'battery_height_m' => 3.2,
+            'nests_one_side' => 152,
+            'total_nests' => 4864,
+            'birds_per_nest' => 10,
+            'bird_count' => 48640,
+            'financial' => ['barn_usd' => 174720, 'barn_egp' => 9277632],
+        ]);
+
+        $this->assertStringStartsWith('%PDF', $pdf);
+        $this->assertGreaterThan(500000, strlen($pdf));
+        $this->assertSame(13, preg_match_all('/\/Type\s*\/Page(?!s)/', $pdf));
+    }
+
     public function test_broiler_pdf_data_is_unchanged(): void
     {
         $quote = new PoultryQuotation([
