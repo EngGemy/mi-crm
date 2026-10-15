@@ -310,12 +310,18 @@ class PoultryQuotationResource extends Resource
                     Forms\Components\TextInput::make('length')
                         ->label('الطول')
                         ->required()->numeric()->step(0.01)->default(81)->minValue(1)->suffix('م')
-                        ->live(onBlur: true)->afterStateUpdated($live),
+                        ->live(onBlur: true)
+                        ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
+                            static::refreshLivePoultryPricing($set, $get, false, null, (float) $state);
+                        }),
 
                     Forms\Components\TextInput::make('width')
                         ->label('العرض')
                         ->required()->numeric()->step(0.01)->default(12)->minValue(1)->suffix('م')
-                        ->live(onBlur: true)->afterStateUpdated($live),
+                        ->live(onBlur: true)
+                        ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
+                            static::refreshLivePoultryPricing($set, $get, false, null, null, (float) $state);
+                        }),
 
                     Forms\Components\TextInput::make('height')
                         ->label('الارتفاع')
@@ -323,7 +329,9 @@ class PoultryQuotationResource extends Resource
                         ->default('4')
                         ->minValue(0.1)->suffix('م')
                         ->live(onBlur: true)
-                        ->afterStateUpdated($live)
+                        ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
+                            static::refreshLivePoultryPricing($set, $get, false, null, null, null, (float) $state);
+                        })
                         ->helperText(function (Get $get): ?string {
                             if (static::isAutoExitProject($get)) {
                                 return '3 أدوار من 3.60 م، و4 أدوار من 4.40 م. يمكن كتابة الارتفاع بكسر مثل 3.65.';

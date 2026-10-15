@@ -107,6 +107,10 @@ class PoultryTechnicalCalculatorTest extends TestCase
         $this->assertEqualsWithDelta(9.0, $service, 0.001);
         $this->assertEqualsWithDelta(0.0, fmod(round($effective, 3), 0.60), 0.001);
         $this->assertEquals(0, ((int) round($effective / 0.60)) % 2);
+
+        [$longer] = $this->calc->resolveLayerEffectiveLength(100);
+        $this->assertGreaterThan($effective, $longer);
+        $this->assertNotEquals(72.0, $longer);
     }
 
     /** @test */

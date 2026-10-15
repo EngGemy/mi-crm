@@ -187,7 +187,11 @@ class PoultryQuotation extends Model
 
             // إذا وجد snapshot مالي محفوظ، لا نعيد الحساب — العرض المحفوظ ثابت محاسبيًا
             $snapshot = $quotation->pricing_snapshot ?? [];
-            if (! empty($snapshot['financial'])) {
+            $barnChanged = $quotation->exists && $quotation->isDirty([
+                'length', 'width', 'height', 'tiers', 'lines', 'project_type',
+                'birds_per_nest', 'service_length', 'wall_type', 'bird_weight_kg', 'barns_count',
+            ]);
+            if (! empty($snapshot['financial']) && ! $barnChanged) {
                 $financial = $snapshot['financial'];
                 $quotation->subtotal = FinancialEngine::toFloat($financial['subtotal']);
                 $quotation->vat_amount = FinancialEngine::toFloat($financial['vat_amount']);
@@ -247,13 +251,14 @@ class PoultryQuotation extends Model
     {
         $service = new PoultryHousePricingService;
 
+        $isLayer = PoultryProjectType::tryFrom((string) ($this->project_type ?? ''))?->isLayer() ?? false;
+
         $input = [
             'project_type' => $this->project_type ?? PoultryProjectType::Broiler->value,
             'pricing_scope' => $this->pricing_scope ?? PoultryPricingScope::FullProject->value,
             'hall_length' => (float) $this->length,
             'hall_width' => (float) $this->width,
             'hall_height' => (float) $this->height,
-            'service_length' => (float) ($this->service_length ?? $this->dead_zone ?? 10),
             'tiers' => (int) $this->tiers,
             'lines' => (int) $this->lines,
             'bird_weight_kg' => $this->bird_weight_kg ? (float) $this->bird_weight_kg : 2.1,
@@ -268,6 +273,10 @@ class PoultryQuotation extends Model
             'include_electricity' => (bool) $this->include_electricity,
             'electricity_cost' => $this->electricity_cost,
         ];
+
+        if (! $isLayer) {
+            $input['service_length'] = (float) ($this->service_length ?? $this->dead_zone ?? 10);
+        }
 
         $previous = $this->pricing_snapshot ?? [];
         $result = $service->compute($input);

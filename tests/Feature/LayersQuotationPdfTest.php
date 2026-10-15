@@ -139,7 +139,7 @@ class LayersQuotationPdfTest extends TestCase
         ], [
             'guide' => str_contains($xml, 'دليل تطهير عنابر بطاريات الدواجن الأوتوماتيك'),
             'location' => str_contains($xml, 'دمياط'),
-            'length' => str_contains($xml, '72 متر'),
+            'length' => str_contains($xml, '81,6 متر'),
             'aisle' => str_contains($xml, '213'),
             'height' => str_contains($xml, '3.20 متر'),
             'stay' => str_contains($xml, 'الإقامة'),
@@ -221,14 +221,14 @@ class LayersQuotationPdfTest extends TestCase
             'tiers' => true,
             'lines' => true,
         ], [
-            'meter' => str_contains($xml, '62,4 متر'),
+            'meter' => str_contains($xml, '61,2 متر'),
             'plastic' => str_contains($xml, 'ارضيات بلاستيك'),
             'floors' => str_contains($xml, 'ارضيات'),
             'collect' => str_contains($xml, 'منظومة الجمع الآلي.'),
             'egg' => str_contains($xml, 'دولاب البيض'),
             'stay' => str_contains($xml, 'الإقامة'),
             'height' => str_contains($xml, '2.40 متر'),
-            'cages' => str_contains($compact, '104قفص'),
+            'cages' => str_contains($compact, '102قفص'),
             'tiers' => str_contains($compact, '3أدوار'),
             'lines' => str_contains($compact, '4خطوط'),
         ]);

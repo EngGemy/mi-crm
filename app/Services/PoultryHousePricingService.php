@@ -57,7 +57,6 @@ class PoultryHousePricingService
             'project_type' => $projectType->value,
             'barn_length' => $length,
             'barn_width' => $width,
-            'service_length' => $serviceLength,
             'tiers' => (int) $input['tiers'],
             'lines' => (int) $input['lines'],
             'bird_weight_kg' => $input['bird_weight_kg'] ?? null,
@@ -66,6 +65,12 @@ class PoultryHousePricingService
             'heaters_count' => $input['heaters_count'] ?? null,
             'air_windows_count' => $input['air_windows_count'] ?? null,
         ];
+
+        if (array_key_exists('service_length', $input) && $input['service_length'] !== null && $input['service_length'] !== '') {
+            $technicalInput['service_length'] = (float) $input['service_length'];
+        } elseif ($projectType->pricesAs() !== PoultryProjectType::Layer) {
+            $technicalInput['service_length'] = $serviceLength;
+        }
 
         $technical = $this->technical->compute($technicalInput, $technicalConfig);
 

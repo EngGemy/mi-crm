@@ -22,6 +22,8 @@ trait HasLivePoultryPricing
 {
     protected const LIVE_DEBOUNCE_MS = 800;
 
+    protected static bool $refreshingLivePricing = false;
+
     protected static function poultryPricingLiveCallback(bool $applyItems = false): \Closure
     {
         return function (Set $set, Get $get) use ($applyItems) {
@@ -32,11 +34,48 @@ trait HasLivePoultryPricing
     /**
      * Recompute technical + pricing preview and optionally sync quotation line items.
      */
-    public static function refreshLivePoultryPricing(Set $set, Get $get, bool $applyItems = false, ?int $tiersOverride = null): void
-    {
-        $length = (float) ($get('hall_length') ?? $get('length') ?? 0);
-        $width = (float) ($get('hall_width') ?? $get('width') ?? 0);
-        $height = (float) ($get('hall_height') ?? $get('height') ?? 0);
+    public static function refreshLivePoultryPricing(
+        Set $set,
+        Get $get,
+        bool $applyItems = false,
+        ?int $tiersOverride = null,
+        ?float $lengthOverride = null,
+        ?float $widthOverride = null,
+        ?float $heightOverride = null,
+    ): void {
+        if (self::$refreshingLivePricing) {
+            return;
+        }
+
+        self::$refreshingLivePricing = true;
+
+        try {
+            self::recalculateLivePoultryPricing(
+                $set,
+                $get,
+                $applyItems,
+                $tiersOverride,
+                $lengthOverride,
+                $widthOverride,
+                $heightOverride,
+            );
+        } finally {
+            self::$refreshingLivePricing = false;
+        }
+    }
+
+    protected static function recalculateLivePoultryPricing(
+        Set $set,
+        Get $get,
+        bool $applyItems = false,
+        ?int $tiersOverride = null,
+        ?float $lengthOverride = null,
+        ?float $widthOverride = null,
+        ?float $heightOverride = null,
+    ): void {
+        $length = $lengthOverride ?? (float) ($get('hall_length') ?? $get('length') ?? 0);
+        $width = $widthOverride ?? (float) ($get('hall_width') ?? $get('width') ?? 0);
+        $height = $heightOverride ?? (float) ($get('hall_height') ?? $get('height') ?? 0);
         $tiers = $tiersOverride ?? (int) ($get('tiers') ?? 0);
         $lines = (int) ($get('lines') ?? 0);
 
@@ -124,10 +163,6 @@ trait HasLivePoultryPricing
 
             if (! $autoService) {
                 $input['service_length'] = (float) ($get('service_length') ?? $get('dead_zone_meters') ?? 10);
-            } elseif ($isLayer) {
-                $input['service_length'] = LayerBaseLookups::numericOf($layerSpecs['service_id'] ?? null)
-                    ?? LayerBaseLookups::defaultNumeric(Lookup::TYPE_LAYER_SERVICE)
-                    ?? 8;
             }
 
             $result = app(PoultryHousePricingService::class)->compute($input);

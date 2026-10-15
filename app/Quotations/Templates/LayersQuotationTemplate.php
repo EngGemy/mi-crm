@@ -52,6 +52,7 @@ class LayersQuotationTemplate implements QuotationTemplate
         $technical = is_array($snapshot['technical'] ?? null) ? $snapshot['technical'] : [];
         $computed = is_array($snapshot['computed'] ?? null) ? $snapshot['computed'] : [];
         $financial = is_array($snapshot['financial'] ?? null) ? $snapshot['financial'] : [];
+        $specs = $this->layerSpecs($q);
 
         $subtotal = $this->money($q->subtotal, $financial['subtotal'] ?? null);
         $vat = $this->money($q->vat_amount, $financial['vat_amount'] ?? null);
@@ -70,14 +71,14 @@ class LayersQuotationTemplate implements QuotationTemplate
             'width' => $q->width,
             'height' => $q->height,
             'location' => $q->client_location ?: $q->client_address,
-            'effective_length' => $technical['effective_length'] ?? $computed['effective_length'] ?? null,
-            'tiers' => $technical['tiers'] ?? $q->tiers,
-            'lines' => $technical['lines'] ?? $q->lines,
-            'nests_one_side' => $technical['nests_one_side'] ?? null,
-            'nests_per_line' => $q->nests_per_line ?? $technical['nests_per_line'] ?? $computed['nests_per_line'] ?? null,
-            'total_nests' => $q->total_nests ?? $technical['total_nests'] ?? $computed['total_nests'] ?? null,
-            'birds_per_nest' => $q->birds_per_nest ?? $technical['birds_per_nest'] ?? null,
-            'bird_count' => $q->bird_count ?? $technical['total_birds'] ?? $computed['bird_count'] ?? null,
+            'effective_length' => $specs['effective_length'] ?? $technical['effective_length'] ?? $computed['effective_length'] ?? null,
+            'tiers' => $specs['tiers'] ?? $technical['tiers'] ?? $q->tiers,
+            'lines' => $specs['lines'] ?? $technical['lines'] ?? $q->lines,
+            'nests_one_side' => $specs['nests_one_side'] ?? $technical['nests_one_side'] ?? null,
+            'nests_per_line' => $specs['nests_per_line'] ?? $q->nests_per_line ?? $technical['nests_per_line'] ?? $computed['nests_per_line'] ?? null,
+            'total_nests' => $specs['total_nests'] ?? $q->total_nests ?? $technical['total_nests'] ?? $computed['total_nests'] ?? null,
+            'birds_per_nest' => $specs['birds_per_nest'] ?? $q->birds_per_nest ?? $technical['birds_per_nest'] ?? null,
+            'bird_count' => $specs['total_birds'] ?? $q->bird_count ?? $technical['total_birds'] ?? $computed['bird_count'] ?? null,
             'barns_count' => $barns,
             'silo_capacity' => $this->lookupLabel($q, 'siloCapacity'),
             'silos_count' => max(1, (int) ($q->silos_count ?: 1)),
@@ -252,35 +253,60 @@ class LayersQuotationTemplate implements QuotationTemplate
         ];
     }
 
+    /**
+     * مواصفات جدول البطاريات من طول العنبر الحالي، مش من لقطة قديمة.
+     *
+     * @return array<string, mixed>
+     */
+    private function layerSpecs(PoultryQuotation $q): array
+    {
+        $length = (float) $q->length;
+        $tiers = (int) $q->tiers;
+        $lines = (int) $q->lines;
+        if ($length <= 0 || $tiers <= 0 || $lines <= 0) {
+            return [];
+        }
+
+        if (! (PoultryProjectType::tryFrom((string) $q->project_type)?->isLayer() ?? false)) {
+            return [];
+        }
+
+        try {
+            return (new PoultryTechnicalCalculator)->compute([
+                'project_type' => PoultryProjectType::Layer->value,
+                'barn_length' => $length,
+                'barn_width' => (float) $q->width,
+                'tiers' => $tiers,
+                'lines' => $lines,
+                'birds_per_nest' => (int) ($q->birds_per_nest ?: 10),
+            ], []);
+        } catch (Throwable) {
+            return [];
+        }
+    }
+
     /** @param  array<string, mixed>  $technical
      * @param  array<string, mixed>  $computed
      */
     private function layerAisle(PoultryQuotation $q, array $technical, array $computed): ?float
     {
-        $stored = $this->optionalNumber($technical['aisle_cm'] ?? null);
-        if ($stored !== null) {
-            return $stored;
-        }
-
-        $lines = (int) ($technical['lines'] ?? $q->lines ?? $computed['lines'] ?? 0);
+        $lines = (int) ($q->lines ?? $technical['lines'] ?? $computed['lines'] ?? 0);
         $width = (float) ($q->width ?? 0);
         $aisle = (new PoultryTechnicalCalculator)->transferDistanceCm($width, $lines, true);
+        if ($aisle > 0) {
+            return (float) $aisle;
+        }
 
-        return $aisle > 0 ? (float) $aisle : null;
+        return $this->optionalNumber($technical['aisle_cm'] ?? null);
     }
 
     /** @param  array<string, mixed>  $technical */
     private function layerBatteryHeight(PoultryQuotation $q, array $technical): ?float
     {
-        $stored = $this->optionalNumber($technical['battery_height_m'] ?? null);
-        if ($stored !== null) {
-            return $stored;
-        }
-
-        $tiers = (int) ($technical['tiers'] ?? $q->tiers ?? 0);
+        $tiers = (int) ($q->tiers ?? $technical['tiers'] ?? 0);
         $height = (new PoultryTechnicalCalculator)->layerBatteryHeightM($tiers);
 
-        return $height > 0 ? $height : null;
+        return $height > 0 ? $height : $this->optionalNumber($technical['battery_height_m'] ?? null);
     }
 
     private function optionalNumber(mixed $value): ?float
