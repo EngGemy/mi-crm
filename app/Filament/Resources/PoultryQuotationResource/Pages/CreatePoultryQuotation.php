@@ -7,6 +7,8 @@ use App\Services\Poultry\PoultryWelcomeWhatsApp;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\UniqueConstraintViolationException;
 
 class CreatePoultryQuotation extends CreateRecord
 {
@@ -27,6 +29,24 @@ class CreatePoultryQuotation extends CreateRecord
         $data['vat_percentage'] = $data['vat_percentage'] ?? 0;
 
         return $data;
+    }
+
+    protected function handleRecordCreation(array $data): Model
+    {
+        $attempts = 0;
+
+        while (true) {
+            try {
+                unset($data['quote_number']);
+
+                return static::getModel()::create($data);
+            } catch (UniqueConstraintViolationException $e) {
+                $attempts++;
+                if ($attempts >= 5 || ! str_contains($e->getMessage(), 'quote_number')) {
+                    throw $e;
+                }
+            }
+        }
     }
 
     protected function afterCreate(): void

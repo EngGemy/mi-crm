@@ -163,13 +163,30 @@ class PoultryQuotation extends Model
         'approved' => 'معتمد',
     ];
 
+    /** الرقم التالي من أعلى رقم موجود للسنة، مش من عدد الصفوف (يتفادى التكرار). */
+    public static function nextQuoteNumber(?int $year = null): string
+    {
+        $year ??= (int) now()->year;
+        $prefix = 'Q-'.$year.'-';
+
+        $latest = static::query()
+            ->where('quote_number', 'like', $prefix.'%')
+            ->orderByDesc('quote_number')
+            ->value('quote_number');
+
+        $sequence = 1;
+        if (is_string($latest) && preg_match('/^Q-'.preg_quote((string) $year, '/').'-(\d+)$/', $latest, $match)) {
+            $sequence = ((int) $match[1]) + 1;
+        }
+
+        return $prefix.str_pad((string) $sequence, 4, '0', STR_PAD_LEFT);
+    }
+
     protected static function booted(): void
     {
         static::creating(function (PoultryQuotation $quotation) {
             if (empty($quotation->quote_number)) {
-                $year = now()->year;
-                $count = static::whereYear('created_at', $year)->count() + 1;
-                $quotation->quote_number = "Q-{$year}-".str_pad($count, 4, '0', STR_PAD_LEFT);
+                $quotation->quote_number = static::nextQuoteNumber();
             }
 
             $quotation->created_by = auth()->id() ?? $quotation->created_by;
