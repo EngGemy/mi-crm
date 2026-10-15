@@ -42,6 +42,7 @@ class VentilationOffer
             'circulation_unit' => (float) settings('poultry_pricing.ventilation_circulation_unit_price', 18500),
             'inlet_unit' => (float) settings('poultry_pricing.ventilation_inlet_unit_price', 2300),
             'heating' => self::baseHeating(),
+            'heater_unit' => self::baseHeaterUnitPrice(),
             'electricity' => self::baseElectricity(),
             'monitor' => self::baseMonitor(),
         ];
@@ -53,6 +54,11 @@ class VentilationOffer
             'poultry_pricing.ventilation_heating_price',
             settings('poultry_pricing.ventilation_heating_min', 750000),
         );
+    }
+
+    public static function baseHeaterUnitPrice(): float
+    {
+        return (float) settings('poultry_pricing.ventilation_heater_unit_price', 140000);
     }
 
     public static function baseElectricity(): float
@@ -70,7 +76,7 @@ class VentilationOffer
 
     /**
      * @param  array<string, float>|null  $prices
-     * @param  array{heating?: float|int|string|null, electricity?: float|int|string|null, monitor?: float|int|string|null, heating_type?: string|null}|null  $overrides
+     * @param  array{heating?: float|int|string|null, electricity?: float|int|string|null, monitor?: float|int|string|null, heating_type?: string|null, heaters_count?: int|string|null}|null  $overrides
      * @return array{
      *     fans: int,
      *     cooling_m2: float,
@@ -91,8 +97,13 @@ class VentilationOffer
         $sideFans = $broiler ? self::sideFanChoice($sideFans) : null;
         $overrides ??= [];
 
-        $heatingLabel = self::heatingLabel(isset($overrides['heating_type']) ? (string) $overrides['heating_type'] : null);
-        $heating = self::picked($overrides['heating'] ?? null, (float) ($prices['heating'] ?? $prices['heating_min'] ?? 0));
+        $heatingType = isset($overrides['heating_type']) ? (string) $overrides['heating_type'] : null;
+        $isHeater = $heatingType === self::HEATING_HEATER;
+        $heatingLabel = self::heatingLabel($heatingType);
+        $heaterCount = max(0, (int) ($overrides['heaters_count'] ?? 0));
+        $heatingUnit = $isHeater
+            ? self::picked($overrides['heating'] ?? null, (float) ($prices['heater_unit'] ?? 140000))
+            : self::picked($overrides['heating'] ?? null, (float) ($prices['heating'] ?? $prices['heating_min'] ?? 0));
         $electricity = self::picked($overrides['electricity'] ?? null, (float) ($prices['electricity'] ?? $prices['electricity_min'] ?? 0));
         $monitor = self::picked($overrides['monitor'] ?? null, (float) ($prices['monitor'] ?? 0));
 
@@ -100,7 +111,8 @@ class VentilationOffer
         $coolingAmount = $cooling * (float) $prices['cooling_m2'];
         $inletAmount = $inlets * (float) $prices['inlet_unit'];
         $circulationAmount = $sideFans === null ? 0.0 : $sideFans * (float) $prices['circulation_unit'];
-        $heatingAmount = $broiler ? $heating : 0.0;
+        $heatingQty = $isHeater ? $heaterCount : 1;
+        $heatingAmount = $broiler ? ($isHeater ? $heaterCount * $heatingUnit : $heatingUnit) : 0.0;
         $total = $fanAmount + $coolingAmount + $inletAmount + $circulationAmount + $heatingAmount + $electricity + $monitor;
 
         $weightText = self::plain($weight);
@@ -114,7 +126,15 @@ class VentilationOffer
 
         if ($broiler) {
             $rows[] = ['الشفاطات الجانبية', $sideFans === null ? 'اختار 4 أو 6 أو 8 أو 10' : $sideFans.' شفاط', false];
-            $rows[] = [$heatingLabel, self::money($heating), false];
+            $rows[] = [
+                $heatingLabel,
+                $isHeater
+                    ? ($heaterCount > 0
+                        ? $heaterCount.' × '.self::money($heatingUnit).' = '.self::money($heatingAmount)
+                        : 'اختار عدد الهياتر')
+                    : self::money($heatingUnit),
+                false,
+            ];
         }
 
         $rows[] = ['الكهرباء والكنترول والإنارة', self::money($electricity), false];
@@ -130,7 +150,7 @@ class VentilationOffer
             $lines[] = ['الشفاطات الجانبية', (string) $sideFans, self::money((float) $prices['circulation_unit']), self::money($circulationAmount)];
         }
         if ($broiler) {
-            $lines[] = [$heatingLabel, '1', self::money($heating), self::money($heating)];
+            $lines[] = [$heatingLabel, (string) $heatingQty, self::money($heatingUnit), self::money($heatingAmount)];
         }
         $lines[] = ['الكهرباء والكنترول والإنارة', '1', self::money($electricity), self::money($electricity)];
         $lines[] = ['جهاز المونيتور', '1', self::money($monitor), self::money($monitor)];
@@ -152,10 +172,10 @@ class VentilationOffer
                     'amount' => self::money($coolingAmount),
                 ],
                 'heating' => $broiler ? [
-                    'qty' => '1',
-                    'unit' => self::money($heating),
-                    'amount' => self::money($heating),
-                    'label' => ($overrides['heating_type'] ?? null) === self::HEATING_HEATER ? $heatingLabel : null,
+                    'qty' => (string) $heatingQty,
+                    'unit' => self::money($heatingUnit),
+                    'amount' => self::money($heatingAmount),
+                    'label' => $isHeater ? $heatingLabel : null,
                 ] : null,
                 'circulation' => $sideFans === null ? null : [
                     'qty' => (string) $sideFans,
@@ -222,6 +242,7 @@ class VentilationOffer
             [
                 'heating' => $quotation->ventilation_heating_price,
                 'heating_type' => $quotation->ventilation_heating_type,
+                'heaters_count' => $quotation->ventilation_heaters_count,
                 'electricity' => $quotation->ventilation_electricity_price,
                 'monitor' => $quotation->ventilation_monitor_price,
             ],

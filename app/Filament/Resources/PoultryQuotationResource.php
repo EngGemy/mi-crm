@@ -567,23 +567,49 @@ class PoultryQuotationResource extends Resource
                             VentilationOffer::HEATING_HEATER => 'التدفئة بالهيتر',
                         ])
                         ->default(VentilationOffer::HEATING_HOT_WATER)
-                        ->helperText('للتسمين. السعر تحت يتعدل لنفس الاختيار.')
+                        ->helperText('للتسمين. لو هيتر اختار العدد جنب الاختيار.')
                         ->native(false)
                         ->live()
-                        ->visible(fn (Get $get): bool => (bool) $get('include_ventilation') && static::isBroilerProject($get)),
+                        ->visible(fn (Get $get): bool => (bool) $get('include_ventilation') && static::isBroilerProject($get))
+                        ->afterStateUpdated(function (?string $state, Set $set): void {
+                            if ($state === VentilationOffer::HEATING_HEATER) {
+                                $set('ventilation_heating_price', VentilationOffer::baseHeaterUnitPrice());
+
+                                return;
+                            }
+                            $set('ventilation_heating_price', VentilationOffer::baseHeating());
+                            $set('ventilation_heaters_count', null);
+                        }),
+
+                    Forms\Components\TextInput::make('ventilation_heaters_count')
+                        ->label('عدد الهياتر')
+                        ->numeric()
+                        ->integer()
+                        ->minValue(1)
+                        ->maxValue(50)
+                        ->helperText('عدد الهياتر × سعر الهيتر الواحد = الإجمالي.')
+                        ->live()
+                        ->visible(fn (Get $get): bool => (bool) $get('include_ventilation')
+                            && static::isBroilerProject($get)
+                            && $get('ventilation_heating_type') === VentilationOffer::HEATING_HEATER),
 
                     Forms\Components\TextInput::make('ventilation_heating_price')
                         ->label(fn (Get $get): string => $get('ventilation_heating_type') === VentilationOffer::HEATING_HEATER
-                            ? 'سعر التدفئة بالهيتر'
+                            ? 'سعر الهيتر الواحد'
                             : 'سعر التدفئة بالمياه الساخنة')
                         ->numeric()
                         ->minValue(0)
                         ->suffix('ج.م')
-                        ->helperText('الرقم الأساسي من الإعدادات، وتقدر تغيّره لهذا العرض.')
+                        ->helperText(fn (Get $get): string => $get('ventilation_heating_type') === VentilationOffer::HEATING_HEATER
+                            ? 'أساسي 140,000 ج.م للهيتر. الإجمالي = العدد × السعر.'
+                            : 'الرقم الأساسي من الإعدادات، وتقدر تغيّره لهذا العرض.')
                         ->live()
                         ->visible(fn (Get $get): bool => (bool) $get('include_ventilation') && static::isBroilerProject($get))
-                        ->afterStateHydrated(function (Forms\Components\TextInput $component, mixed $state): void {
-                            static::fillOfferBase($component, $state, VentilationOffer::baseHeating());
+                        ->afterStateHydrated(function (Forms\Components\TextInput $component, mixed $state, Get $get): void {
+                            $base = $get('ventilation_heating_type') === VentilationOffer::HEATING_HEATER
+                                ? VentilationOffer::baseHeaterUnitPrice()
+                                : VentilationOffer::baseHeating();
+                            static::fillOfferBase($component, $state, $base);
                         }),
 
                     Forms\Components\TextInput::make('ventilation_electricity_price')
@@ -635,6 +661,7 @@ class PoultryQuotationResource extends Resource
                                 [
                                     'heating' => $get('ventilation_heating_price'),
                                     'heating_type' => $get('ventilation_heating_type'),
+                                    'heaters_count' => $get('ventilation_heaters_count'),
                                     'electricity' => $get('ventilation_electricity_price'),
                                     'monitor' => $get('ventilation_monitor_price'),
                                 ],

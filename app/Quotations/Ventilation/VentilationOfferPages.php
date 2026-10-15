@@ -124,10 +124,54 @@ class VentilationOfferPages
         $this->writeMoneyRow($xpath, 'لوح الكنترول', $document['electricity'] ?? null);
         $this->writeTotal($xpath, (string) ($document['total'] ?? ''));
 
+        if (($document['heating'] ?? null) === null) {
+            $this->stripHeatingFromLayerOffer($xpath);
+        }
+
         $saved = $dom->saveXML();
         $zip->deleteName('word/document.xml');
         $zip->addFromString('word/document.xml', $saved === false ? $xml : $saved);
         $zip->close();
+    }
+
+    /**
+     * البياض بدون تدفئة: نشيل صفحة HEATO ونعدّل عناوين البروشور.
+     */
+    private function stripHeatingFromLayerOffer(DOMXPath $xpath): void
+    {
+        $remove = [];
+        foreach ($xpath->query('//w:p') as $paragraph) {
+            if (! $paragraph instanceof DOMElement) {
+                continue;
+            }
+
+            $text = '';
+            foreach ($xpath->query('.//w:t', $paragraph) as $node) {
+                $text .= $node->textContent;
+            }
+
+            if (
+                str_contains($text, 'التدفئة بالمياه الساخنة')
+                || str_contains($text, 'مميزات التدفئة')
+                || str_contains($text, 'HEAT-O')
+                || str_contains($text, 'HEATO')
+                || str_contains($text, 'التدفئة المركزية')
+            ) {
+                $remove[] = $paragraph;
+            }
+        }
+
+        foreach ($remove as $paragraph) {
+            $paragraph->parentNode?->removeChild($paragraph);
+        }
+
+        foreach ($xpath->query('//w:t') as $node) {
+            if (! $node instanceof DOMElement || ! str_contains($node->textContent, 'والتدفئة')) {
+                continue;
+            }
+            $node->textContent = preg_replace('/\s*والتدفئة\s*/u', ' ', $node->textContent) ?? $node->textContent;
+            $node->textContent = preg_replace('/\s{2,}/u', ' ', $node->textContent) ?? $node->textContent;
+        }
     }
 
     private function writeLabeledRow(DOMXPath $xpath, string $label, string $value): void

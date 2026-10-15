@@ -49,14 +49,17 @@ class VentilationOfferDocumentTest extends TestCase
         $quote = $this->quote('broiler', 114, 17, 4.1, 6);
         $quote->forceFill([
             'ventilation_heating_type' => 'heater',
-            'ventilation_heating_price' => 900000,
+            'ventilation_heating_price' => 140000,
+            'ventilation_heaters_count' => 3,
         ])->saveQuietly();
 
         $cells = $this->cells((new VentilationOfferPages)->fill($quote->fresh()));
         $flat = implode("\n", array_map(fn (array $row) => implode(' | ', $row), $cells));
 
         $this->assertStringContainsString('التدفئة بالهيتر', $flat);
-        $this->assertStringContainsString('900,000', $flat);
+        $this->assertStringContainsString('140,000', $flat);
+        $this->assertStringContainsString('420,000', $flat);
+        $this->assertStringContainsString('3', $this->row($cells, 'التدفئة بالهيتر'));
         $this->assertStringNotContainsString('المياه الساخنة', $flat);
     }
 
@@ -75,6 +78,19 @@ class VentilationOfferDocumentTest extends TestCase
         $this->assertStringNotContainsString('مراوح تقليب', $flat);
         $this->assertStringContainsString('2,870,600', $this->row($cells, 'TOTAL'));
         $this->assertStringNotContainsString('إلى', $this->row($cells, 'TOTAL'));
+
+        $docx = (new VentilationOfferPages)->fill($quote);
+        $zip = new ZipArchive;
+        $this->assertTrue($zip->open($docx));
+        $xml = $zip->getFromName('word/document.xml');
+        $zip->close();
+        @unlink($docx);
+        $plain = trim(preg_replace('/\s+/u', ' ', strip_tags((string) $xml)));
+        $this->assertStringNotContainsString('والتدفئة', $plain);
+        $this->assertStringNotContainsString('HEAT-O', $plain);
+        $this->assertStringNotContainsString('HEATO', $plain);
+        $this->assertStringNotContainsString('التدفئة بالمياه الساخنة', $plain);
+        $this->assertStringContainsString('منظومة التهوية والكنترول', $plain);
     }
 
     public function test_accessories_pdf_falls_back_when_word_conversion_fails(): void

@@ -31,11 +31,15 @@ class VentilationOfferTest extends TestCase
 
         $heater = (new VentilationOffer(new PoultryTechnicalCalculator))->calculate(80952, 114, true, 6, $this->prices(), [
             'heating_type' => VentilationOffer::HEATING_HEATER,
-            'heating' => 900000,
+            'heating' => 140000,
+            'heaters_count' => 3,
         ]);
         $this->assertSame('التدفئة بالهيتر', $heater['rows'][5][0]);
         $this->assertSame('التدفئة بالهيتر', $heater['document']['heating']['label']);
-        $this->assertSame('900,000 ج.م', $heater['document']['heating']['amount']);
+        $this->assertSame('3', $heater['document']['heating']['qty']);
+        $this->assertSame('140,000 ج.م', $heater['document']['heating']['unit']);
+        $this->assertSame('420,000 ج.م', $heater['document']['heating']['amount']);
+        $this->assertStringContainsString('3 ×', $heater['rows'][5][1]);
     }
 
     public function test_salesperson_override_replaces_the_base_price(): void
@@ -123,6 +127,7 @@ class VentilationOfferTest extends TestCase
             'circulation_unit' => 18500,
             'inlet_unit' => 2300,
             'heating' => 750000,
+            'heater_unit' => 140000,
             'electricity' => 750000,
             'monitor' => 250000,
         ];
