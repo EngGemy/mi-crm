@@ -203,6 +203,16 @@ class PoultryTechnicalCalculatorTest extends TestCase
     }
 
     /** @test */
+    public function layer_height_picks_three_tiers_from_2_9_and_four_from_3_5(): void
+    {
+        $this->assertSame('البياض لا يقبل ارتفاعاً أقل من 2.9 م', $this->calc->layerTierRule(2.89)['message']);
+        $this->assertSame(3, $this->calc->layerTierRule(2.9)['tiers']);
+        $this->assertSame(3, $this->calc->layerTierRule(3.49)['tiers']);
+        $this->assertSame(4, $this->calc->layerTierRule(3.5)['tiers']);
+        $this->assertSame(4, $this->calc->layerTierRule(4)['tiers']);
+    }
+
+    /** @test */
     public function auto_exit_height_starts_at_3_60_for_three_tiers_and_4_40_for_four(): void
     {
         $this->assertSame('التخريج الآلي لا يقبل ارتفاعاً أقل من 3.60 م', $this->calc->autoExitTierRule(3.59)['message']);

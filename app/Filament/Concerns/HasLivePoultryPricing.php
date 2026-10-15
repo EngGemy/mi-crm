@@ -53,7 +53,9 @@ trait HasLivePoultryPricing
             if (($isBroiler || $isAutoExit || $isLayer) && $height > 0) {
                 $rule = $isAutoExit
                     ? $calc->autoExitTierRule($height)
-                    : $calc->broilerTierRule($height, (string) ($get('roof_type') ?: 'flat'));
+                    : ($isLayer
+                        ? $calc->layerTierRule($height)
+                        : $calc->broilerTierRule($height, (string) ($get('roof_type') ?: 'flat')));
                 if ($rule['message'] !== null) {
                     $set('pricing_preview', ['error' => $rule['message']]);
 
@@ -304,7 +306,11 @@ trait HasLivePoultryPricing
             return $calc->autoExitTierRule($height);
         }
 
-        if (static::isBroilerProject($get) || static::isLayerProject($get)) {
+        if (static::isLayerProject($get)) {
+            return $calc->layerTierRule($height);
+        }
+
+        if (static::isBroilerProject($get)) {
             return $calc->broilerTierRule($height, (string) ($get('roof_type') ?: 'flat'));
         }
 

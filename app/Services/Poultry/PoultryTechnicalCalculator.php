@@ -319,7 +319,7 @@ class PoultryTechnicalCalculator
     }
 
     /**
-     * تسمين وبياض. سقف مستوي: أقل من 2.9 م مرفوض، ومن 3 إلى 3.5 م = 3 أدوار، ومن 3.7 إلى 4.5 م = 4 أدوار.
+     * تسمين + سقف مستوي: أقل من 2.9 م مرفوض، ومن 3 إلى 3.5 م = 3 أدوار، ومن 3.7 إلى 4.5 م = 4 أدوار.
      * السقف المائل يقبل أقل بـ 30 سم في كل حد.
      *
      * @return array{tiers: int|null, message: string|null}
@@ -351,6 +351,31 @@ class PoultryTechnicalCalculator
         }
 
         return ['tiers' => null, 'message' => null];
+    }
+
+    /**
+     * بياض: من 2.9 م = 3 أدوار، ومن 3.5 م = 4 أدوار. أقل من 2.9 مرفوض.
+     *
+     * @return array{tiers: int|null, message: string|null}
+     */
+    public function layerTierRule(float $height): array
+    {
+        if ($height <= 0) {
+            return ['tiers' => null, 'message' => null];
+        }
+
+        if ($height < 2.9 - 0.0001) {
+            return [
+                'tiers' => null,
+                'message' => 'البياض لا يقبل ارتفاعاً أقل من 2.9 م',
+            ];
+        }
+
+        if ($height < 3.5 - 0.0001) {
+            return ['tiers' => 3, 'message' => null];
+        }
+
+        return ['tiers' => 4, 'message' => null];
     }
 
     /**

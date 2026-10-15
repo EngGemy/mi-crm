@@ -268,8 +268,8 @@ class PoultryQuotationResource extends Resource
                         ->default('flat')
                         ->required()
                         ->native(false)
-                        ->visible(fn (Get $get) => static::isBroilerProject($get) || static::isLayerProject($get))
-                        ->dehydrated(fn (Get $get) => static::isBroilerProject($get) || static::isLayerProject($get))
+                        ->visible(fn (Get $get) => static::isBroilerProject($get))
+                        ->dehydrated(fn (Get $get) => static::isBroilerProject($get))
                         ->live()
                         ->afterStateUpdated($live),
 
@@ -329,7 +329,11 @@ class PoultryQuotationResource extends Resource
                                 return '3 أدوار من 3.60 م، و4 أدوار من 4.40 م. يمكن كتابة الارتفاع بكسر مثل 3.65.';
                             }
 
-                            return (static::isBroilerProject($get) || static::isLayerProject($get))
+                            if (static::isLayerProject($get)) {
+                                return 'من 2.9 م يختار 3 أدوار، ومن 3.5 م يختار 4 أدوار. أقل من 2.9 م مرفوض.';
+                            }
+
+                            return static::isBroilerProject($get)
                                 ? 'سقف مستوي: أقل من 2.9 م مرفوض، ومن 3 إلى 3.5 م يختار 3 أدوار، ومن 3.7 إلى 4.5 م يختار 4 أدوار. السقف المائل أقل بـ 30 سم.'
                                 : null;
                         })
@@ -395,9 +399,15 @@ class PoultryQuotationResource extends Resource
                             return $height > 0 && static::barnTierRule($get, $height)['tiers'] !== null;
                         })
                         ->dehydrated()
-                        ->helperText(fn (Get $get): ?string => (static::isBroilerProject($get) || static::isLayerProject($get))
-                            ? 'يتحدد من الارتفاع ونوع السقف داخل النطاقات المعتمدة.'
-                            : null)
+                        ->helperText(function (Get $get): ?string {
+                            if (static::isLayerProject($get)) {
+                                return 'من 2.9 م = 3 أدوار، ومن 3.5 م = 4 أدوار.';
+                            }
+
+                            return static::isBroilerProject($get)
+                                ? 'يتحدد من الارتفاع ونوع السقف داخل النطاقات المعتمدة.'
+                                : null;
+                        })
                         ->afterStateUpdated(function (Set $set, Get $get, $state) {
                             $set('tiers', (int) $state);
                             static::refreshLivePoultryPricing($set, $get, false, (int) $state);
