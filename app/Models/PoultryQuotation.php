@@ -8,6 +8,7 @@ use App\Models\Concerns\NormalizesMoneyAttributes;
 use App\Quotations\Exceptions\LayerRearingDisabledException;
 use App\Quotations\QuotationTemplateResolver;
 use App\Services\Poultry\PoultryTechnicalCalculator;
+use App\Services\Poultry\SavedClientCatalog;
 use App\Services\PoultryHousePricingService;
 use App\Services\Poultry\ProposalSnapshotFreezer;
 use App\Support\FinancialEngine;
@@ -108,6 +109,8 @@ class PoultryQuotation extends Model
         'image_path',
         'pricing_snapshot',
         'created_by',
+        'client_added_by',
+        'contributors',
     ];
 
     protected $casts = [
@@ -154,6 +157,7 @@ class PoultryQuotation extends Model
         'total' => 'decimal:2',
         'vat_percentage' => 'decimal:2',
         'pricing_snapshot' => 'array',
+        'contributors' => 'array',
         'issued_at' => 'datetime',
     ];
 
@@ -191,7 +195,12 @@ class PoultryQuotation extends Model
                 $quotation->quote_number = static::nextQuoteNumber();
             }
 
-            $quotation->created_by = auth()->id() ?? $quotation->created_by;
+            if (empty($quotation->created_by)) {
+                $quotation->created_by = auth()->id();
+            }
+            if (empty($quotation->client_added_by)) {
+                $quotation->client_added_by = SavedClientCatalog::registrarId(null, $quotation->client_phone);
+            }
             $quotation->project_type ??= PoultryProjectType::Broiler->value;
             $quotation->pricing_scope ??= PoultryPricingScope::FullProject->value;
             if (empty($quotation->issued_at)) {
@@ -199,6 +208,25 @@ class PoultryQuotation extends Model
             }
 
             $quotation->freezeQuoteTypeId();
+        });
+
+        static::updating(function (PoultryQuotation $quotation) {
+            $originalAuthor = $quotation->getOriginal('created_by');
+            if ($quotation->isDirty('created_by') && filled($originalAuthor)) {
+                $quotation->created_by = $originalAuthor;
+            }
+
+            $originalRegistrar = $quotation->getOriginal('client_added_by');
+            if ($quotation->isDirty('client_added_by') && filled($originalRegistrar)) {
+                $quotation->client_added_by = $originalRegistrar;
+            } elseif (empty($quotation->client_added_by)) {
+                $quotation->client_added_by = SavedClientCatalog::registrarId(null, $quotation->client_phone);
+            }
+
+            $user = auth()->user();
+            if ($user && (int) $user->id !== (int) $quotation->created_by) {
+                $quotation->rememberContributor((int) $user->id, $user->name);
+            }
         });
 
         static::saving(function (PoultryQuotation $quotation) {
@@ -524,6 +552,64 @@ class PoultryQuotation extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function clientAdder(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'client_added_by');
+    }
+
+    /** @return list<string> */
+    public function creditLines(): array
+    {
+        $lines = [];
+        $registrar = trim((string) ($this->clientAdder?->name ?? ''));
+        $author = trim((string) ($this->creator?->name ?? ''));
+
+        if ($registrar !== '') {
+            $lines[] = 'سجّل العميل: '.$registrar;
+        }
+        if ($author !== '') {
+            $lines[] = 'عرض السعر: '.$author;
+        }
+
+        $editors = $this->contributorNames();
+        if ($editors !== '') {
+            $lines[] = 'ساهم بالتعديل: '.$editors;
+        }
+
+        return $lines;
+    }
+
+    public function contributorNames(): string
+    {
+        return collect($this->contributors ?? [])
+            ->map(fn ($row) => is_array($row) ? trim((string) ($row['name'] ?? '')) : '')
+            ->filter()
+            ->unique()
+            ->implode('، ');
+    }
+
+    public function rememberContributor(int $userId, ?string $name): void
+    {
+        if ($userId < 1 || $userId === (int) $this->created_by) {
+            return;
+        }
+
+        $list = $this->contributors ?? [];
+        foreach ($list as $row) {
+            if (is_array($row) && (int) ($row['user_id'] ?? 0) === $userId) {
+                return;
+            }
+        }
+
+        $label = trim((string) $name);
+        $list[] = [
+            'user_id' => $userId,
+            'name' => $label !== '' ? $label : 'مستخدم',
+            'at' => now()->toDateTimeString(),
+        ];
+        $this->contributors = $list;
     }
 
     public function contract(): BelongsTo

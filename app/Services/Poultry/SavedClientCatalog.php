@@ -4,6 +4,7 @@ namespace App\Services\Poultry;
 
 use App\Models\Customer;
 use App\Models\Lead;
+use App\Models\User;
 
 /**
  * One optional picker for a saved person, whether they were entered as a
@@ -46,6 +47,61 @@ class SavedClientCatalog
         }
 
         return $options;
+    }
+
+    /**
+     * Who first saved this person. A later quote or login must not replace them.
+     */
+    public static function registrarId(?string $key, ?string $phone): ?int
+    {
+        if (is_string($key) && str_contains($key, ':')) {
+            [$kind, $id] = explode(':', $key, 2);
+            $id = (int) $id;
+            if ($id > 0 && $kind === 'lead') {
+                $createdBy = Lead::query()->whereKey($id)->value('created_by');
+
+                return $createdBy ? (int) $createdBy : null;
+            }
+            if ($id > 0 && $kind === 'customer') {
+                $createdBy = Lead::query()
+                    ->where('customer_id', $id)
+                    ->whereNotNull('created_by')
+                    ->orderBy('id')
+                    ->value('created_by');
+                if ($createdBy) {
+                    return (int) $createdBy;
+                }
+            }
+        }
+
+        $phoneKey = self::phoneKey($phone);
+        if ($phoneKey === null) {
+            return null;
+        }
+
+        $lead = Lead::query()
+            ->whereNotNull('created_by')
+            ->orderBy('id')
+            ->get(['id', 'phone', 'whatsapp', 'created_by'])
+            ->first(function (Lead $lead) use ($phoneKey) {
+                return self::phoneKey($lead->phone) === $phoneKey
+                    || self::phoneKey($lead->whatsapp) === $phoneKey;
+            });
+
+        return $lead?->created_by ? (int) $lead->created_by : null;
+    }
+
+    public static function registrarName(?string $key, ?string $phone): ?string
+    {
+        $id = self::registrarId($key, $phone);
+        if (! $id) {
+            return null;
+        }
+
+        $name = User::query()->whereKey($id)->value('name');
+        $name = trim((string) $name);
+
+        return $name !== '' ? $name : null;
     }
 
     /** @return array<string, mixed>|null */

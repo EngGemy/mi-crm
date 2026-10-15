@@ -4,6 +4,7 @@ namespace App\Filament\Resources\PoultryQuotationResource\Pages;
 
 use App\Filament\Resources\PoultryQuotationResource;
 use App\Services\Poultry\PoultryWelcomeWhatsApp;
+use App\Services\Poultry\SavedClientCatalog;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Contracts\Support\Htmlable;
@@ -27,6 +28,14 @@ class CreatePoultryQuotation extends CreateRecord
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $data['vat_percentage'] = $data['vat_percentage'] ?? 0;
+
+        $registrar = SavedClientCatalog::registrarId(
+            $this->data['saved_client'] ?? null,
+            $data['client_phone'] ?? null,
+        );
+        if ($registrar) {
+            $data['client_added_by'] = $registrar;
+        }
 
         return $data;
     }

@@ -185,6 +185,13 @@ class Lead extends Model
             }
         });
 
+        static::updating(function (Lead $lead) {
+            $original = $lead->getOriginal('created_by');
+            if ($lead->isDirty('created_by') && filled($original)) {
+                $lead->created_by = $original;
+            }
+        });
+
         static::saving(function (Lead $lead) {
             if ($lead->country === null || $lead->country === '') {
                 $lead->country = 'Egypt';

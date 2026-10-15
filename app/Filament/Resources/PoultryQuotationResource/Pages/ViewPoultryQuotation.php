@@ -48,6 +48,22 @@ class ViewPoultryQuotation extends ViewRecord
                         Components\TextEntry::make('client_address')->label('العنوان'),
                     ]),
 
+                Components\Section::make('متابعة الموظفين')
+                    ->icon('heroicon-o-users')
+                    ->description('اسم اللي سجّل العميل ثابت. عرض السعر باسم اللي حفظه. التعديل من حساب تالت يتسجل مساهمة ومش بيشيل حد.')
+                    ->columns(3)
+                    ->schema([
+                        Components\TextEntry::make('clientAdder.name')
+                            ->label('سجّل العميل')
+                            ->placeholder('—'),
+                        Components\TextEntry::make('creator.name')
+                            ->label('عمل عرض السعر')
+                            ->placeholder('—'),
+                        Components\TextEntry::make('contributor_line')
+                            ->label('ساهم بالتعديل')
+                            ->state(fn (PoultryQuotation $record): string => $record->contributorNames() ?: '—'),
+                    ]),
+
                 Components\Section::make('النتيجة')
                     ->icon('heroicon-o-currency-pound')
                     ->columns(3)

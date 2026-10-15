@@ -66,11 +66,15 @@ class PoultryQuotationResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery();
+        $query = parent::getEloquentQuery()->with(['creator:id,name', 'clientAdder:id,name']);
         $user = auth()->user();
 
         if ($user && PoultryQuoteAccess::seesOwnQuotesOnly($user)) {
-            $query->where('created_by', $user->id);
+            $query->where(function (Builder $inner) use ($user) {
+                $inner->where('created_by', $user->id)
+                    ->orWhere('client_added_by', $user->id)
+                    ->orWhereJsonContains('contributors', ['user_id' => $user->id]);
+            });
         }
 
         return $query;
@@ -139,7 +143,7 @@ class PoultryQuotationResource extends Resource
                         ->native(false)
                         ->dehydrated(false)
                         ->placeholder('من العملاء أو العملاء المحتملين')
-                        ->helperText('العميل المتسجل من بره يظهر لكل السيلز، ومعاه اسم المندوب اللي أضافه.')
+                        ->helperText('اسم اللي سجّل العميل بيفضل ثابت. عرض السعر يتسجل باسم اللي حفظه، وأي تعديل من حساب تالت يتسجل مساهمة من غير ما يشيل الأسماء.')
                         ->live()
                         ->afterStateHydrated(function (Forms\Components\Select $component, ?PoultryQuotation $record): void {
                             if ($record?->customer_id) {
@@ -161,6 +165,25 @@ class PoultryQuotationResource extends Resource
                             foreach ($fields as $field => $value) {
                                 $set($field, $value);
                             }
+                        })
+                        ->columnSpanFull(),
+
+                    Forms\Components\Placeholder::make('attribution_hint')
+                        ->label('متابعة الموظفين')
+                        ->content(function (Get $get, ?PoultryQuotation $record) {
+                            if ($record) {
+                                $lines = $record->creditLines();
+                                $text = $lines === [] ? '—' : implode("\n", $lines);
+
+                                return new HtmlString(nl2br(e($text)));
+                            }
+
+                            $name = SavedClientCatalog::registrarName($get('saved_client'), $get('client_phone'));
+                            if ($name) {
+                                return "سجّل العميل: {$name}. عرض السعر هيتسجل باسمك، والاسمين هيفضلوا حتى لو حد تالت عدّل.";
+                            }
+
+                            return 'لو العميل متسجل قبل كده، اسم اللي سجّله هيفضل ظاهر مع اسم اللي عمل عرض السعر.';
                         })
                         ->columnSpanFull(),
 
@@ -890,10 +913,19 @@ class PoultryQuotationResource extends Resource
                     ->searchable()
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('creator.name')
-                    ->label('المندوب')
-                    ->visible(fn (): bool => ! PoultryQuoteAccess::seesOwnQuotesOnly(auth()->user()))
-                    ->toggleable(),
+                Tables\Columns\TextColumn::make('created_by')
+                    ->label('المتابعة')
+                    ->formatStateUsing(function ($state, PoultryQuotation $record): string {
+                        $lines = $record->creditLines();
+
+                        return $lines[0] ?? '—';
+                    })
+                    ->description(function (PoultryQuotation $record): ?string {
+                        $lines = $record->creditLines();
+
+                        return count($lines) > 1 ? implode(' · ', array_slice($lines, 1)) : null;
+                    })
+                    ->wrap(),
 
                 Tables\Columns\TextColumn::make('client_name')
                     ->label('العميل')
