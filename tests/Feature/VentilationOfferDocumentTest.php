@@ -158,10 +158,11 @@ class VentilationOfferDocumentTest extends TestCase
             'width' => 12,
             'height' => 4,
             'construction_choice' => 'sandwich',
-            'construction_price' => 2450,
             'construction_concrete_price' => 1200,
+            'construction_price' => 3350,
         ]);
         $cells = $this->cells((new ConstructionOfferPages)->fill($quote));
+        $flat = implode("\n", array_map(fn (array $row) => implode(' | ', $row), $cells));
 
         $this->assertSame('تسمين', $this->valueBeside($cells, 'نوع العنبر'));
         $this->assertSame('81 متر', $this->valueBeside($cells, 'طول العنبر'));
@@ -170,11 +171,12 @@ class VentilationOfferDocumentTest extends TestCase
         $this->assertStringContainsString('972', $this->row($cells, 'اعمال الخرسانة'));
         $this->assertStringContainsString('1,200', $this->row($cells, 'اعمال الخرسانة'));
         $this->assertStringContainsString('1,166,400', $this->row($cells, 'اعمال الخرسانة'));
-        $this->assertStringContainsString('2,381,400', $this->row($cells, 'المبنى الاستيل'));
-        $this->assertStringContainsString('648', $this->row($cells, 'الحوائط عبارة'));
-        $this->assertStringContainsString('777,600', $this->row($cells, 'الحوائط عبارة'));
-        $this->assertStringContainsString('4,725,400', $this->row($cells, 'TOTAL'));
-        $this->assertStringNotContainsString('2,450', $this->row($cells, 'TOTAL'));
+        $this->assertStringContainsString('الجملون والحوائط', $flat);
+        $this->assertStringContainsString('3,350', $this->row($cells, 'الجملون والحوائط'));
+        $this->assertStringContainsString('3,256,200', $this->row($cells, 'الجملون والحوائط'));
+        $this->assertStringNotContainsString('الحوائط عبارة', $flat);
+        $this->assertStringContainsString('400,000', $this->row($cells, 'خزانات'));
+        $this->assertStringContainsString('4,822,600', $this->row($cells, 'TOTAL'));
 
         $edited = new PoultryQuotation([
             'project_type' => 'broiler',
@@ -187,7 +189,7 @@ class VentilationOfferDocumentTest extends TestCase
         $editedCells = $this->cells((new ConstructionOfferPages)->fill($edited));
         $this->assertStringContainsString('1,500', $this->row($editedCells, 'اعمال الخرسانة'));
         $this->assertStringContainsString('1,458,000', $this->row($editedCells, 'اعمال الخرسانة'));
-        $this->assertStringContainsString('5,017,000', $this->row($editedCells, 'TOTAL'));
+        $this->assertStringContainsString('5,114,200', $this->row($editedCells, 'TOTAL'));
     }
 
     public function test_construction_pdf_keeps_the_brochure_when_word_conversion_fails(): void

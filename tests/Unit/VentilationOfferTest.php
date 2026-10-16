@@ -87,23 +87,22 @@ class VentilationOfferTest extends TestCase
 
     public function test_construction_brochure_uses_barn_area_for_the_total(): void
     {
-        $rates = ['concrete' => 1200, 'steel' => 2450, 'wall' => 1200, 'tanks' => 480000];
+        $rates = ['concrete' => 1200, 'shell' => 3350, 'tanks' => 400000];
         $summary = new ConstructionSummary;
 
-        $base = $summary->lines(81, 12, 4, $rates);
+        $base = $summary->lines(81, 12, $rates);
         $this->assertSame('972', $base['concrete']['qty']);
-        $this->assertSame('648', $base['walls']['qty']);
+        $this->assertSame('972', $base['shell']['qty']);
         $this->assertSame('1,166,400 ج.م', $base['concrete']['amount']);
-        $this->assertSame('2,381,400 ج.م', $base['steel']['amount']);
-        $this->assertSame('2,450 ج.م', $base['steel']['unit']);
-        $this->assertSame('777,600 ج.م', $base['walls']['amount']);
-        $this->assertSame('480,000 ج.م', $base['tanks']['amount']);
-        $this->assertSame('4,805,400 ج.م', $base['total']);
+        $this->assertSame('3,350 ج.م', $base['shell']['unit']);
+        $this->assertSame('3,256,200 ج.م', $base['shell']['amount']);
+        $this->assertSame('400,000 ج.م', $base['tanks']['amount']);
+        $this->assertSame('4,822,600 ج.م', $base['total']);
 
-        $shown = $summary->lines(81, 12, 4, ['concrete' => 850, 'steel' => 2450, 'wall' => 1200, 'tanks' => 400000]);
+        $shown = $summary->lines(81, 12, ['concrete' => 850, 'shell' => 3350, 'tanks' => 400000]);
         $this->assertSame('826,200 ج.م', $shown['concrete']['amount']);
-        $this->assertSame('2,381,400 ج.م', $shown['steel']['amount']);
-        $this->assertSame('4,385,200 ج.م', $shown['total']);
+        $this->assertSame('3,256,200 ج.م', $shown['shell']['amount']);
+        $this->assertSame('4,482,400 ج.م', $shown['total']);
     }
 
     public function test_construction_uses_the_fixed_price_of_the_chosen_type(): void

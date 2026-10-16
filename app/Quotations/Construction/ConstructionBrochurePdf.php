@@ -81,17 +81,19 @@ class ConstructionBrochurePdf
     {
         $lines = app(ConstructionSummary::class)->brochure($quotation);
         $rows = [
-            ['line' => $lines['concrete'], 'y' => 273, 'h' => 61, 'fill' => [241, 219, 219]],
-            ['line' => $lines['steel'], 'y' => 338, 'h' => 61, 'fill' => [228, 184, 183]],
-            ['line' => $lines['walls'], 'y' => 403, 'h' => 63, 'fill' => [241, 219, 219]],
-            ['line' => $lines['tanks'], 'y' => 470, 'h' => 61, 'fill' => [228, 184, 183]],
+            ['line' => $lines['concrete'], 'label' => 'الأرضية الخرسانية', 'y' => 273, 'h' => 61, 'fill' => [241, 219, 219]],
+            ['line' => $lines['shell'], 'label' => 'الجملون والحوائط', 'y' => 338, 'h' => 61, 'fill' => [228, 184, 183]],
+            ['line' => $lines['tanks'], 'label' => 'الخزانات', 'y' => 403, 'h' => 63, 'fill' => [241, 219, 219]],
         ];
 
         foreach ($rows as $row) {
+            $this->cell($mpdf, 36, $row['y'], 196, $row['h'], $row['label'], $row['fill'], [120, 0, 0], 9);
             $this->cell($mpdf, 238, $row['y'], 62, $row['h'], $row['line']['unit'], $row['fill'], [20, 16, 16], 8);
             $this->cell($mpdf, 354, $row['y'], 40, $row['h'], $row['line']['qty'], $row['fill'], [20, 16, 16], 9);
             $this->cell($mpdf, 451, $row['y'], 93, $row['h'], $row['line']['amount'], $row['fill'], [20, 16, 16], 9);
         }
+
+        $this->cell($mpdf, 36, 470, 520, 61, '', [255, 255, 255], [255, 255, 255], 8);
 
         $this->cell($mpdf, 310, 538, 234, 54, $lines['total'], [192, 0, 0], [255, 255, 255], 12);
     }

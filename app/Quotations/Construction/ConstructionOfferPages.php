@@ -101,8 +101,8 @@ class ConstructionOfferPages
 
         $lines = app(ConstructionSummary::class)->brochure($quotation);
         $this->writeMoneyRow($xpath, 'اعمال الخرسانة', $lines['concrete']);
-        $this->writeMoneyRow($xpath, 'المبنى الاستيل', $lines['steel']);
-        $this->writeMoneyRow($xpath, 'الحوائط عبارة', $lines['walls']);
+        $this->writeMoneyRow($xpath, 'المبنى الاستيل', $lines['shell'], 'الجملون والحوائط');
+        $this->removeMoneyRow($xpath, 'الحوائط عبارة');
         $this->writeMoneyRow($xpath, 'خزانات مياة الشرب', $lines['tanks']);
         $this->writeTotal($xpath, $lines['total']);
 
@@ -126,18 +126,32 @@ class ConstructionOfferPages
     /**
      * @param  array{qty: string, unit: string, amount: string}  $line
      */
-    private function writeMoneyRow(DOMXPath $xpath, string $marker, array $line): void
+    private function writeMoneyRow(DOMXPath $xpath, string $marker, array $line, ?string $label = null): void
     {
         foreach ($this->rows($xpath) as $row) {
             $cells = $this->cells($row);
             if ($cells === [] || ! str_contains($this->cellText($cells[0]), $marker)) {
                 continue;
             }
+            if ($label !== null) {
+                $this->writeCell($cells[0], $label);
+            }
             if (isset($cells[1], $cells[3], $cells[5])) {
                 $this->writeCell($cells[1], $line['unit']);
                 $this->writeCell($cells[3], $line['qty']);
                 $this->writeCell($cells[5], $line['amount']);
             }
+        }
+    }
+
+    private function removeMoneyRow(DOMXPath $xpath, string $marker): void
+    {
+        foreach ($this->rows($xpath) as $row) {
+            $cells = $this->cells($row);
+            if ($cells === [] || ! str_contains($this->cellText($cells[0]), $marker)) {
+                continue;
+            }
+            $row->parentNode?->removeChild($row);
         }
     }
 

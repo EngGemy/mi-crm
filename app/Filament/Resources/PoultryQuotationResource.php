@@ -711,7 +711,7 @@ class PoultryQuotationResource extends Resource
 
                     Forms\Components\Toggle::make('include_construction')
                         ->label('العميل عاوز الإنشاءات')
-                        ->helperText('عرض واحد. الرقم الأساسي من الإعدادات حسب ساندوتش بانل أو خرسانة، وتقدر تغيّره لهذا العرض.')
+                        ->helperText('ثلاثة بنود: أرضية خرسانية، جملون وحوائط، وخزانات ثابتة.')
                         ->live()
                         ->columnSpanFull(),
 
@@ -723,17 +723,18 @@ class PoultryQuotationResource extends Resource
                         ->live()
                         ->required(fn (Get $get): bool => (bool) $get('include_construction'))
                         ->visible(fn (Get $get): bool => (bool) $get('include_construction'))
-                        ->afterStateUpdated(function (?string $state, Set $set): void {
-                            $prices = ConstructionSummary::prices();
-                            $set('construction_price', $prices[$state === 'cement' ? 'cement' : 'sandwich']);
+                        ->afterStateUpdated(function (Set $set, Get $get): void {
+                            if (blank($get('construction_price'))) {
+                                $set('construction_price', ConstructionSummary::baseShell());
+                            }
                         }),
 
                     Forms\Components\TextInput::make('construction_concrete_price')
-                        ->label('سعر متر الخرسانة')
+                        ->label('سعر متر الأرضية الخرسانية')
                         ->numeric()
                         ->minValue(0)
                         ->suffix('ج.م')
-                        ->helperText('الأساس 1,200 جنيه للمتر. تقدر تغيّره لهذا العرض، والإجمالي يتحدث.')
+                        ->helperText('الطول × العرض × 1,200. تقدر تغيّر سعر المتر لهذا العرض.')
                         ->live()
                         ->visible(fn (Get $get): bool => (bool) $get('include_construction'))
                         ->afterStateHydrated(function (Forms\Components\TextInput $component, mixed $state): void {
@@ -741,17 +742,15 @@ class PoultryQuotationResource extends Resource
                         }),
 
                     Forms\Components\TextInput::make('construction_price')
-                        ->label('مبلغ الإنشاءات')
+                        ->label('سعر متر الجملون والحوائط')
                         ->numeric()
                         ->minValue(0)
                         ->suffix('ج.م')
-                        ->helperText('الرقم الأساسي من الإعدادات، وتقدر تغيّره لهذا العرض.')
+                        ->helperText('بند واحد. المساحة = الطول × العرض، والأساس 3,350 جنيه للمتر.')
                         ->live()
                         ->visible(fn (Get $get): bool => (bool) $get('include_construction'))
-                        ->afterStateHydrated(function (Forms\Components\TextInput $component, mixed $state, Get $get): void {
-                            $prices = ConstructionSummary::prices();
-                            $base = $prices[($get('construction_choice') === 'cement') ? 'cement' : 'sandwich'];
-                            static::fillOfferBase($component, $state, $base);
+                        ->afterStateHydrated(function (Forms\Components\TextInput $component, mixed $state): void {
+                            static::fillOfferBase($component, $state, ConstructionSummary::baseShell());
                         }),
 
                     Forms\Components\Placeholder::make('construction_preview')
@@ -766,14 +765,14 @@ class PoultryQuotationResource extends Resource
                                 'height' => $get('height'),
                                 'construction_choice' => $get('construction_choice') ?: 'sandwich',
                                 'construction_concrete_price' => $get('construction_concrete_price'),
+                                'construction_price' => $get('construction_price'),
                             ]);
                             $brochure = app(ConstructionSummary::class)->brochure($quote);
 
                             return static::summaryRowsHtml('', [
-                                ['خرسانات', $brochure['concrete']['unit'].' × '.$brochure['concrete']['qty'].' = '.$brochure['concrete']['amount'], false],
-                                ['استيل', $brochure['steel']['unit'].' × '.$brochure['steel']['qty'].' = '.$brochure['steel']['amount'], false],
-                                ['حوائط', $brochure['walls']['unit'].' × '.$brochure['walls']['qty'].' = '.$brochure['walls']['amount'], false],
-                                ['خزانات', $brochure['tanks']['amount'], false],
+                                ['الأرضية الخرسانية', $brochure['concrete']['qty'].' م² × '.$brochure['concrete']['unit'].' = '.$brochure['concrete']['amount'], false],
+                                ['الجملون والحوائط', $brochure['shell']['qty'].' م² × '.$brochure['shell']['unit'].' = '.$brochure['shell']['amount'], false],
+                                ['الخزانات', $brochure['tanks']['amount'], false],
                                 ['الإجمالي', $brochure['total'], false],
                             ]);
                         }),
@@ -884,6 +883,34 @@ class PoultryQuotationResource extends Resource
         }
     }
 
+    public static function followUpHtml(PoultryQuotation $record): string
+    {
+        $people = $record->creditPeople();
+        if ($people === []) {
+            return '<span class="pq-follow-empty">—</span>';
+        }
+
+        $roles = [
+            'سجّل العميل' => 'register',
+            'عرض السعر' => 'quote',
+            'تعديل' => 'edit',
+        ];
+        $html = '<div class="pq-follow">';
+        foreach ($people as $person) {
+            $html .= '<div class="pq-follow-person">';
+            $html .= '<span class="pq-follow-name">'.e($person['name']).'</span>';
+            $html .= '<span class="pq-follow-roles">';
+            foreach ($person['roles'] as $role) {
+                $kind = $roles[$role] ?? 'edit';
+                $html .= '<span class="pq-role pq-role-'.$kind.'">'.e($role).'</span>';
+            }
+            $html .= '</span></div>';
+        }
+        $html .= '</div>';
+
+        return $html;
+    }
+
     public static function offerActionsHtml(?PoultryQuotation $record): HtmlString
     {
         if ($record === null) {
@@ -931,17 +958,15 @@ class PoultryQuotationResource extends Resource
 
                 Tables\Columns\TextColumn::make('created_by')
                     ->label('المتابعة')
-                    ->formatStateUsing(function ($state, PoultryQuotation $record): string {
+                    ->html()
+                    ->width('14rem')
+                    ->formatStateUsing(fn ($state, PoultryQuotation $record): string => static::followUpHtml($record))
+                    ->tooltip(function (PoultryQuotation $record): ?string {
                         $lines = $record->creditLines();
 
-                        return $lines[0] ?? '—';
+                        return $lines === [] ? null : implode(' — ', $lines);
                     })
-                    ->description(function (PoultryQuotation $record): ?string {
-                        $lines = $record->creditLines();
-
-                        return count($lines) > 1 ? implode(' · ', array_slice($lines, 1)) : null;
-                    })
-                    ->wrap(),
+                    ->extraCellAttributes(['class' => 'pq-follow-cell']),
 
                 Tables\Columns\TextColumn::make('client_name')
                     ->label('العميل')

@@ -308,12 +308,19 @@ class CompanySettings extends Page implements HasForms
                                     ->description('بند الخزانات يُحسب كمقطوعة ثابتة (لوت واحد) ويُضاف تلقائياً في المشروع الكامل ونطاق الإنشاءات.')
                                     ->schema([
                                         TextInput::make('poultry_pricing.concrete_cost_per_m2')
-                                            ->label('سعر متر الخرسانة')
+                                            ->label('سعر متر الأرضية الخرسانية')
                                             ->numeric()
                                             ->minValue(0)
                                             ->default(1200)
                                             ->suffix('EGP')
-                                            ->helperText('الأساس 1,200 جنيه للمتر. المندوب يقدر يغيّره داخل عرض الإنشاءات، والإجمالي يتحدث.'),
+                                            ->helperText('الطول × العرض × هذا السعر. الأساس 1,200 جنيه.'),
+                                        TextInput::make('poultry_pricing.construction_shell_price')
+                                            ->label('سعر متر الجملون والحوائط')
+                                            ->numeric()
+                                            ->minValue(0)
+                                            ->default(3350)
+                                            ->suffix('EGP')
+                                            ->helperText('بند واحد. المساحة = الطول × العرض. الأساس 3,350 جنيه.'),
                                         TextInput::make('poultry_pricing.construction_sandwich_price')
                                             ->label('إنشاءات ساندوتش بانل (مبلغ ثابت)')
                                             ->numeric()

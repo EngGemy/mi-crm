@@ -576,22 +576,48 @@ class PoultryQuotation extends Model
     public function creditLines(): array
     {
         $lines = [];
-        $registrar = trim((string) ($this->clientAdder?->name ?? ''));
-        $author = trim((string) ($this->creator?->name ?? ''));
-
-        if ($registrar !== '') {
-            $lines[] = 'سجّل العميل: '.$registrar;
-        }
-        if ($author !== '') {
-            $lines[] = 'عرض السعر: '.$author;
-        }
-
-        $editors = $this->contributorNames();
-        if ($editors !== '') {
-            $lines[] = 'ساهم بالتعديل: '.$editors;
+        foreach ($this->creditPeople() as $person) {
+            $lines[] = implode(' · ', $person['roles']).': '.$person['name'];
         }
 
         return $lines;
+    }
+
+    /**
+     * @return list<array{name: string, roles: list<string>}>
+     */
+    public function creditPeople(): array
+    {
+        $people = [];
+        $add = function (string $name, string $role) use (&$people): void {
+            $name = trim($name);
+            if ($name === '') {
+                return;
+            }
+
+            foreach ($people as $index => $person) {
+                if ($person['name'] !== $name) {
+                    continue;
+                }
+                if (! in_array($role, $person['roles'], true)) {
+                    $people[$index]['roles'][] = $role;
+                }
+
+                return;
+            }
+
+            $people[] = ['name' => $name, 'roles' => [$role]];
+        };
+
+        $add((string) ($this->clientAdder?->name ?? ''), 'سجّل العميل');
+        $add((string) ($this->creator?->name ?? ''), 'عرض السعر');
+        foreach ($this->contributors ?? [] as $row) {
+            if (is_array($row)) {
+                $add((string) ($row['name'] ?? ''), 'تعديل');
+            }
+        }
+
+        return $people;
     }
 
     public function contributorNames(): string

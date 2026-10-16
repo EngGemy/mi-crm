@@ -72,59 +72,50 @@ class ConstructionSummary
     }
 
     /**
-     * بنود جدول عرض الإنشاءات: المساحات من أبعاد العنبر، والأسعار من الإعدادات.
-     * الإجمالي مجموع الخرسانة والاستيل والحوائط والخزانات.
+     * ثلاثة بنود: أرضية خرسانية، جملون وحوائط، خزانات.
+     * المساحة في البندين الأولين = الطول × العرض.
      *
      * @return array{
      *     concrete: array{qty: string, unit: string, amount: string},
-     *     steel: array{qty: string, unit: string, amount: string},
-     *     walls: array{qty: string, unit: string, amount: string},
+     *     shell: array{qty: string, unit: string, amount: string},
      *     tanks: array{qty: string, unit: string, amount: string},
      *     total: string
      * }
      */
     public function brochure(PoultryQuotation $quotation): array
     {
-        $choice = $quotation->construction_choice === 'cement' ? 'cement' : 'sandwich';
-
         return $this->lines(
             (float) $quotation->length,
             (float) $quotation->width,
-            (float) $quotation->height,
             [
                 'concrete' => VentilationOffer::picked($quotation->construction_concrete_price, self::baseConcrete()),
-                'steel' => (float) settings('poultry_pricing.steel_cost_per_m2', 2450),
-                'wall' => $this->wallRate($choice),
-                'tanks' => (float) settings('poultry_pricing.tanks_fixed_cost', 480000),
+                'shell' => $this->shellRate($quotation),
+                'tanks' => (float) settings('poultry_pricing.tanks_fixed_cost', 400000),
             ],
         );
     }
 
     /**
-     * @param  array{concrete: float, steel: float, wall: float, tanks: float}  $rates
+     * @param  array{concrete: float, shell: float, tanks: float}  $rates
      * @return array{
      *     concrete: array{qty: string, unit: string, amount: string},
-     *     steel: array{qty: string, unit: string, amount: string},
-     *     walls: array{qty: string, unit: string, amount: string},
+     *     shell: array{qty: string, unit: string, amount: string},
      *     tanks: array{qty: string, unit: string, amount: string},
      *     total: string
      * }
      */
-    public function lines(float $length, float $width, float $height, array $rates): array
+    public function lines(float $length, float $width, array $rates): array
     {
         $floor = max(0, (int) round($length * $width));
-        $wallsQty = max(0, (int) round($length * $height * 2));
         $concreteAmount = $floor * (float) $rates['concrete'];
-        $steelAmount = $floor * (float) $rates['steel'];
-        $wallsAmount = $wallsQty * (float) $rates['wall'];
+        $shellAmount = $floor * (float) $rates['shell'];
         $tanks = (float) $rates['tanks'];
-        $sum = $concreteAmount + $steelAmount + $wallsAmount + $tanks;
+        $sum = $concreteAmount + $shellAmount + $tanks;
 
         return [
             'concrete' => $this->moneyLine((string) $floor, (float) $rates['concrete'], $concreteAmount),
-            'steel' => $this->moneyLine((string) $floor, (float) $rates['steel'], $steelAmount),
-            'walls' => $this->moneyLine((string) $wallsQty, (float) $rates['wall'], $wallsAmount),
-            'tanks' => $this->moneyLine('7', $tanks, $tanks),
+            'shell' => $this->moneyLine((string) $floor, (float) $rates['shell'], $shellAmount),
+            'tanks' => $this->moneyLine('1', $tanks, $tanks),
             'total' => VentilationOffer::money($sum),
         ];
     }
@@ -134,15 +125,19 @@ class ConstructionSummary
         return (float) settings('poultry_pricing.concrete_cost_per_m2', 1200);
     }
 
-    private function wallRate(string $choice): float
+    public static function baseShell(): float
     {
-        $raw = settings('poultry_pricing.wall_type_rates', null);
-        $rates = is_array($raw) ? $raw : (is_string($raw) ? json_decode($raw, true) : null);
-        if (! is_array($rates)) {
-            $rates = ['sandwich' => 1200, 'cement' => 2000];
+        return (float) settings('poultry_pricing.construction_shell_price', 3350);
+    }
+
+    private function shellRate(PoultryQuotation $quotation): float
+    {
+        $parsed = VentilationOffer::parseMoney($quotation->construction_price);
+        if ($parsed === null || $parsed <= 0 || $parsed > 50000) {
+            return self::baseShell();
         }
 
-        return (float) ($rates[$choice] ?? ($choice === 'cement' ? 2000 : 1200));
+        return $parsed;
     }
 
     /**

@@ -46,6 +46,69 @@
 .pq-offer-btn-accessories { background: #b45309; }
 .pq-offer-btn-construction { background: #0f766e; }
 
+.pq-follow-cell {
+    min-width: 13rem;
+    vertical-align: middle;
+}
+
+.pq-follow {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding: 0.15rem 0;
+}
+
+.pq-follow-person {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
+}
+
+.pq-follow-name {
+    font-weight: 700;
+    font-size: 0.84rem;
+    line-height: 1.3;
+    color: #111827;
+    white-space: nowrap;
+}
+
+.pq-follow-roles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+
+.pq-role {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    border-radius: 999px;
+    padding: 0.08rem 0.45rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.pq-role-register {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.pq-role-quote {
+    background: #fee2e2;
+    color: #9f1239;
+}
+
+.pq-role-edit {
+    background: #e0f2fe;
+    color: #075985;
+}
+
+.pq-follow-empty {
+    color: #9ca3af;
+}
+
 .pq-offer-note {
     margin: 0;
     color: #64748b;
