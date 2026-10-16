@@ -2,6 +2,7 @@
 
 namespace App\Quotations\Ventilation;
 
+use App\Enums\PoultryProjectType;
 use App\Models\PoultryQuotation;
 use App\Quotations\Pdf\DocxToPdf;
 use App\Services\Poultry\VentilationOffer;
@@ -115,16 +116,21 @@ class VentilationOfferPages
         $this->writeLabeledRow($xpath, 'ارتفاع العنبر', $this->meters((float) $quotation->height));
 
         $document = is_array($offer['document'] ?? null) ? $offer['document'] : [];
+        $isLayer = PoultryProjectType::tryFrom((string) $quotation->project_type)?->isLayer() ?? false;
         $this->writeMoneyRow($xpath, 'شفاطات طرد', $document['fans'] ?? null);
         $this->writeMoneyRow($xpath, 'التبريد الخاص', $document['cooling'] ?? null);
-        $this->writeMoneyRow($xpath, 'التدفئة المركزية', $document['heating'] ?? null);
+        if ($isLayer) {
+            $this->writeMoneyRow($xpath, 'التدفئة المركزية', null);
+        } elseif (is_array($document['heating'] ?? null)) {
+            $this->writeMoneyRow($xpath, 'التدفئة المركزية', $document['heating']);
+        }
         $this->writeMoneyRow($xpath, 'مراوح تقليب', $document['circulation'] ?? null);
         $this->writeMoneyRow($xpath, 'شبابيك تهوية', $document['inlets'] ?? null);
         $this->writeMoneyRow($xpath, 'MUNTER TRIO', $document['monitor'] ?? null);
         $this->writeMoneyRow($xpath, 'لوح الكنترول', $document['electricity'] ?? null);
         $this->writeTotal($xpath, (string) ($document['total'] ?? ''));
 
-        if (($document['heating'] ?? null) === null) {
+        if ($isLayer) {
             $this->stripHeatingFromLayerOffer($xpath);
         }
 
@@ -300,9 +306,59 @@ class VentilationOfferPages
             return;
         }
 
-        $nodes[0]->textContent = $value;
-        for ($index = 1, $count = count($nodes); $index < $count; $index++) {
-            $nodes[$index]->textContent = '';
+        $this->keepSingleRun($nodes[0], $value);
+    }
+
+    /**
+     * رقم القالب متقسم على أكتر من جزء (900 ثم ,000) فيظهر 9,000,000.
+     * نسيب جزء واحد بالسعر الجديد ونمسح الباقي.
+     */
+    private function keepSingleRun(DOMElement $textNode, string $value): void
+    {
+        $run = $textNode->parentNode;
+        $paragraph = $run?->parentNode;
+        if (! $run instanceof DOMElement || ! $paragraph instanceof DOMElement) {
+            $textNode->textContent = $value;
+
+            return;
+        }
+
+        $textNode->textContent = $value;
+        if (preg_match('/^\s|\s$/u', $value) === 1) {
+            $textNode->setAttributeNS('http://www.w3.org/XML/1998/namespace', 'xml:space', 'preserve');
+        }
+
+        $extra = [];
+        foreach ($paragraph->childNodes as $child) {
+            if ($child instanceof DOMElement && $child->localName === 'r' && $child !== $run) {
+                $extra[] = $child;
+            }
+        }
+        foreach ($extra as $node) {
+            $paragraph->removeChild($node);
+        }
+
+        $cell = $paragraph->parentNode;
+        if (! $cell instanceof DOMElement) {
+            return;
+        }
+
+        $leftover = [];
+        foreach ($cell->getElementsByTagNameNS(self::NS, 't') as $node) {
+            if ($node instanceof DOMElement && $node !== $textNode) {
+                $leftover[] = $node;
+            }
+        }
+        foreach ($leftover as $node) {
+            $owner = $node->parentNode;
+            if ($owner === $run) {
+                $run->removeChild($node);
+
+                continue;
+            }
+            if ($owner instanceof DOMElement && $owner->localName === 'r' && $owner->parentNode) {
+                $owner->parentNode->removeChild($owner);
+            }
         }
     }
 

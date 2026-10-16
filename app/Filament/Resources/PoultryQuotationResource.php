@@ -654,9 +654,11 @@ class PoultryQuotationResource extends Resource
                         ->numeric()
                         ->minValue(0)
                         ->suffix('ج.م')
-                        ->helperText('الرقم الأساسي من الإعدادات، وتقدر تغيّره لهذا العرض.')
+                        ->helperText('الرقم الأساسي من الإعدادات، وتقدر تغيّره لهذا العرض. الرقم ده هو اللي يتحط في عرض المشتملات.')
                         ->live()
                         ->visible(fn (Get $get): bool => (bool) $get('include_ventilation'))
+                        ->dehydrated(fn (Get $get): bool => (bool) $get('include_ventilation'))
+                        ->dehydrateStateUsing(fn (mixed $state): ?float => VentilationOffer::parseMoney($state))
                         ->afterStateHydrated(function (Forms\Components\TextInput $component, mixed $state): void {
                             static::fillOfferBase($component, $state, VentilationOffer::baseElectricity());
                         }),

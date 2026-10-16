@@ -40,8 +40,45 @@ class VentilationOfferDocumentTest extends TestCase
         $this->assertStringContainsString('250,000', $this->row($cells, 'MUNTER TRIO'));
         $this->assertStringNotContainsString('260,000', $this->row($cells, 'MUNTER TRIO'));
         $this->assertStringContainsString('750,000', $this->row($cells, 'لوح الكنترول'));
+        $this->assertStringNotContainsString('900,000', $this->row($cells, 'لوح الكنترول'));
+        $this->assertStringNotContainsString('9,000,000', $this->row($cells, 'لوح الكنترول'));
         $this->assertStringContainsString('4,167,600', $this->row($cells, 'TOTAL'));
         $this->assertStringNotContainsString('إلى', $this->row($cells, 'TOTAL'));
+    }
+
+    public function test_changed_control_price_replaces_the_template_amount(): void
+    {
+        $quote = $this->quote('broiler', 114, 17, 4.1, 6);
+        $quote->forceFill([
+            'ventilation_electricity_price' => 1200000,
+        ])->saveQuietly();
+
+        $cells = $this->cells((new VentilationOfferPages)->fill($quote->fresh()));
+        $control = $this->row($cells, 'لوح الكنترول');
+
+        $this->assertStringContainsString('1,200,000', $control);
+        $this->assertStringNotContainsString('900,000', $control);
+        $this->assertStringNotContainsString('9,000,000', $control);
+        $this->assertStringContainsString('4,617,600', $this->row($cells, 'TOTAL'));
+    }
+
+    public function test_broiler_offer_keeps_the_heating_system(): void
+    {
+        foreach (['broiler', 'broiler_auto_exit'] as $type) {
+            $quote = $this->quote($type, 114, 17, 4.1, 6);
+            $docx = (new VentilationOfferPages)->fill($quote);
+            $zip = new ZipArchive;
+            $this->assertTrue($zip->open($docx));
+            $xml = $zip->getFromName('word/document.xml');
+            $zip->close();
+            @unlink($docx);
+            $plain = trim(preg_replace('/\s+/u', ' ', strip_tags((string) $xml)));
+
+            $this->assertStringContainsString('التدفئة المركزية', $plain);
+            $this->assertStringContainsString('التدفئة بالمياه الساخنة', $plain);
+            $this->assertStringContainsString('مميزات التدفئة', $plain);
+            $this->assertStringContainsString('HEAT-O', $plain);
+        }
     }
 
     public function test_heater_choice_replaces_the_hot_water_line_in_the_brochure(): void

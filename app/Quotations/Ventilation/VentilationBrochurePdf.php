@@ -2,6 +2,7 @@
 
 namespace App\Quotations\Ventilation;
 
+use App\Enums\PoultryProjectType;
 use App\Models\PoultryQuotation;
 use App\Services\Poultry\VentilationOffer;
 use Mpdf\Mpdf;
@@ -16,7 +17,7 @@ class VentilationBrochurePdf
     {
         [$barnLabel, $offer] = app(VentilationOffer::class)->forQuotation($quotation);
         $document = is_array($offer['document'] ?? null) ? $offer['document'] : [];
-        $layer = ($document['heating'] ?? null) === null && ($document['circulation'] ?? null) === null;
+        $layer = PoultryProjectType::tryFrom((string) $quotation->project_type)?->isLayer() ?? false;
         $template = resource_path($layer
             ? 'quotations/ventilation/template-layer.pdf'
             : 'quotations/ventilation/template.pdf');
@@ -28,7 +29,7 @@ class VentilationBrochurePdf
         $pageCount = $mpdf->SetSourceFile($template);
         for ($page = 1; $page <= $pageCount; $page++) {
             $mpdf->AddPage();
-            $mpdf->UseTemplate($mpdf->ImportPage($page));
+            $mpdf->UseTemplate($mpdf->ImportPage($page), 0, 0, 210, 297);
             if ($page === 1) {
                 $this->paintCover($mpdf, $quotation, $barnLabel);
             }
@@ -118,7 +119,7 @@ class VentilationBrochurePdf
 
         $total = (string) ($document['total'] ?? '');
         if ($total !== '') {
-            $this->cell($mpdf, 300, $layer ? 503 : 600, 250, $layer ? 34 : 30, $total, [192, 0, 0], [255, 255, 255], 12);
+            $this->cell($mpdf, 255, $layer ? 503 : 598, 300, $layer ? 40 : 36, $this->ltr($total), [192, 0, 0], [255, 255, 255], 12);
         }
     }
 
@@ -134,9 +135,9 @@ class VentilationBrochurePdf
             return;
         }
 
-        $this->cell($mpdf, 256, $y, 62, $h, $line['unit'], $fill, [20, 16, 16], 8);
-        $this->cell($mpdf, 370, $y, 45, $h, $line['qty'], $fill, [20, 16, 16], 11);
-        $this->cell($mpdf, 468, $y, 84, $h, $line['amount'], $fill, [20, 16, 16], 9);
+        $this->cell($mpdf, 253, $y, 70, $h, $this->ltr($line['unit']), $fill, [20, 16, 16], 8);
+        $this->cell($mpdf, 366, $y, 52, $h, $this->ltr($line['qty']), $fill, [20, 16, 16], 11);
+        $this->cell($mpdf, 464, $y, 92, $h, $this->ltr($line['amount']), $fill, [20, 16, 16], 9);
     }
 
     /**
@@ -158,6 +159,11 @@ class VentilationBrochurePdf
         $textHeight = $size * 25.4 / 72 * 1.35;
         $mpdf->SetXY($this->px($x), $top + max(0, ($height - $textHeight) / 2));
         $mpdf->WriteCell($this->px($w), $textHeight, $text, 0, 0, 'C');
+    }
+
+    private function ltr(string $text): string
+    {
+        return "\u{202A}".$text."\u{202C}";
     }
 
     private function meters(mixed $value): string

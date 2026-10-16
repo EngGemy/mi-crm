@@ -52,6 +52,13 @@ class VentilationOfferTest extends TestCase
         $this->assertSame('900,000 ج.م', $offer['document']['heating']['amount']);
         $this->assertSame('800,000 ج.م', $offer['document']['electricity']['amount']);
         $this->assertSame('4,367,600 ج.م', $offer['accessories_pdf']['total']);
+
+        $formatted = (new VentilationOffer(new PoultryTechnicalCalculator))->calculate(80952, 114, true, 6, $this->prices(), [
+            'electricity' => '1,200,000',
+        ]);
+        $this->assertSame('1,200,000 ج.م', $formatted['document']['electricity']['amount']);
+        $this->assertSame(1200000.0, VentilationOffer::parseMoney('١٬٢٠٠٬٠٠٠'));
+        $this->assertNull(VentilationOffer::parseMoney(''));
     }
 
     public function test_layers_drop_heating_and_side_fans(): void
