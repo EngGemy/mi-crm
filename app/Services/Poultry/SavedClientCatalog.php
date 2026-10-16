@@ -172,10 +172,9 @@ class SavedClientCatalog
         $folded = self::fold($term);
         $like = '%'.self::escapeLike($folded).'%';
         $rawLike = '%'.self::escapeLike(trim($term)).'%';
-        $phone = self::phoneKey($term);
-        $matchPhone = is_string($phone) && strlen($phone) >= 7;
+        $phoneFragments = self::phoneFragments($term);
 
-        $query->where(function (Builder $inner) use ($kind, $like, $rawLike, $phone, $matchPhone): void {
+        $query->where(function (Builder $inner) use ($kind, $like, $rawLike, $phoneFragments): void {
             $inner->where('search_name', 'like', $like)
                 ->orWhere('name', 'like', $rawLike);
 
@@ -191,11 +190,9 @@ class SavedClientCatalog
                     ->orWhere('whatsapp', 'like', $rawLike);
             }
 
-            if ($matchPhone) {
-                $inner->orWhere('phone_key', $phone)
-                    ->orWhere('alt_phone_key', $phone)
-                    ->orWhere('phone_key', 'like', '%'.$phone)
-                    ->orWhere('alt_phone_key', 'like', '%'.$phone);
+            foreach ($phoneFragments as $fragment) {
+                $inner->orWhere('phone_key', 'like', '%'.$fragment.'%')
+                    ->orWhere('alt_phone_key', 'like', '%'.$fragment.'%');
             }
         });
     }
@@ -354,6 +351,28 @@ class SavedClientCatalog
         return $digits !== '' ? $digits : null;
     }
 
+    /** @return list<string> */
+    public static function phoneFragments(string $term): array
+    {
+        $digits = preg_replace('/\D/', '', $term) ?? '';
+        if ($digits === '') {
+            return [];
+        }
+
+        $fragments = [$digits, self::phoneKey($digits)];
+        if (str_starts_with($digits, '20') && strlen($digits) > 3) {
+            $fragments[] = ltrim(substr($digits, 2), '0');
+        }
+        if (str_starts_with($digits, '0')) {
+            $fragments[] = ltrim($digits, '0');
+        }
+
+        return array_values(array_unique(array_filter(
+            $fragments,
+            fn ($fragment) => is_string($fragment) && strlen($fragment) >= 3
+        )));
+    }
+
     public static function fold(?string $value): string
     {
         $value = mb_strtolower(trim((string) $value));
@@ -378,11 +397,11 @@ class SavedClientCatalog
     private static function orderMatches(Builder $query, string $term): void
     {
         $prefix = self::escapeLike(self::fold($term)).'%';
-        $phone = self::phoneKey($term);
-        if (is_string($phone) && strlen($phone) >= 7) {
+        $phone = self::phoneFragments($term)[0] ?? null;
+        if (is_string($phone)) {
             $query->orderByRaw(
-                'CASE WHEN phone_key = ? OR alt_phone_key = ? THEN 0 WHEN search_name LIKE ? THEN 1 ELSE 2 END',
-                [$phone, $phone, $prefix]
+                'CASE WHEN phone_key LIKE ? OR alt_phone_key LIKE ? THEN 0 WHEN search_name LIKE ? THEN 1 ELSE 2 END',
+                ['%'.$phone.'%', '%'.$phone.'%', $prefix]
             );
 
             return;

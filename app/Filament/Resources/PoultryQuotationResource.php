@@ -154,7 +154,7 @@ class PoultryQuotationResource extends Resource
                         ->native(false)
                         ->dehydrated(false)
                         ->placeholder('ابحث بالاسم أو الموبايل')
-                        ->helperText('البحث يلاقي العميل المحتمل حتى لو الرقم مكتوب 010 أو +20. اسم اللي سجّله بيفضل ثابت.')
+                        ->helperText('ابحث بالاسم أو بأي جزء من رقم الموبايل، سواء 010 أو +20. اسم اللي سجّل العميل بيفضل ثابت.')
                         ->live()
                         ->afterStateHydrated(function (Forms\Components\Select $component, ?PoultryQuotation $record): void {
                             if ($record?->customer_id) {
@@ -946,14 +946,13 @@ class PoultryQuotationResource extends Resource
                     ->weight('bold')
                     ->searchable(query: function (Builder $query, string $search): void {
                         $like = '%'.SavedClientCatalog::escapeLike(trim($search)).'%';
-                        $phone = SavedClientCatalog::phoneKey($search);
-                        $query->where(function (Builder $inner) use ($like, $phone): void {
+                        $fragments = SavedClientCatalog::phoneFragments($search);
+                        $query->where(function (Builder $inner) use ($like, $fragments): void {
                             $inner->where('client_name', 'like', $like)
                                 ->orWhere('client_company', 'like', $like)
                                 ->orWhere('client_phone', 'like', $like);
-                            if (is_string($phone) && strlen($phone) >= 7) {
-                                $inner->orWhere('client_phone_key', $phone)
-                                    ->orWhere('client_phone_key', 'like', '%'.$phone);
+                            foreach ($fragments as $fragment) {
+                                $inner->orWhere('client_phone_key', 'like', '%'.$fragment.'%');
                             }
                         });
                     }),

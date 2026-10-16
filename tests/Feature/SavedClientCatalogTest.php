@@ -72,6 +72,8 @@ class SavedClientCatalogTest extends TestCase
         $this->assertArrayHasKey('lead:'.$lead->id, $byName);
         $this->assertArrayHasKey('lead:'.$lead->id, $byLocalPhone);
         $this->assertArrayHasKey('lead:'.$lead->id, $byShort);
+        $this->assertArrayHasKey('lead:'.$lead->id, SavedClientCatalog::search('2222'));
+        $this->assertArrayHasKey('lead:'.$lead->id, SavedClientCatalog::search('102 222'));
         $this->assertStringContainsString('محتمل', $byName['lead:'.$lead->id]);
     }
 
