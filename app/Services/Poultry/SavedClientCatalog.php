@@ -4,7 +4,10 @@ namespace App\Services\Poultry;
 
 use App\Models\Customer;
 use App\Models\Lead;
+use App\Models\PoultryQuotation;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * One optional picker for a saved person, whether they were entered as a
@@ -36,11 +39,11 @@ class SavedClientCatalog
                 continue;
             }
 
-            if (self::alreadyListed($phones, [$lead->phone, $lead->whatsapp])) {
+            if (self::alreadyListed($phones, [$lead->phone])) {
                 continue;
             }
 
-            self::remember($phones, [$lead->phone, $lead->whatsapp]);
+            self::remember($phones, [$lead->phone]);
             $addedBy = trim((string) ($lead->creator?->name ?? ''));
             $source = $addedBy !== '' ? 'محتمل · أضافه '.$addedBy : 'محتمل';
             $options['lead:'.$lead->id] = self::label($lead->name, $lead->phone ?: $lead->whatsapp, $source);
@@ -75,20 +78,196 @@ class SavedClientCatalog
         }
 
         $phoneKey = self::phoneKey($phone);
-        if ($phoneKey === null) {
+        if ($phoneKey === null || strlen($phoneKey) < 7) {
             return null;
         }
 
-        $lead = Lead::query()
+        $createdBy = Lead::query()
             ->whereNotNull('created_by')
+            ->where(function (Builder $query) use ($phoneKey): void {
+                $query->where('phone_key', $phoneKey)->orWhere('alt_phone_key', $phoneKey);
+            })
             ->orderBy('id')
-            ->get(['id', 'phone', 'whatsapp', 'created_by'])
-            ->first(function (Lead $lead) use ($phoneKey) {
-                return self::phoneKey($lead->phone) === $phoneKey
-                    || self::phoneKey($lead->whatsapp) === $phoneKey;
-            });
+            ->value('created_by');
 
-        return $lead?->created_by ? (int) $lead->created_by : null;
+        return $createdBy ? (int) $createdBy : null;
+    }
+
+    /** @return array<string, string> */
+    public static function search(string $term, int $limit = 15): array
+    {
+        $term = trim($term);
+        if (mb_strlen($term) < 2) {
+            return [];
+        }
+
+        $leads = Lead::query()->with('creator:id,name')->limit($limit);
+        self::whereMatches($leads, $term, 'lead');
+        self::orderMatches($leads, $term);
+
+        $customers = Customer::query()->limit($limit);
+        self::whereMatches($customers, $term, 'customer');
+        self::orderMatches($customers, $term);
+
+        $options = [];
+        $phones = [];
+
+        foreach ($leads->get() as $lead) {
+            self::remember($phones, [$lead->phone]);
+            $addedBy = trim((string) ($lead->creator?->name ?? ''));
+            $source = $addedBy !== '' ? 'محتمل · أضافه '.$addedBy : 'محتمل';
+            $options['lead:'.$lead->id] = self::label($lead->name, $lead->phone ?: $lead->whatsapp, $source);
+        }
+
+        foreach ($customers->get() as $customer) {
+            if (self::alreadyListed($phones, [$customer->phone])) {
+                continue;
+            }
+
+            $options['customer:'.$customer->id] = self::label($customer->name, $customer->phone ?: $customer->whatsapp, 'عميل');
+            if (count($options) >= $limit) {
+                break;
+            }
+        }
+
+        return $options;
+    }
+
+    public static function optionLabel(?string $key): ?string
+    {
+        if ($key === null || $key === '' || ! str_contains($key, ':')) {
+            return null;
+        }
+
+        [$kind, $id] = explode(':', $key, 2);
+        $id = (int) $id;
+        if ($id < 1) {
+            return null;
+        }
+
+        if ($kind === 'lead') {
+            $lead = Lead::query()->with('creator:id,name')->find($id);
+            if (! $lead) {
+                return null;
+            }
+            $addedBy = trim((string) ($lead->creator?->name ?? ''));
+            $source = $addedBy !== '' ? 'محتمل · أضافه '.$addedBy : 'محتمل';
+
+            return self::label($lead->name, $lead->phone ?: $lead->whatsapp, $source);
+        }
+
+        if ($kind === 'customer') {
+            $customer = Customer::query()->find($id);
+
+            return $customer
+                ? self::label($customer->name, $customer->phone ?: $customer->whatsapp, 'عميل')
+                : null;
+        }
+
+        return null;
+    }
+
+    public static function whereMatches(Builder $query, string $term, string $kind): void
+    {
+        $folded = self::fold($term);
+        $like = '%'.self::escapeLike($folded).'%';
+        $rawLike = '%'.self::escapeLike(trim($term)).'%';
+        $phone = self::phoneKey($term);
+        $matchPhone = is_string($phone) && strlen($phone) >= 7;
+
+        $query->where(function (Builder $inner) use ($kind, $like, $rawLike, $phone, $matchPhone): void {
+            $inner->where('search_name', 'like', $like)
+                ->orWhere('name', 'like', $rawLike);
+
+            if ($kind === 'lead') {
+                $inner->orWhere('company', 'like', $rawLike)
+                    ->orWhere('city', 'like', $rawLike)
+                    ->orWhere('phone', 'like', $rawLike)
+                    ->orWhere('whatsapp', 'like', $rawLike);
+            } else {
+                $inner->orWhere('city', 'like', $rawLike)
+                    ->orWhere('phone', 'like', $rawLike)
+                    ->orWhere('phone_alt', 'like', $rawLike)
+                    ->orWhere('whatsapp', 'like', $rawLike);
+            }
+
+            if ($matchPhone) {
+                $inner->orWhere('phone_key', $phone)
+                    ->orWhere('alt_phone_key', $phone)
+                    ->orWhere('phone_key', 'like', '%'.$phone)
+                    ->orWhere('alt_phone_key', 'like', '%'.$phone);
+            }
+        });
+    }
+
+    public static function ensureLeadFromQuote(PoultryQuotation $quote): void
+    {
+        $name = trim((string) $quote->client_name);
+        $phone = trim((string) $quote->client_phone);
+        if ($name === '' || self::phoneKey($phone) === null) {
+            return;
+        }
+
+        $key = self::phoneKey($phone);
+        $lead = Lead::query()
+            ->where(function (Builder $query) use ($key): void {
+                $query->where('phone_key', $key)->orWhere('alt_phone_key', $key);
+            })
+            ->orderBy('id')
+            ->first();
+
+        if ($lead) {
+            foreach ([
+                'company' => $quote->client_company,
+                'city' => $quote->client_location,
+                'email' => $quote->client_email,
+                'address' => $quote->client_address,
+            ] as $field => $value) {
+                $value = trim((string) $value);
+                if ($value !== '' && blank($lead->{$field})) {
+                    $lead->{$field} = $value;
+                }
+            }
+            if ($lead->isDirty()) {
+                $lead->save();
+            }
+        } else {
+            $owner = $quote->created_by ?: auth()->id();
+            $lead = Lead::create([
+                'name' => $name,
+                'phone' => $phone,
+                'email' => $quote->client_email,
+                'company' => $quote->client_company,
+                'country' => $quote->client_country ?: 'Egypt',
+                'city' => $quote->client_location,
+                'address' => $quote->client_address,
+                'notes' => $quote->client_notes,
+                'source' => 'walk_in',
+                'source_details' => 'حاسبة الأسعار',
+                'status' => 'new',
+                'priority' => 'medium',
+                'created_by' => $owner,
+                'assigned_to' => $owner,
+            ]);
+        }
+
+        if (empty($quote->client_added_by) && $lead->created_by) {
+            $quote->client_added_by = $lead->created_by;
+            $quote->saveQuietly();
+        }
+    }
+
+    public static function syncSearchColumns(Model $person): void
+    {
+        $person->setAttribute('search_name', self::fold(implode(' ', array_filter([
+            $person->getAttribute('name'),
+            $person->getAttribute('company') ?: $person->getAttribute('name_en'),
+            $person->getAttribute('city'),
+        ]))));
+        $person->setAttribute('phone_key', self::phoneKey($person->getAttribute('phone')));
+        $person->setAttribute('alt_phone_key', self::phoneKey(
+            $person->getAttribute('whatsapp') ?: $person->getAttribute('phone_alt')
+        ));
     }
 
     public static function registrarName(?string $key, ?string $phone): ?string
@@ -167,11 +346,49 @@ class SavedClientCatalog
         if (str_starts_with($digits, '00')) {
             $digits = substr($digits, 2);
         }
-        if (str_starts_with($digits, '0')) {
-            $digits = '2'.$digits;
+        if (str_starts_with($digits, '20') && strlen($digits) > 10) {
+            $digits = substr($digits, 2);
+        }
+        $digits = ltrim($digits, '0');
+
+        return $digits !== '' ? $digits : null;
+    }
+
+    public static function fold(?string $value): string
+    {
+        $value = mb_strtolower(trim((string) $value));
+
+        return strtr($value, [
+            'أ' => 'ا',
+            'إ' => 'ا',
+            'آ' => 'ا',
+            'ى' => 'ي',
+            'ة' => 'ه',
+            'ؤ' => 'و',
+            'ئ' => 'ي',
+            'ـ' => '',
+        ]);
+    }
+
+    public static function escapeLike(string $value): string
+    {
+        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
+    }
+
+    private static function orderMatches(Builder $query, string $term): void
+    {
+        $prefix = self::escapeLike(self::fold($term)).'%';
+        $phone = self::phoneKey($term);
+        if (is_string($phone) && strlen($phone) >= 7) {
+            $query->orderByRaw(
+                'CASE WHEN phone_key = ? OR alt_phone_key = ? THEN 0 WHEN search_name LIKE ? THEN 1 ELSE 2 END',
+                [$phone, $phone, $prefix]
+            );
+
+            return;
         }
 
-        return $digits;
+        $query->orderByRaw('CASE WHEN search_name LIKE ? THEN 0 ELSE 1 END', [$prefix]);
     }
 
     /**

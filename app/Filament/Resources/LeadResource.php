@@ -11,6 +11,7 @@ use App\Filament\Resources\LeadResource\RelationManagers\ActivitiesRelationManag
 use App\Filament\Resources\LeadResource\RelationManagers\RemindersRelationManager;
 use App\Models\Customer;
 use App\Models\Lead;
+use App\Services\Poultry\SavedClientCatalog;
 use App\Models\LeadActivity;
 use App\Models\LeadReminder;
 use App\Models\User;
@@ -193,12 +194,13 @@ class LeadResource extends Resource
 
                 Tables\Columns\TextColumn::make('name')
                     ->label('الاسم')
-                    ->searchable()
+                    ->searchable(query: function (Builder $query, string $search): void {
+                        SavedClientCatalog::whereMatches($query, $search, 'lead');
+                    })
                     ->description(fn ($record) => $record->company),
 
                 Tables\Columns\TextColumn::make('phone')
                     ->label('الهاتف')
-                    ->searchable()
                     ->copyable(),
 
                 Tables\Columns\BadgeColumn::make('status')
@@ -284,6 +286,7 @@ class LeadResource extends Resource
                 Tables\Filters\Filter::make('needs_followup')
                     ->label('تحتاج متابعة')
                     ->query(fn ($q) => $q->needsFollowup()),
+                Tables\Filters\TrashedFilter::make()->label('سلة المحذوفات'),
             ])
             ->actions([
                 Tables\Actions\Action::make('add_activity')
@@ -420,7 +423,15 @@ class LeadResource extends Resource
                     }),
 
                 Tables\Actions\EditAction::make()->label('تعديل'),
-                Tables\Actions\DeleteAction::make()->label('حذف'),
+                Tables\Actions\DeleteAction::make()
+                    ->label('نقل إلى السلة')
+                    ->modalHeading('نقل العميل إلى سلة المحذوفات')
+                    ->modalDescription('يقدر يترجع خلال '.config('trash.retention_days', 30).' يوم، وبعدها يتمسح نهائي.'),
+                Tables\Actions\RestoreAction::make()->label('استرجاع'),
+                Tables\Actions\ForceDeleteAction::make()
+                    ->label('حذف نهائي')
+                    ->modalHeading('حذف نهائي')
+                    ->modalDescription('العميل مش هيرجع بعد الحذف النهائي.'),
             ])
             ->defaultSort('created_at', 'desc');
     }

@@ -125,25 +125,36 @@ class PoultryQuotationResource extends Resource
                         ->label('الاسم')
                         ->required()
                         ->maxLength(255)
-                        ->placeholder('اسم العميل'),
+                        ->placeholder('اسم العميل')
+                        ->validationMessages([
+                            'required' => 'اكتب اسم العميل.',
+                            'max' => 'الاسم أطول من المسموح.',
+                        ]),
 
                     Forms\Components\TextInput::make('client_phone')
                         ->label('الموبايل')
                         ->required()
                         ->tel()
-                        ->placeholder('+2010xxxxxxx'),
+                        ->placeholder('010xxxxxxxx')
+                        ->validationMessages([
+                            'required' => 'اكتب رقم الموبايل.',
+                        ]),
 
                     Forms\Components\Hidden::make('customer_id'),
 
                     Forms\Components\Select::make('saved_client')
                         ->label('عميل محفوظ (اختياري)')
-                        ->options(fn () => SavedClientCatalog::options())
+                        ->getSearchResultsUsing(fn (string $search): array => SavedClientCatalog::search($search))
+                        ->getOptionLabelUsing(fn ($value): ?string => SavedClientCatalog::optionLabel(is_string($value) ? $value : null))
                         ->searchable()
-                        ->preload()
+                        ->searchDebounce(300)
+                        ->searchPrompt('اكتب الاسم أو رقم الموبايل')
+                        ->searchingMessage('جاري البحث...')
+                        ->noSearchResultsMessage('لا يوجد عميل مطابق')
                         ->native(false)
                         ->dehydrated(false)
-                        ->placeholder('من العملاء أو العملاء المحتملين')
-                        ->helperText('اسم اللي سجّل العميل بيفضل ثابت. عرض السعر يتسجل باسم اللي حفظه، وأي تعديل من حساب تالت يتسجل مساهمة من غير ما يشيل الأسماء.')
+                        ->placeholder('ابحث بالاسم أو الموبايل')
+                        ->helperText('البحث يلاقي العميل المحتمل حتى لو الرقم مكتوب 010 أو +20. اسم اللي سجّله بيفضل ثابت.')
                         ->live()
                         ->afterStateHydrated(function (Forms\Components\Select $component, ?PoultryQuotation $record): void {
                             if ($record?->customer_id) {
@@ -204,7 +215,10 @@ class PoultryQuotationResource extends Resource
                                 ->native(false),
                             Forms\Components\TextInput::make('client_email')
                                 ->label('البريد')
-                                ->email(),
+                                ->email()
+                                ->validationMessages([
+                                    'email' => 'البريد الإلكتروني غير صحيح.',
+                                ]),
                             Forms\Components\TextInput::make('client_address')
                                 ->label('العنوان')
                                 ->columnSpanFull(),
@@ -930,7 +944,19 @@ class PoultryQuotationResource extends Resource
                 Tables\Columns\TextColumn::make('client_name')
                     ->label('العميل')
                     ->weight('bold')
-                    ->searchable(),
+                    ->searchable(query: function (Builder $query, string $search): void {
+                        $like = '%'.SavedClientCatalog::escapeLike(trim($search)).'%';
+                        $phone = SavedClientCatalog::phoneKey($search);
+                        $query->where(function (Builder $inner) use ($like, $phone): void {
+                            $inner->where('client_name', 'like', $like)
+                                ->orWhere('client_company', 'like', $like)
+                                ->orWhere('client_phone', 'like', $like);
+                            if (is_string($phone) && strlen($phone) >= 7) {
+                                $inner->orWhere('client_phone_key', $phone)
+                                    ->orWhere('client_phone_key', 'like', '%'.$phone);
+                            }
+                        });
+                    }),
 
                 Tables\Columns\TextColumn::make('project_type')
                     ->label('النوع')
@@ -965,9 +991,21 @@ class PoultryQuotationResource extends Resource
                     ->sortable(),
             ])
             ->defaultSort('created_at', 'desc')
+            ->filters([
+                Tables\Filters\TrashedFilter::make()->label('سلة المحذوفات'),
+            ])
             ->actions([
                 Tables\Actions\ViewAction::make()->label('عرض'),
                 Tables\Actions\EditAction::make()->label('تعديل'),
+                Tables\Actions\DeleteAction::make()
+                    ->label('نقل إلى السلة')
+                    ->modalHeading('نقل العرض إلى سلة المحذوفات')
+                    ->modalDescription('يقدر يترجع خلال '.config('trash.retention_days', 30).' يوم، وبعدها يتمسح نهائي.'),
+                Tables\Actions\RestoreAction::make()->label('استرجاع'),
+                Tables\Actions\ForceDeleteAction::make()
+                    ->label('حذف نهائي')
+                    ->modalHeading('حذف نهائي')
+                    ->modalDescription('العرض مش هيرجع بعد الحذف النهائي.'),
 
                 Tables\Actions\Action::make('previewQuote')
                     ->label('معاينة عرض السعر')
@@ -1075,7 +1113,9 @@ class PoultryQuotationResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()->label('نقل إلى السلة'),
+                    Tables\Actions\RestoreBulkAction::make()->label('استرجاع'),
+                    Tables\Actions\ForceDeleteBulkAction::make()->label('حذف نهائي'),
                 ]),
             ]);
     }

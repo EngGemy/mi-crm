@@ -6,7 +6,9 @@ use App\Filament\Resources\CustomerResource\Pages\CreateCustomer;
 use App\Filament\Resources\CustomerResource\Pages\EditCustomer;
 use App\Filament\Resources\CustomerResource\Pages\ListCustomers;
 use App\Models\Customer;
+use App\Services\Poultry\SavedClientCatalog;
 use Filament\Forms;
+use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -203,7 +205,9 @@ class CustomerResource extends Resource
 
                 Tables\Columns\TextColumn::make('name')
                     ->label('الاسم')
-                    ->searchable()
+                    ->searchable(query: function (Builder $query, string $search): void {
+                        SavedClientCatalog::whereMatches($query, $search, 'customer');
+                    })
                     ->sortable()
                     ->weight('bold'),
 
@@ -271,15 +275,25 @@ class CustomerResource extends Resource
                         'إماراتي' => 'إماراتي',
                     ]),
 
-                Tables\Filters\TrashedFilter::make()->label('المحذوفون'),
+                Tables\Filters\TrashedFilter::make()->label('سلة المحذوفات'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make()->label('تعديل'),
-                Tables\Actions\DeleteAction::make()->label('حذف'),
+                Tables\Actions\DeleteAction::make()
+                    ->label('نقل إلى السلة')
+                    ->modalHeading('نقل العميل إلى سلة المحذوفات')
+                    ->modalDescription('يقدر يترجع خلال '.config('trash.retention_days', 30).' يوم، وبعدها يتمسح نهائي.'),
+                Tables\Actions\RestoreAction::make()->label('استرجاع'),
+                Tables\Actions\ForceDeleteAction::make()
+                    ->label('حذف نهائي')
+                    ->modalHeading('حذف نهائي')
+                    ->modalDescription('العميل مش هيرجع بعد الحذف النهائي.'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make()->label('حذف المحدد'),
+                    Tables\Actions\DeleteBulkAction::make()->label('نقل إلى السلة'),
+                    Tables\Actions\RestoreBulkAction::make()->label('استرجاع'),
+                    Tables\Actions\ForceDeleteBulkAction::make()->label('حذف نهائي'),
                 ]),
             ])
             ->defaultSort('created_at', 'desc');

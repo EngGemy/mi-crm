@@ -35,6 +35,10 @@ class Customer extends Model
                 $customer->code = 'CUST-'.str_pad($lastId + 1, 5, '0', STR_PAD_LEFT);
             }
         });
+
+        static::saving(function (Customer $customer) {
+            \App\Services\Poultry\SavedClientCatalog::syncSearchColumns($customer);
+        });
     }
 
     public function contracts(): HasMany

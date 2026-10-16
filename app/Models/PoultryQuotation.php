@@ -15,6 +15,7 @@ use App\Support\FinancialEngine;
 use App\Support\SiloCapacity;
 use App\Support\TaxResolver;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,7 +23,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class PoultryQuotation extends Model
 {
-    use HasFactory, NormalizesMoneyAttributes;
+    use HasFactory, NormalizesMoneyAttributes, SoftDeletes;
 
     protected $table = 'poultry_quotations';
 
@@ -175,7 +176,7 @@ class PoultryQuotation extends Model
         $year ??= (int) now()->year;
         $prefix = 'Q-'.$year.'-';
 
-        $latest = static::query()
+        $latest = static::withTrashed()
             ->where('quote_number', 'like', $prefix.'%')
             ->orderByDesc('quote_number')
             ->value('quote_number');
@@ -230,6 +231,7 @@ class PoultryQuotation extends Model
         });
 
         static::saving(function (PoultryQuotation $quotation) {
+            $quotation->client_phone_key = SavedClientCatalog::phoneKey($quotation->client_phone);
             $quotation->guardBarnsCount();
 
             // إذا وجد snapshot مالي محفوظ، لا نعيد الحساب — العرض المحفوظ ثابت محاسبيًا
@@ -270,6 +272,17 @@ class PoultryQuotation extends Model
             }
 
             $quotation->syncDerivedEquipment();
+        });
+
+        static::saved(function (PoultryQuotation $quotation): void {
+            if (! $quotation->wasRecentlyCreated && ! $quotation->wasChanged([
+                'client_name', 'client_phone', 'client_company', 'client_location',
+                'client_email', 'client_notes', 'client_address', 'client_country',
+            ])) {
+                return;
+            }
+
+            SavedClientCatalog::ensureLeadFromQuote($quotation);
         });
     }
 

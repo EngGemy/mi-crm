@@ -196,6 +196,7 @@ class Lead extends Model
             if ($lead->country === null || $lead->country === '') {
                 $lead->country = 'Egypt';
             }
+            \App\Services\Poultry\SavedClientCatalog::syncSearchColumns($lead);
         });
     }
 

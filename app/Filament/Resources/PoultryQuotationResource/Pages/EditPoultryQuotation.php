@@ -25,7 +25,10 @@ class EditPoultryQuotation extends EditRecord
     {
         return [
             Actions\ViewAction::make()->label('عرض'),
-            Actions\DeleteAction::make()->label('حذف'),
+            Actions\DeleteAction::make()
+                ->label('نقل إلى السلة')
+                ->modalHeading('نقل العرض إلى سلة المحذوفات')
+                ->modalDescription('يقدر يترجع من قائمة الحاسبة خلال '.config('trash.retention_days', 30).' يوم.'),
         ];
     }
 
