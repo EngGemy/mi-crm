@@ -203,16 +203,14 @@ class PoultryQuotationResource extends Resource
                             Forms\Components\TextInput::make('client_company')
                                 ->label('الشركة / المزرعة')
                                 ->maxLength(255),
-                            Forms\Components\Select::make('client_country')
+                            Forms\Components\TextInput::make('client_country')
                                 ->label('الدولة')
-                                ->options(fn () => Lookup::ofType(Lookup::TYPE_COUNTRY)->pluck('label_ar', 'label_ar')->all())
-                                ->searchable()
-                                ->native(false),
-                            Forms\Components\Select::make('client_location')
+                                ->maxLength(255)
+                                ->placeholder('اكتب الدولة'),
+                            Forms\Components\TextInput::make('client_location')
                                 ->label('المحافظة')
-                                ->options(fn () => Lookup::ofType(Lookup::TYPE_LOCATION)->pluck('label_ar', 'label_ar')->all())
-                                ->searchable()
-                                ->native(false),
+                                ->maxLength(255)
+                                ->placeholder('اكتب المحافظة'),
                             Forms\Components\TextInput::make('client_email')
                                 ->label('البريد')
                                 ->email()
